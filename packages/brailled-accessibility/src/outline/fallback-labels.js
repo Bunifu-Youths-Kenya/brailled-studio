@@ -15,6 +15,7 @@ const FALLBACK_LABELS = {
     data_setvariableto: 'set [VARIABLE] to [VALUE]',
     data_variable: '[VARIABLE]',
     event_whenflagclicked: 'when green flag clicked',
+    event_whenthisspriteclicked: 'when this sprite clicked',
     event_whenkeypressed: 'when [KEY_OPTION] key pressed',
     looks_say: 'say [MESSAGE]',
     looks_sayforsecs: 'say [MESSAGE] for [SECS] seconds',

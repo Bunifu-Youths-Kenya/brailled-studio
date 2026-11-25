@@ -3,14 +3,18 @@ import PropTypes from 'prop-types';
 import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 
+import {getEditor} from '../commands/editor.js';
 import useKeptState from '../use-kept-state.js';
 import {VIEW_SHORTCUT_LABEL} from '../view-shortcut.js';
 import createDefinitionSource from './block-definitions.js';
+import BlockPicker from './block-picker.jsx';
 import diffOutlines from './diff.js';
 import {buildWords, messages} from './messages.js';
-import {keepPlace, navigate, reveal} from './navigation.js';
+import {findPath, keepPlace, navigate, reveal} from './navigation.js';
 import OutlineItem from './outline-item.jsx';
 import buildOutline from './tree.js';
+import useEditing from './use-editing.js';
+import ValueEditor from './value-editor.jsx';
 
 import styles from './outline.css';
 
@@ -25,6 +29,8 @@ const VM_EVENTS = [
 // A running project reports changes continuously, so rebuild at a limited rate.
 const REBUILD_DELAY_MS = 150;
 const REBUILD_MAX_WAIT_MS = 600;
+// A closing dialog needs a moment before screen readers hear the live region again.
+const ANNOUNCE_DELAY_MS = 150;
 
 const readProgram = (vm, intl) => {
     const target = vm.editingTarget;
@@ -62,7 +68,7 @@ const describeChange = (previous, next, active, intl) => {
 };
 
 /**
- * Read-only tree of the selected sprite's program. It stays mounted while hidden, so that it keeps the
+ * Tree of the selected sprite's program, edited from the keyboard. It stays mounted while hidden, so that it keeps the
  * user's place and announces changes made in the Blocks view.
  * @param {object} props Props.
  * @param {object} props.vm The virtual machine.
@@ -78,14 +84,18 @@ const OutlineView = ({vm, active}) => {
     const activeRef = useRef(active);
     const focusCurrentRef = useRef(false);
     activeRef.current = active;
+    const rebuildRef = useRef(null);
+    const announceTimerRef = useRef(null);
+    const editor = getEditor(vm);
 
     useEffect(() => {
-        const rebuild = () => {
+        // `silent` is for changes that the editing engine announces itself.
+        const rebuild = ({silent = false} = {}) => {
             const next = readProgram(vm, intl);
             const previous = programRef.current;
             if (!next || JSON.stringify(next) === JSON.stringify(previous)) return;
             programRef.current = next;
-            const announcement = describeChange(previous, next, activeRef.current, intl);
+            const announcement = silent ? null : describeChange(previous, next, activeRef.current, intl);
             // Rebuilding can remove the focused element, which would drop the user out of the tree.
             if (containerRef.current.contains(document.activeElement)) focusCurrentRef.current = true;
             setState(({places, notice}) => {
@@ -103,7 +113,9 @@ const OutlineView = ({vm, active}) => {
                 };
             });
         };
-        const schedule = debounce(rebuild, REBUILD_DELAY_MS, {maxWait: REBUILD_MAX_WAIT_MS});
+        rebuildRef.current = rebuild;
+        // VM events carry data of their own, which `rebuild` must not take for options.
+        const schedule = debounce(() => rebuild(), REBUILD_DELAY_MS, {maxWait: REBUILD_MAX_WAIT_MS});
         VM_EVENTS.forEach(event => vm.on(event, schedule));
         schedule();
         return () => {
@@ -112,11 +124,41 @@ const OutlineView = ({vm, active}) => {
         };
     }, [vm, intl]);
 
-    useLayoutEffect(() => {
-        if (!focusCurrentRef.current) return;
-        focusCurrentRef.current = false;
-        containerRef.current.querySelector('[tabindex="0"]')?.focus();
-    }, [state.program, state.places]);
+    const announce = useCallback(text => {
+        clearTimeout(announceTimerRef.current);
+        announceTimerRef.current = setTimeout(() => {
+            setState(current => ({...current, notice: {text, serial: current.notice.serial + 1}}));
+        }, ANNOUNCE_DELAY_MS);
+    }, []);
+
+    useEffect(() => () => clearTimeout(announceTimerRef.current), []);
+
+    useEffect(() => {
+        editor.setEnvironment({intl, words: buildWords(intl), scratchBlocks: require('scratch-blocks')});
+        // Lets commands be tried from the browser console in development builds.
+        if (process.env.NODE_ENV !== 'production') window.brailled = editor;
+    }, [editor, intl]);
+
+    // Show and say the result of every command, wherever it came from.
+    useEffect(() => editor.subscribe(result => {
+        if (result.changed) {
+            rebuildRef.current({silent: true});
+            const {focusId} = result;
+            if (focusId) {
+                setState(current => {
+                    const {targetId, nodes} = current.program;
+                    const place = current.places[targetId];
+                    if (!findPath(nodes, focusId)) return current;
+                    return {...current,
+                        places: {...current.places,
+                            [targetId]: {
+                                ...place, currentId: focusId, collapsed: reveal(nodes, place.collapsed, focusId)
+                            }}};
+                });
+            }
+        }
+        announce(result.message);
+    }), [editor, announce]);
 
     const {program, places, notice} = state;
     const place = program && places[program.targetId];
@@ -146,15 +188,43 @@ const OutlineView = ({vm, active}) => {
         });
     }, []);
 
+    const currentNode = useCallback(() => {
+        const path = place?.currentId && findPath(program.nodes, place.currentId);
+        return path ? path[path.length - 1] : null;
+    }, [program, place]);
+
+    const refocus = useCallback(() => {
+        focusCurrentRef.current = true;
+    }, []);
+
+    const {dialog, handleEditKey} = useEditing({editor, currentNode, announce, refocus, intl});
+
+    useLayoutEffect(() => {
+        if (!focusCurrentRef.current || dialog) return;
+        focusCurrentRef.current = false;
+        containerRef.current.querySelector('[tabindex="0"]')?.focus();
+    }, [program, places, dialog]);
+
     const handleKeyDown = useCallback(event => {
+        if (!program) return;
+        const used = () => {
+            event.preventDefault();
+            event.stopPropagation();
+        };
+        // Focus returns to the tree after an edit, which may remove the focused item.
+        focusCurrentRef.current = true;
+        if (handleEditKey(event)) {
+            used();
+            return;
+        }
+        focusCurrentRef.current = false;
         if (event.altKey || event.ctrlKey || event.metaKey) return;
-        const result = navigate(program.nodes, place, event.key);
+        const result = place?.currentId && navigate(program.nodes, place, event.key);
         if (!result) return;
-        event.preventDefault();
-        event.stopPropagation();
+        used();
         focusCurrentRef.current = true;
         updatePlace(result);
-    }, [program, place, updatePlace]);
+    }, [program, place, updatePlace, handleEditKey]);
 
     return (
         <React.Fragment>
@@ -164,6 +234,7 @@ const OutlineView = ({vm, active}) => {
                 data-brailled-outline
                 hidden={!active}
                 ref={containerRef}
+                onKeyDown={handleKeyDown}
             >
                 {program ? (
                     <React.Fragment>
@@ -179,13 +250,19 @@ const OutlineView = ({vm, active}) => {
                         >
                             {intl.formatMessage(messages.hint, {shortcut: VIEW_SHORTCUT_LABEL})}
                         </p>
+                        {/* For sighted helpers; screen readers hear the live region below. */}
+                        <p
+                            aria-hidden="true"
+                            className={styles.result}
+                        >
+                            {notice.text}
+                        </p>
                         {program.nodes.length > 0 ? (
                             <ul
                                 aria-describedby="brailled-outline-hint"
                                 aria-label={intl.formatMessage(messages.treeLabel, {name: program.name})}
                                 className={styles.tree}
                                 role="tree"
-                                onKeyDown={handleKeyDown}
                             >
                                 {program.nodes.map(node => (
                                     <OutlineItem
@@ -218,6 +295,25 @@ const OutlineView = ({vm, active}) => {
                 {/* A new element each time, so that a repeated message is announced again. */}
                 <span key={notice.serial}>{notice.text}</span>
             </div>
+            {dialog?.type === 'picker' ? (
+                <BlockPicker
+                    entries={dialog.entries}
+                    key={dialog.title}
+                    title={dialog.title}
+                    onCancel={dialog.handleCancel}
+                    onChoose={dialog.handleChoose}
+                />
+            ) : null}
+            {dialog?.type === 'values' ? (
+                <ValueEditor
+                    fields={dialog.fields}
+                    title={dialog.title}
+                    onCancel={dialog.handleCancel}
+                    onChooseBlock={dialog.handleChooseBlock}
+                    onRemove={dialog.handleRemove}
+                    onSave={dialog.handleSave}
+                />
+            ) : null}
         </React.Fragment>
     );
 };

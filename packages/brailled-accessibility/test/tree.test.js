@@ -83,6 +83,38 @@ describe('buildOutline', () => {
         ]);
     });
 
+    test('orders scripts from top to bottom, then left to right', () => {
+        const at = (id, x, y) => block(id, 'looks_say', {topLevel: true,
+            x,
+            y,
+            inputs: {MESSAGE: {block: `${id}-text`, shadow: `${id}-text`}}});
+        const blocks = [at('low', 0, 300), at('right', 400, 20), at('left', 10, 20), at('top', 900, -5)];
+        const texts = blocks.map(b => block(`${b.id}-text`, 'text', {shadow: true, fields: field('TEXT', b.id)}));
+        const outline = buildOutline({
+            blocks: Object.fromEntries([...blocks, ...texts].map(b => [b.id, b])),
+            scripts: blocks.map(b => b.id)
+        });
+        expect(outline.map(script => script.children[0].text)).toEqual(['say top', 'say left', 'say right', 'say low']);
+        expect(outline[0].text).toBe('Script 1 of 4: say top');
+    });
+
+    test('reads colours as names', () => {
+        const [script] = buildOutline(single(
+            block('t', 'sensing_touchingcolor', {inputs: {COLOR: {block: 'c', shadow: 'c'}}}),
+            block('c', 'colour_picker', {shadow: true, fields: field('COLOUR', '#ff0000')})
+        ));
+        expect(script.children[0].text).toContain('red');
+        expect(script.children[0].text).not.toContain('#');
+    });
+
+    test('says one second, not one seconds', () => {
+        const [script] = buildOutline(single(
+            block('w', 'control_wait', {inputs: {DURATION: {block: 'n', shadow: 'n'}}}),
+            block('n', 'math_number', {shadow: true, fields: field('NUM', '1')})
+        ));
+        expect(script.children[0].text).toBe('wait 1 second');
+    });
+
     test('words labels and menu choices come from the block definitions', () => {
         const definitions = {
             motion_goto: {lines: [{message: 'ir a %1', args: [{type: 'input_value', name: 'TO'}]}]},

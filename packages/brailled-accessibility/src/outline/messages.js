@@ -1,5 +1,8 @@
 import {defineMessages} from 'react-intl';
 
+import {nameColour, NAMED_COLOURS} from './colours.js';
+import DEFAULT_WORDS from './words.js';
+
 const messages = defineMessages({
     heading: {
         id: 'brailled.outline.heading',
@@ -8,7 +11,8 @@ const messages = defineMessages({
     },
     hint: {
         id: 'brailled.outline.hint',
-        defaultMessage: 'Read only. Move with the arrow keys, Home and End. {shortcut} switches to Blocks.',
+        defaultMessage: 'Arrow keys move. I adds a block after this one, Shift+I before. Enter edits values. ' +
+            'Delete removes. D reads the program. Control+Z undoes, Control+Y redoes. {shortcut} switches to Blocks.',
         description: 'Instructions for the outline view'
     },
     treeLabel: {
@@ -18,7 +22,7 @@ const messages = defineMessages({
     },
     noBlocks: {
         id: 'brailled.outline.noBlocks',
-        defaultMessage: '{name} has no blocks yet.',
+        defaultMessage: '{name} has no blocks yet. Press I to add one.',
         description: 'Shown when a sprite or the stage has no scripts'
     },
     switched: {
@@ -51,6 +55,11 @@ const messages = defineMessages({
 });
 
 const wordMessages = defineMessages({
+    marker: {
+        id: 'brailled.outline.marker',
+        defaultMessage: '(this value)',
+        description: 'Stands in a block sentence for the value being edited'
+    },
     blank: {
         id: 'brailled.outline.blank',
         defaultMessage: 'empty',
@@ -98,8 +107,59 @@ const wordMessages = defineMessages({
     }
 });
 
+const colourMessages = defineMessages(Object.fromEntries(Object.keys(NAMED_COLOURS).map(name => [name, {
+    id: `brailled.colour.${name.replace(' ', '_')}`,
+    defaultMessage: name,
+    description: 'Name of a colour'
+}])));
+
+const fromTexts = (prefix, description, texts) => defineMessages(Object.fromEntries(
+    Object.entries(texts).map(([key, defaultMessage]) =>
+        [key, {id: `${prefix}.${key}`, defaultMessage, description}])
+));
+
+const dialogMessages = fromTexts('brailled.edit', 'Text of the outline editing dialogs and keys', {
+    addNew: 'Add a block to a new script',
+    addAfter: 'Add a block after {block}',
+    addBefore: 'Add a block before {block}',
+    addInside: 'Add a block inside {block}',
+    addValue: 'Choose a block for {label}',
+    search: 'Search blocks',
+    list: 'Blocks',
+    count: '{count, plural, =0 {No blocks match} one {# block} other {# blocks}}',
+    edit: 'Edit {block}',
+    save: 'Save',
+    cancel: 'Cancel',
+    emptySlot: 'Empty',
+    useBlock: 'Use a block',
+    useBlockFor: 'Use a block for {label}',
+    chooseCondition: 'Choose a condition',
+    chooseConditionFor: 'Choose a condition for {label}',
+    removeBlock: 'Remove block',
+    removeBlockNamed: 'Remove block {block}',
+    noChange: 'No change.',
+    noValues: 'This block has no values to edit.',
+    valuesUnsupported: 'The values of this block cannot be edited here yet.',
+    chooseBlockToDelete: 'Choose a block or a script to delete.'
+});
+
+const categoryMessages = fromTexts('brailled.category', 'Name of a group of blocks', {
+    motion: 'Motion',
+    looks: 'Looks',
+    sound: 'Sound',
+    event: 'Events',
+    control: 'Control',
+    sensing: 'Sensing',
+    operator: 'Operators',
+    data: 'Variables'
+});
+
 const buildWords = intl => ({
+    colour: hex => intl.formatMessage(colourMessages[nameColour(hex)]),
+    // The singular form is only known for English.
+    polish: intl.locale.startsWith('en') ? DEFAULT_WORDS.polish : text => text,
     blank: intl.formatMessage(wordMessages.blank),
+    marker: intl.formatMessage(wordMessages.marker),
     emptyBranch: intl.formatMessage(wordMessages.emptyBranch),
     then: intl.formatMessage(wordMessages.then),
     else: intl.formatMessage(wordMessages.else),
@@ -115,5 +175,8 @@ const buildWords = intl => ({
 
 export {
     buildWords,
+    categoryMessages,
+    colourMessages,
+    dialogMessages,
     messages
 };

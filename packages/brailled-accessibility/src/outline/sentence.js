@@ -18,10 +18,11 @@ const humanizeOpcode = opcode => {
     return name ? `${category}: ${name}` : category;
 };
 
-const fieldText = (block, name, arg) => {
+const fieldText = (block, name, arg, words) => {
     const field = block.fields[name];
     if (!field) return '';
     const value = String(field.value);
+    if (block.opcode === 'colour_picker') return words.colour(value);
     if (arg && arg.options) {
         const options = typeof arg.options === 'function' ? arg.options() : arg.options;
         const option = options.find(([, optionValue]) => optionValue === value);
@@ -58,7 +59,7 @@ const createDescriber = ({blocks, getDefinition, words}) => {
             const definition = getDefinition(child);
             const args = definition ? definition.lines.flatMap(line => line.args) : [];
             const text = fields
-                .map(field => fieldText(child, field, args.find(arg => arg.name === field)))
+                .map(field => fieldText(child, field, args.find(arg => arg.name === field), words))
                 .join(' ');
             return text === '' ? words.blank : text;
         }
@@ -81,7 +82,7 @@ const createDescriber = ({blocks, getDefinition, words}) => {
                 if (!arg) return '';
                 if (arg.type === 'input_value') return inputText(block, arg.name);
                 if (arg.type === 'field_image') return words.images[block.opcode] || '';
-                if (arg.type.startsWith('field_') && arg.name) return fieldText(block, arg.name, arg);
+                if (arg.type.startsWith('field_') && arg.name) return fieldText(block, arg.name, arg, words);
                 return '';
             }));
         }
@@ -92,11 +93,12 @@ const createDescriber = ({blocks, getDefinition, words}) => {
         const template = FALLBACK_LABELS[block.opcode];
         if (template) {
             return template.replace(/\[([A-Za-z0-9_]+)\]/g, (match, name) => (
-                block.fields[name] ? fieldText(block, name) : inputText(block, name)
+                block.fields[name] ? fieldText(block, name, null, words) : inputText(block, name)
             ));
         }
         const values = [
-            ...Object.keys(block.fields).map(name => `${name.toLowerCase()} ${fieldText(block, name)}`),
+            ...Object.keys(block.fields)
+                .map(name => `${name.toLowerCase()} ${fieldText(block, name, null, words)}`),
             ...Object.keys(block.inputs)
                 .filter(name => !BRANCH_INPUT.test(name))
                 .map(name => `${name.toLowerCase()} ${inputText(block, name)}`)
@@ -104,12 +106,13 @@ const createDescriber = ({blocks, getDefinition, words}) => {
         return [humanizeOpcode(block.opcode), ...values].join(', ');
     };
 
-    describe = block => {
+    const sentence = block => {
         if (block.opcode === 'procedures_call') return tidy(callText(block));
         const definition = getDefinition(block);
         const text = definition && tidy(fromDefinition(block, definition));
         return text || tidy(fromFallback(block));
     };
+    describe = block => words.polish(sentence(block));
 
     return describe;
 };

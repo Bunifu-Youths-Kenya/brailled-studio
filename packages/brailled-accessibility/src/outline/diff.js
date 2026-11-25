@@ -45,6 +45,18 @@ const summarise = entries => {
     return {count: entries.length, text: first.node.text};
 };
 
+// Scripts are listed by their place on screen, which dragging one changes without changing the program. Put
+// the later scripts back in the earlier order, judged by the first block of each that existed before.
+const inEarlierOrder = (scripts, before) => {
+    const earlier = new Map(before.map((entry, index) => [entry.node.id, index]));
+    const rank = script => Math.min(before.length,
+        ...listBlocks([script]).map(entry => earlier.get(entry.node.id) ?? before.length));
+    return scripts
+        .map(script => ({script, at: rank(script)}))
+        .sort((a, b) => a.at - b.at)
+        .map(({script}) => script);
+};
+
 /**
  * Compare two outlines of the same sprite.
  * @param {object[]} previous The earlier outline.
@@ -54,7 +66,7 @@ const summarise = entries => {
  */
 const diffOutlines = (previous, next) => {
     const before = listBlocks(previous);
-    const after = listBlocks(next);
+    const after = listBlocks(inEarlierOrder(next, before));
     const beforeById = new Map(before.map(entry => [entry.node.id, entry]));
     const afterById = new Map(after.map(entry => [entry.node.id, entry]));
 

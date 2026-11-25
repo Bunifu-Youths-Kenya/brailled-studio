@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Brailled edit command",
+  "description": "One edit to the selected sprite or stage, or a request to undo, redo or describe.",
+  "oneOf": [
+    {"$ref": "#/$defs/insert"},
+    {"$ref": "#/$defs/delete"},
+    {"$ref": "#/$defs/set-value"},
+    {"$ref": "#/$defs/move"},
+    {"$ref": "#/$defs/wrap"},
+    {"$ref": "#/$defs/undo"},
+    {"$ref": "#/$defs/redo"},
+    {"$ref": "#/$defs/describe"}
+  ],
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "description": "A block id."},
+    "opcode": {"type": "string", "minLength": 1, "description": "A block opcode, such as motion_movesteps."},
+    "value": {
+      "description": "Text or a number for a slot, a block to put in it, or null to empty it.",
+      "oneOf": [
+        {"type": "string"},
+        {"type": "number"},
+        {"type": "null"},
+        {"$ref": "#/$defs/nested"}
+      ]
+    },
+    "nested": {
+      "type": "object",
+      "required": ["block"],
+      "additionalProperties": false,
+      "properties": {"block": {"$ref": "#/$defs/opcode"}, "args": {"$ref": "#/$defs/args"}}
+    },
+    "args": {
+      "type": "object",
+      "description": "Values by input or field name.",
+      "additionalProperties": {"$ref": "#/$defs/value"}
+    },
+    "inside": {
+      "type": "object",
+      "description": "The start of a stack held by a loop or condition.",
+      "required": ["block"],
+      "additionalProperties": false,
+      "properties": {"block": {"$ref": "#/$defs/id"}, "branch": {"enum": ["SUBSTACK", "SUBSTACK2"]}}
+    },
+    "insert": {
+      "type": "object",
+      "description": "Add a block after, before or inside another. With none of these it starts a new script.",
+      "required": ["op", "block"],
+      "additionalProperties": false,
+      "properties": {
+        "op": {"const": "insert"},
+        "block": {"$ref": "#/$defs/opcode"},
+        "after": {"$ref": "#/$defs/id"},
+        "before": {"$ref": "#/$defs/id"},
+        "inside": {"$ref": "#/$defs/inside"},
+        "args": {"$ref": "#/$defs/args"}
+      }
+    },
+    "delete": {
+      "type": "object",
+      "description": "Delete a block and what it holds; with withFollowing, the blocks under it as well.",
+      "required": ["op", "block"],
+      "additionalProperties": false,
+      "properties": {
+        "op": {"const": "delete"},
+        "block": {"$ref": "#/$defs/id"},
+        "withFollowing": {"type": "boolean"}
+      }
+    },
+    "set-value": {
+      "type": "object",
+      "description": "Change one value of a block.",
+      "required": ["op", "block", "name", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "op": {"const": "set-value"},
+        "block": {"$ref": "#/$defs/id"},
+        "name": {"type": "string", "minLength": 1, "description": "Input or field name, such as STEPS."},
+        "value": {"$ref": "#/$defs/value"}
+      }
+    },
+    "move": {
+      "type": "object",
+      "description": "Move a block to one of after, before, inside or newScript.",
+      "required": ["op", "block"],
+      "additionalProperties": false,
+      "properties": {
+        "op": {"const": "move"},
+        "block": {"$ref": "#/$defs/id"},
+        "after": {"$ref": "#/$defs/id"},
+        "before": {"$ref": "#/$defs/id"},
+        "inside": {"$ref": "#/$defs/inside"},
+        "newScript": {"const": true},
+        "withFollowing": {"type": "boolean"}
+      }
+    },
+    "wrap": {
+      "type": "object",
+      "description": "Put a block, or the run of blocks from it to through, inside a loop or condition.",
+      "required": ["op", "block", "in"],
+      "additionalProperties": false,
+      "properties": {
+        "op": {"const": "wrap"},
+        "block": {"$ref": "#/$defs/id"},
+        "through": {"$ref": "#/$defs/id"},
+        "in": {
+          "enum": [
+            "control_repeat",
+            "control_forever",
+            "control_repeat_until",
+            "control_if",
+            "control_if_else"
+          ]
+        },
+        "args": {"$ref": "#/$defs/args"}
+      }
+    },
+    "undo": {
+      "type": "object",
+      "required": ["op"],
+      "additionalProperties": false,
+      "properties": {"op": {"const": "undo"}}
+    },
+    "redo": {
+      "type": "object",
+      "required": ["op"],
+      "additionalProperties": false,
+      "properties": {"op": {"const": "redo"}}
+    },
+    "describe": {
+      "type": "object",
+      "description": "Read the whole program, or the script containing a block, as one summary.",
+      "required": ["op"],
+      "additionalProperties": false,
+      "properties": {"op": {"const": "describe"}, "script": {"$ref": "#/$defs/id"}}
+    }
+  }
+}

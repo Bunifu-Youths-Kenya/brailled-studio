@@ -13,7 +13,16 @@ import DEFAULT_WORDS from './words.js';
  * @property {?OutlineNode[]} children Child nodes, or null if the node cannot be expanded.
  * @property {string} [opcode] Block opcode, for block nodes.
  * @property {?string} [previousId] Id of the block this one hangs from in the VM, for block nodes.
+ * @property {string} [lastId] Id of the last block of a script, for script nodes.
+ * @property {string} [blockId] Id of the block that holds this stack, for branch and empty nodes.
+ * @property {string} [branch] Name of that stack, for branch and empty nodes.
  */
+
+const position = value => Number(value) || 0;
+
+// Top to bottom, then left to right, as the scripts appear in the workspace.
+const byScreenPosition = blocks => (a, b) =>
+    (position(blocks[a].y) - position(blocks[b].y)) || (position(blocks[a].x) - position(blocks[b].x));
 
 // Set each node's place among its siblings.
 const place = (nodes, level) => nodes.map((node, index) => ({
@@ -69,7 +78,14 @@ const buildOutline = ({blocks, scripts, getDefinition = () => null, words = DEFA
             const stack = name => {
                 const input = block.inputs[name];
                 if (input && blocks[input.block]) return buildStack(input.block);
-                return [{id: `${block.id}:${name}:empty`, type: 'empty', text: words.emptyBranch, children: null}];
+                return [{
+                    id: `${block.id}:${name}:empty`,
+                    type: 'empty',
+                    blockId: block.id,
+                    branch: name,
+                    text: words.emptyBranch,
+                    children: null
+                }];
             };
             let children = null;
             if (names.length === 1) {
@@ -78,6 +94,8 @@ const buildOutline = ({blocks, scripts, getDefinition = () => null, words = DEFA
                 children = names.map((name, index) => ({
                     id: `${block.id}:${name}`,
                     type: 'branch',
+                    blockId: block.id,
+                    branch: name,
                     text: branchLabel(definition, name, index, words),
                     children: stack(name)
                 }));
@@ -94,12 +112,13 @@ const buildOutline = ({blocks, scripts, getDefinition = () => null, words = DEFA
         return nodes;
     };
 
-    const tops = scripts.filter(id => blocks[id] && !blocks[id].shadow);
+    const tops = scripts.filter(id => blocks[id] && !blocks[id].shadow).sort(byScreenPosition(blocks));
     return place(tops.map((id, index) => {
         const children = buildStack(id);
         return {
             id: `script:${id}`,
             type: 'script',
+            lastId: children[children.length - 1].id,
             text: words.script(index + 1, tops.length, children[0].text),
             children
         };

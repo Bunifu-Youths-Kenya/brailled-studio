@@ -7,3 +7,5 @@ export {default as PaletteArea} from './palette-area.jsx';
 export {default as OutlineView} from './outline/outline-view.jsx';
 export {useViewShortcut} from './view-shortcut.js';
 export {default as useKeptState} from './use-kept-state.js';
+export {createEditor, getEditor} from './commands/editor.js';
+export {default as commandSchema} from './commands/schema.json';

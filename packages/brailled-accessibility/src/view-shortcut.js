@@ -30,7 +30,7 @@ const useViewShortcut = ({enabled, view, isBlocksTab, onChangeView, onShowBlocks
             if (event.code !== VIEW_SHORTCUT_CODE || !event.altKey || !event.shiftKey ||
                 event.ctrlKey || event.metaKey || event.repeat) return;
             // Dialogs keep focus to themselves.
-            if (document.querySelector('.ReactModal__Overlay')) return;
+            if (document.querySelector('.ReactModal__Overlay, dialog[open]')) return;
             event.preventDefault();
             event.stopPropagation();
             focusRequested.current = true;

@@ -99,6 +99,26 @@ describe('diffOutlines', () => {
         expect(performance.now() - started).toBeLessThan(500);
     });
 
+    test('says nothing when a script is only dragged elsewhere on screen', () => {
+        const two = structuredClone(simple);
+        two.blocks.loose = {...structuredClone(two.blocks.wait), id: 'loose', parent: null, x: 40, y: 400};
+        two.scripts.push('loose');
+        const dragged = structuredClone(two);
+        dragged.blocks.loose.y = -400;
+        const [first, second] = [buildOutline(two), buildOutline(dragged)];
+        expect(second.map(script => script.children[0].id)).toEqual(['loose', 'hat']);
+        expect(diffOutlines(first, second)).toEqual(none);
+    });
+
+    test('reports only the new block when it appears above older scripts', () => {
+        const after = edit(simple, (blocks, program) => {
+            addWait(blocks, 'new', null, null);
+            Object.assign(blocks.new, {x: 0, y: -100});
+            program.scripts.push('new');
+        });
+        expect(diffOutlines(before, after)).toEqual({...none, added: {count: 1, text: 'wait 2 seconds'}});
+    });
+
     test('reports a block moved out of a loop', () => {
         const after = edit(nested, blocks => {
             delete blocks.ifelse.inputs.SUBSTACK2;
