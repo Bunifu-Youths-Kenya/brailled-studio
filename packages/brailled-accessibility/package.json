@@ -1,0 +1,7 @@
+{
+  "name": "brailled-accessibility",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Brailled accessibility layer: outline view, voice editing and AI assistance",
+  "license": "AGPL-3.0-only"
+}
