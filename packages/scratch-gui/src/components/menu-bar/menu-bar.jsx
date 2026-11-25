@@ -15,7 +15,6 @@ import Button from '../button/button.jsx';
 import CommunityButton from './community-button.jsx';
 import ShareButton from './share-button.jsx';
 import {ComingSoonTooltip} from '../coming-soon/coming-soon.jsx';
-import Divider from '../divider/divider.jsx';
 import SaveStatus from './save-status.jsx';
 import SB3Downloader from '../../containers/sb3-downloader.jsx';
 import ProjectWatcher from '../../containers/project-watcher.jsx';
@@ -29,7 +28,7 @@ import EditMenu from './edit-menu.jsx';
 import ModeMenu from './mode-menu.jsx';
 import AboutMenu from './about-menu.jsx';
 
-import {openTipsLibrary, openDebugModal} from '../../reducers/modals';
+import {openTipsLibrary} from '../../reducers/modals';
 import {setPlayer} from '../../reducers/mode';
 import {
     isTimeTravel220022BC,
@@ -54,23 +53,22 @@ import {
 } from '../../reducers/menus';
 
 import collectMetadata from '../../lib/collect-metadata';
-import {PLATFORM} from '../../lib/platform';
 
 import styles from './menu-bar.css';
 
-import helpIcon from '../../lib/assets/icon--tutorials.svg';
+import LanguageSelector from '../../containers/language-selector.jsx';
+import {
+    BrandName,
+    HelpAndExamples,
+    LanguageControl,
+    SaveButton
+} from '../../../../brailled-accessibility/src/index.js';
+import languageIcon from '../language-selector/language-icon.svg';
+
 import mystuffIcon from './icon--mystuff.png';
 import profileIcon from './icon--profile.png';
 import remixIcon from './icon--remix.svg';
 import dropdownCaret from './dropdown-caret.svg';
-import debugIcon from '../debug-modal/icons/icon--debug.svg';
-
-import scratchLogo from './scratch-logo.svg';
-import scratchLogoAndroid from './scratch-logo-android.svg';
-import ninetiesLogo from './nineties_logo.svg';
-import catLogo from './cat_logo.svg';
-import prehistoricLogo from './prehistoric-logo.svg';
-import oldtimeyLogo from './oldtimey-logo.svg';
 
 import sharedMessages from '../../lib/shared-messages';
 
@@ -78,29 +76,12 @@ import {AccountMenuOptionsPropTypes} from '../../lib/account-menu-options';
 import AccountMenu from './account-menu.jsx';
 
 const ariaMessages = defineMessages({
-    tutorials: {
-        id: 'gui.menuBar.tutorialsLibrary',
-        defaultMessage: 'Tutorials',
-        description: 'accessibility text for the tutorials button'
-    },
-    debug: {
-        id: 'gui.menuBar.debug',
-        defaultMessage: 'Debug',
-        description: 'accessibility text for the debug button'
-    },
-    home: {
-        id: 'gui.menuBar.home',
-        defaultMessage: 'Home',
-        description: 'accessibility text for the home button'
-    },
     myStuff: {
         id: 'gui.menuBar.myStuff',
         defaultMessage: 'My Stuff',
         description: 'accessibility text for the my stuff button'
     }
 });
-
-const getScratchLogo = platform => (platform === PLATFORM.ANDROID ? scratchLogoAndroid : scratchLogo);
 
 const MenuBarItemTooltip = ({
     children,
@@ -226,19 +207,6 @@ class MenuBar extends React.Component {
                 document.documentElement.style.height = '';
             }
 
-            // Change logo for modes
-            if (mode === '1990') {
-                document.getElementById('logo_img').src = ninetiesLogo;
-            } else if (mode === '2020') {
-                document.getElementById('logo_img').src = catLogo;
-            } else if (mode === '1920') {
-                document.getElementById('logo_img').src = oldtimeyLogo;
-            } else if (mode === '220022BC') {
-                document.getElementById('logo_img').src = prehistoricLogo;
-            } else {
-                document.getElementById('logo_img').src = getScratchLogo(this.props.platform);
-            }
-
             this.props.onSetTimeTravelMode(mode);
         };
     }
@@ -328,29 +296,11 @@ class MenuBar extends React.Component {
             >
                 <div className={styles.mainMenu}>
                     <div className={styles.fileGroup}>
-                        <button
-                            aria-label={this.props.intl.formatMessage(ariaMessages.home)}
-                            className={classNames(styles.menuBarItem)}
-                            onClick={this.props.onClickLogo}
-                        >
-                            <img
-                                id="logo_img"
-                                alt="Scratch"
-                                className={classNames(styles.scratchLogo, {
-                                    [styles.clickable]: typeof this.props.onClickLogo !== 'undefined'
-                                })}
-                                draggable={false}
-                                src={getScratchLogo(this.props.platform)}
-                            />
-                        </button>
-                        {(this.props.canChangeColorMode || this.props.canChangeLanguage || this.props.canChangeTheme) &&
-                        (<SettingsMenu
-                            canChangeLanguage={this.props.canChangeLanguage}
-                            canChangeColorMode={this.props.canChangeColorMode}
-                            canChangeTheme={this.props.canChangeTheme}
-                            hasActiveMembership={this.props.hasActiveMembership}
-                            isRtl={this.props.isRtl}
-                            depth={1}
+                        <BrandName />
+                        {this.props.canChangeLanguage && (<LanguageControl
+                            className={classNames(styles.menuBarItem, styles.hoverable)}
+                            icon={languageIcon}
+                            Selector={LanguageSelector}
                         />)}
                         {(this.props.canManageFiles) && (<FileMenu
                             onStartSelectingFileUpload={this.props.onStartSelectingFileUpload}
@@ -372,6 +322,15 @@ class MenuBar extends React.Component {
                             restoreOptionMessage={this.restoreOptionMessage}
                             depth={1}
                         />
+                        {(this.props.canChangeColorMode || this.props.canChangeTheme) &&
+                        (<SettingsMenu
+                            canChangeLanguage={false}
+                            canChangeColorMode={this.props.canChangeColorMode}
+                            canChangeTheme={this.props.canChangeTheme}
+                            hasActiveMembership={this.props.hasActiveMembership}
+                            isRtl={this.props.isRtl}
+                            depth={1}
+                        />)}
                         {this.props.isTotallyNormal && (<ModeMenu
                             onSetMode={this.handleSetMode}
                             modeNow={this.props.modeNow}
@@ -401,6 +360,14 @@ class MenuBar extends React.Component {
                             avatarBadge={this.props.authorAvatarBadge}
                         />
                     ) : null)}
+                    {!this.props.canSave && !this.props.showSaveToComputer && (
+                        <SB3Downloader>{(className, downloadProjectCallback) => (
+                            <SaveButton
+                                className={classNames(className, styles.menuBarItem, styles.hoverable)}
+                                onClick={this.getSaveToComputerHandler(downloadProjectCallback)}
+                            />
+                        )}</SB3Downloader>
+                    )}
                     <div className={classNames(styles.menuBarItem)}>
                         {this.props.canShare ? (
                             (this.props.isShowingProject || this.props.isUpdating) && (
@@ -456,42 +423,15 @@ class MenuBar extends React.Component {
                             </MenuBarItemTooltip>
                         ) : [])}
                     </div>
-                    <Divider className={classNames(styles.divider)} />
-                    <div className={styles.fileGroup}>
-                        <button
-                            aria-label={this.props.intl.formatMessage(ariaMessages.tutorials)}
-                            className={
-                                classNames(styles.menuBarItem, styles.noOffset, styles.hoverable, 'tutorials-button')
-                            }
-                            onClick={this.props.onOpenTipLibrary}
-                        >
-                            <img
-                                className={styles.helpIcon}
-                                src={helpIcon}
-                            />
-                            <span className={styles.tutorialsLabel}>
-                                <FormattedMessage {...ariaMessages.tutorials} />
-                            </span>
-                        </button>
-                        <button
-                            aria-label={this.props.intl.formatMessage(ariaMessages.debug)}
-                            className={classNames(styles.menuBarItem, styles.noOffset, styles.hoverable)}
-                            onClick={this.props.onOpenDebugModal}
-                        >
-                            <img
-                                className={styles.helpIcon}
-                                src={debugIcon}
-                            />
-                            <span className={styles.debugLabel}>
-                                <FormattedMessage {...ariaMessages.debug} />
-                            </span>
-                        </button>
-                    </div>
                 </div>
 
                 {/* show the proper UI in the account menu, given whether the user is
                 logged in, and whether a session is available to log in with */}
                 <div className={styles.accountInfoGroup}>
+                    <HelpAndExamples
+                        className={classNames(styles.menuBarItem, styles.hoverable, 'tutorials-button')}
+                        onClickExamples={this.props.onOpenTipLibrary}
+                    />
                     <div className={styles.menuBarItem}>
                         {this.props.canSave ? (
                             <SaveStatus className={classNames(styles.hoverable, styles.menuBarItem)} />
@@ -653,7 +593,6 @@ class MenuBar extends React.Component {
 }
 
 MenuBar.propTypes = {
-    accountMenuOpen: PropTypes.bool,
     ariaLabel: PropTypes.string,
     ariaRole: PropTypes.string,
     authorId: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
@@ -673,7 +612,6 @@ MenuBar.propTypes = {
     canShare: PropTypes.bool,
     className: PropTypes.string,
     confirmReadyToReplaceProject: PropTypes.func,
-    currentLocale: PropTypes.string.isRequired,
     enableCommunity: PropTypes.bool,
     hasActiveMembership: PropTypes.bool,
     intl: intlShape,
@@ -684,11 +622,7 @@ MenuBar.propTypes = {
     isUpdating: PropTypes.bool,
     locale: PropTypes.string.isRequired,
     loginMenuOpen: PropTypes.bool,
-    logo: PropTypes.string,
-    mode1920: PropTypes.bool,
-    mode1990: PropTypes.bool,
     mode2020: PropTypes.bool,
-    mode220022BC: PropTypes.bool,
     modeNow: PropTypes.bool,
     onClickAbout: PropTypes.oneOfType([
         PropTypes.func, // button mode: call this callback when the About button is clicked
@@ -700,24 +634,18 @@ MenuBar.propTypes = {
         )
     ]),
     onClickLogin: PropTypes.func,
-    onClickLogo: PropTypes.func,
-    onClickMode: PropTypes.func,
     onClickNew: PropTypes.func,
     onClickRemix: PropTypes.func,
     onClickSave: PropTypes.func,
-    onClickSaveAsCopy: PropTypes.func,
     onLogOut: PropTypes.func,
     onOpenRegistration: PropTypes.func,
     onOpenTipLibrary: PropTypes.func,
-    onOpenDebugModal: PropTypes.func,
     onProjectTelemetryEvent: PropTypes.func,
     onRequestCloseLogin: PropTypes.func,
     onSeeCommunity: PropTypes.func,
     onSetTimeTravelMode: PropTypes.func,
     onShare: PropTypes.func,
     onStartSelectingFileUpload: PropTypes.func,
-    onToggleLoginOpen: PropTypes.func,
-    platform: PropTypes.oneOf(Object.keys(PLATFORM)),
     projectTitle: PropTypes.string,
     renderLogin: PropTypes.func,
     shouldSaveBeforeTransition: PropTypes.func,
@@ -725,7 +653,6 @@ MenuBar.propTypes = {
     showSaveToComputer: PropTypes.bool,
     username: PropTypes.string,
     avatarBadge: PropTypes.number,
-    userOwnsProject: PropTypes.bool,
 
     accountMenuOptions: AccountMenuOptionsPropTypes,
 
@@ -733,7 +660,6 @@ MenuBar.propTypes = {
 };
 
 MenuBar.defaultProps = {
-    logo: scratchLogo,
     onShare: () => {}
 };
 
@@ -787,7 +713,6 @@ const mapStateToProps = (state, ownProps) => {
 const mapDispatchToProps = (dispatch, ownProps) => ({
     autoUpdateProject: () => dispatch(autoUpdateProject()),
     onOpenTipLibrary: () => dispatch(openTipsLibrary()),
-    onOpenDebugModal: () => dispatch(openDebugModal()),
     onClickNew: needSave => dispatch(requestNewProject(needSave)),
     onClickLogin: ownProps.onClickLogin ?? (() => dispatch(openLoginMenu())),
     onClickSave: () => dispatch(manualUpdateProject()),

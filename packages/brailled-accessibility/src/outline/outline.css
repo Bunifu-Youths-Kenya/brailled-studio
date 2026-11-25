@@ -1,0 +1,107 @@
+/* Fixed black, white and yellow, for strong contrast in every colour mode. */
+.outline {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow: auto;
+    padding: 1rem;
+    color: #1a1a1a;
+    background: #fff;
+    border: 1px solid #1a1a1a;
+    border-radius: 0.5rem;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.heading {
+    margin: 0 0 0.25rem;
+    font-size: 1.25rem;
+}
+
+.hint {
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+}
+
+.tree,
+.group {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.group {
+    margin-inline-start: 0.7rem;
+    padding-inline-start: 0.75rem;
+    border-inline-start: 2px solid #767676;
+}
+
+.row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border: 2px solid transparent;
+    border-radius: 0.25rem;
+    font-size: 1rem;
+    cursor: default;
+}
+
+.toggle {
+    flex: 0 0 1rem;
+    cursor: pointer;
+}
+
+.script {
+    font-weight: bold;
+}
+
+.branch {
+    font-style: italic;
+    font-weight: bold;
+}
+
+.empty {
+    font-style: italic;
+}
+
+/* Marks the user's place while focus is elsewhere. */
+.item[tabindex="0"] > .row {
+    border-color: #1a1a1a;
+}
+
+/* The item contains its children, so the focus indicator goes on its own row only. */
+.outline .item:focus-visible,
+.outline .item:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.item:focus > .row {
+    color: #ffd500;
+    background: #1a1a1a;
+    border-color: #ffd500;
+    outline: 3px solid #1a1a1a;
+}
+
+.no-blocks {
+    padding: 0.5rem;
+    font-size: 1rem;
+}
+
+/* Hidden from view but still read by screen readers. */
+.announcer {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+@media (forced-colors: active) {
+    .item:focus > .row {
+        outline: 3px solid Highlight;
+    }
+}

@@ -1,0 +1,82 @@
+@import "../../scratch-gui/src/css/colors.css";
+@import "../../scratch-gui/src/css/z-index.css";
+
+$search-height: 3rem;
+
+.palette-area {
+    height: 100%;
+}
+
+.search {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: $z-index-extension-button;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    width: 3.875rem;
+    height: $search-height;
+    padding: 0;
+    color: $text-primary;
+    background: $ui-white;
+    border: 1px solid $ui-black-transparent;
+    font: 0.65rem "Helvetica Neue", Helvetica, Arial, sans-serif;
+    cursor: default;
+}
+
+[dir="rtl"] .search {
+    right: 0;
+    left: auto;
+}
+
+/* A magnifying glass drawn in CSS. */
+.search-icon {
+    position: relative;
+    box-sizing: border-box;
+    width: 0.875rem;
+    height: 0.875rem;
+    margin-bottom: 0.25rem;
+    border: 2px solid $text-primary;
+    border-radius: 50%;
+}
+
+.search-icon::after {
+    content: "";
+    position: absolute;
+    right: -0.3rem;
+    bottom: -0.15rem;
+    width: 0.35rem;
+    height: 2px;
+    background: $text-primary;
+    transform: rotate(45deg);
+}
+
+/* Make room for the Search button above the categories. */
+.palette-area :global(.injectionDiv) :global(.blocklyToolbox) {
+    margin-top: $search-height;
+    height: calc(100% - 3.25rem - $search-height) !important;
+}
+
+/* The category menu clips anything drawn outside its entries, so draw their focus indicator inside. */
+.palette-area :global(.blocklyToolbox):focus-visible,
+.palette-area :global(.blocklyToolboxCategoryContainer):focus-visible {
+    outline-offset: -3px !important;
+    box-shadow: none !important;
+}
+
+/* The block library draws over an outline on the workspace itself, so frame the whole area from above. */
+.palette-area :global(.injectionDiv):has(:global(.blocklySvg) :global(.blocklyWorkspace):focus-visible)::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: $z-index-extension-button;
+    border: 3px solid #1a1a1a;
+    box-shadow: inset 0 0 0 3px #ffd500;
+    pointer-events: none;
+}

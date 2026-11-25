@@ -102,7 +102,15 @@
           "tsconfig": "<rootDir>/tsconfig.test.json"
         }
       ],
-      "^.+\\.jsx?$": "babel-jest",
+      "^.+\\.jsx?$": [
+        "babel-jest",
+        {
+          "babelrcRoots": [
+            ".",
+            "../brailled-accessibility"
+          ]
+        }
+      ],
       "^.+\\.mjs$": [
         "babel-jest",
         {

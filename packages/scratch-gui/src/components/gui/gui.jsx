@@ -21,6 +21,19 @@ import MenuBar from '../menu-bar/menu-bar.jsx';
 import CostumeLibrary from '../../containers/costume-library.jsx';
 import BackdropLibrary from '../../containers/backdrop-library.jsx';
 import Watermark from '../../containers/watermark.jsx';
+import {
+    OutlineView,
+    PaletteArea,
+    SCRIPTS_VIEWS,
+    SCRIPTS_ZONE_ID,
+    STAGE_ZONE_ID,
+    ScriptsViewToggle,
+    ScriptsViews,
+    SkipLinks,
+    shellClassName,
+    useKeptState,
+    useViewShortcut
+} from '../../../../brailled-accessibility/src/index.js';
 
 import Backpack from '../../containers/backpack.jsx';
 import ExtensionsButton from '../extension-button/extension-button.jsx';
@@ -106,6 +119,9 @@ const ariaMessages = defineMessages({
         description: 'accessibility label for the target pane'
     }
 });
+
+// Position of the Code tab among the editor tabs.
+const BLOCKS_TAB_INDEX = 0;
 
 // Cache this value to only retrieve it once the first time.
 // Assume that it doesn't change for a session.
@@ -212,6 +228,16 @@ const GUIComponent = props => {
         return <Box {...componentProps}>{children}</Box>;
     }
 
+    const [scriptsView, setScriptsView] = useKeptState(vm, 'scriptsView', SCRIPTS_VIEWS.blocks);
+    const showBlocksTab = useCallback(() => onActivateTab(BLOCKS_TAB_INDEX), [onActivateTab]);
+    useViewShortcut({
+        enabled: !isPlayerOnly && !isFullScreen,
+        view: scriptsView,
+        isBlocksTab: activeTabIndex === BLOCKS_TAB_INDEX,
+        onChangeView: setScriptsView,
+        onShowBlocksTab: showBlocksTab
+    });
+
     useEffect(() => {
         if (props.platform) {
             // TODO: This uses the imported `setPlatform` directly,
@@ -273,10 +299,11 @@ const GUIComponent = props => {
         ) : (
             <ModalFocusProvider>
                 <Box
-                    className={styles.pageWrapper}
+                    className={classNames(styles.pageWrapper, shellClassName)}
                     dir={isRtl ? 'rtl' : 'ltr'}
                     {...componentProps}
                 >
+                    <SkipLinks />
                     {telemetryModalVisible ? (
                         <TelemetryModal
                             isRtl={isRtl}
@@ -379,7 +406,51 @@ const GUIComponent = props => {
                     }
                     <Box className={classNames(boxStyles, styles.flexWrapper)}>
                         <Box
+                            role="complementary"
+                            id={STAGE_ZONE_ID}
+                            tabIndex="-1"
+                            aria-label={intl.formatMessage(ariaMessages.stageAndTarget)}
+                            className={classNames(styles.stageAndTargetWrapper, styles[stageSize])}
+                            element="aside"
+                        >
+                            <StageWrapper
+                                isFullScreen={isFullScreen}
+                                isRendererSupported={isRendererSupported}
+                                isRtl={isRtl}
+                                isCreating={isCreating}
+                                controlsBelowStage
+                                stageSize={stageSize}
+                                vm={vm}
+                                ariaRole="region"
+                                ariaLabel={intl.formatMessage(ariaMessages.stage)}
+                                manuallySaveThumbnails={manuallySaveThumbnails}
+                                onSetManualThumbnail={onSetManualThumbnail}
+                                onSetManualThumbnailButtonClick={onSetManualThumbnailButtonClick}
+                                loading={loading}
+                                showNewFeatureCallouts={showNewFeatureCallouts}
+                                userOwnsProject={userOwnsProject}
+                                username={username}
+                                onUpdateProjectThumbnail={onUpdateProjectThumbnail}
+                            />
+                            <Box
+                                className={styles.targetWrapper}
+                                role="region"
+                                aria-label={intl.formatMessage(ariaMessages.targetPane)}
+                                element="section"
+                            >
+                                <TargetPane
+                                    stageSize={stageSize}
+                                    vm={vm}
+                                    onNewSpriteClick={onNewSpriteClick}
+                                    onNewBackdropClick={onNewLibraryBackdropClick}
+                                />
+                            </Box>
+                        </Box>
+
+                        <Box
                             role="main"
+                            id={SCRIPTS_ZONE_ID}
+                            tabIndex="-1"
                             aria-label={intl.formatMessage(ariaMessages.editor)}
                             className={styles.editorWrapper}
                             element="main"
@@ -403,102 +474,123 @@ const GUIComponent = props => {
                                 // Actual behavior: the Code or Sounds tab is now focused
                                 focusTabOnClick={false}
                             >
-                                <Box
-                                    role="region"
-                                    aria-label={intl.formatMessage(ariaMessages.tabList)}
-                                >
-                                    <TabList
-                                        className={tabClassNames.tabList}
-                                        role="tablist"
+                                <div className={styles.tabRow}>
+                                    <Box
+                                        role="region"
+                                        aria-label={intl.formatMessage(ariaMessages.tabList)}
                                     >
-                                        <Tab
-                                            className={tabClassNames.tab}
-                                            tabIndex="0"
-                                            role="tab"
+                                        <TabList
+                                            className={tabClassNames.tabList}
+                                            role="tablist"
                                         >
-                                            <img
-                                                draggable={false}
-                                                src={codeIcon}
-                                            />
-                                            <FormattedMessage
-                                                defaultMessage="Code"
-                                                description="Button to get to the code panel"
-                                                id="gui.gui.codeTab"
-                                            />
-                                        </Tab>
-                                        <Tab
-                                            className={tabClassNames.tab}
-                                            onClick={onActivateCostumesTab}
-                                            role="tab"
-                                            tabIndex="0"
-                                        >
-                                            <img
-                                                draggable={false}
-                                                src={costumesIcon}
-                                            />
-                                            {targetIsStage ? (
-                                                <FormattedMessage
-                                                    defaultMessage="Backdrops"
-                                                    description="Button to get to the backdrops panel"
-                                                    id="gui.gui.backdropsTab"
+                                            <Tab
+                                                className={tabClassNames.tab}
+                                                tabIndex="0"
+                                                role="tab"
+                                            >
+                                                <img
+                                                    draggable={false}
+                                                    src={codeIcon}
                                                 />
-                                            ) : (
                                                 <FormattedMessage
-                                                    defaultMessage="Costumes"
-                                                    description="Button to get to the costumes panel"
-                                                    id="gui.gui.costumesTab"
+                                                    defaultMessage="Code"
+                                                    description="Button to get to the code panel"
+                                                    id="gui.gui.codeTab"
                                                 />
-                                            )}
-                                        </Tab>
-                                        <Tab
-                                            className={tabClassNames.tab}
-                                            onClick={onActivateSoundsTab}
-                                            role="tab"
-                                            tabIndex="0"
-                                        >
-                                            <img
-                                                draggable={false}
-                                                src={soundsIcon}
-                                            />
-                                            <FormattedMessage
-                                                defaultMessage="Sounds"
-                                                description="Button to get to the sounds panel"
-                                                id="gui.gui.soundsTab"
-                                            />
-                                        </Tab>
-                                    </TabList>
-                                </Box>
+                                            </Tab>
+                                            <Tab
+                                                className={tabClassNames.tab}
+                                                onClick={onActivateCostumesTab}
+                                                role="tab"
+                                                tabIndex="0"
+                                            >
+                                                <img
+                                                    draggable={false}
+                                                    src={costumesIcon}
+                                                />
+                                                {targetIsStage ? (
+                                                    <FormattedMessage
+                                                        defaultMessage="Backdrops"
+                                                        description="Button to get to the backdrops panel"
+                                                        id="gui.gui.backdropsTab"
+                                                    />
+                                                ) : (
+                                                    <FormattedMessage
+                                                        defaultMessage="Costumes"
+                                                        description="Button to get to the costumes panel"
+                                                        id="gui.gui.costumesTab"
+                                                    />
+                                                )}
+                                            </Tab>
+                                            <Tab
+                                                className={tabClassNames.tab}
+                                                onClick={onActivateSoundsTab}
+                                                role="tab"
+                                                tabIndex="0"
+                                            >
+                                                <img
+                                                    draggable={false}
+                                                    src={soundsIcon}
+                                                />
+                                                <FormattedMessage
+                                                    defaultMessage="Sounds"
+                                                    description="Button to get to the sounds panel"
+                                                    id="gui.gui.soundsTab"
+                                                />
+                                            </Tab>
+                                        </TabList>
+                                    </Box>
+                                    {activeTabIndex === BLOCKS_TAB_INDEX ? (
+                                        <ScriptsViewToggle
+                                            view={scriptsView}
+                                            onChange={setScriptsView}
+                                        />
+                                    ) : null}
+                                </div>
                                 <TabPanel
                                     className={tabClassNames.tabPanel}
                                     role="tabpanel"
                                 >
-                                    <Box
-                                        className={styles.blocksWrapper}
-                                        role="region"
-                                        aria-label={intl.formatMessage(ariaMessages.codePanel)}
-                                        element="section"
+                                    <ScriptsViews
+                                        view={scriptsView}
+                                        outline={
+                                            <OutlineView
+                                                active={scriptsView === SCRIPTS_VIEWS.outline}
+                                                vm={vm}
+                                            />
+                                        }
                                     >
-                                        <Blocks
-                                            key={`${blocksId}/${colorMode}/${theme}`}
-                                            canUseCloud={canUseCloud}
-                                            grow={1}
-                                            isVisible={blocksTabVisible}
-                                            options={{
-                                                media: `${basePath}static/${colorModeMap[colorMode].blocksMediaFolder}/`
-                                            }}
-                                            stageSize={stageSize}
-                                            theme={theme}
-                                            vm={vm}
-                                            colorMode={colorMode}
+                                        <Box
+                                            className={styles.blocksWrapper}
+                                            role="region"
+                                            aria-label={intl.formatMessage(ariaMessages.codePanel)}
+                                            element="section"
+                                        >
+                                            <PaletteArea>
+                                                <Blocks
+                                                    key={`${blocksId}/${colorMode}/${theme}`}
+                                                    canUseCloud={canUseCloud}
+                                                    grow={1}
+                                                    isVisible={blocksTabVisible}
+                                                    options={{
+                                                        media: `${basePath}static/` +
+                                                            `${colorModeMap[colorMode].blocksMediaFolder}/`
+                                                    }}
+                                                    stageSize={stageSize}
+                                                    theme={theme}
+                                                    vm={vm}
+                                                    colorMode={colorMode}
+                                                />
+                                            </PaletteArea>
+                                        </Box>
+                                        <ExtensionsButton
+                                            intl={intl}
+                                            onExtensionButtonClick={onExtensionButtonClick}
                                         />
-                                    </Box>
-                                    <ExtensionsButton
-                                        intl={intl}
-                                        onExtensionButtonClick={onExtensionButtonClick}
-                                    />
-                                    <Box className={styles.watermark}>
-                                        <Watermark />
-                                    </Box>
+                                        <Box className={styles.watermark}>
+                                            <Watermark />
+                                        </Box>
+                                    </ScriptsViews>
                                 </TabPanel>
                                 <TabPanel
                                     className={tabClassNames.tabPanel}
@@ -532,45 +624,6 @@ const GUIComponent = props => {
                                     ariaLabel={intl.formatMessage(ariaMessages.backpack)}
                                 />
                             ) : null}
-                        </Box>
-
-                        <Box
-                            role="complementary"
-                            aria-label={intl.formatMessage(ariaMessages.stageAndTarget)}
-                            className={classNames(styles.stageAndTargetWrapper, styles[stageSize])}
-                            element="aside"
-                        >
-                            <StageWrapper
-                                isFullScreen={isFullScreen}
-                                isRendererSupported={isRendererSupported}
-                                isRtl={isRtl}
-                                isCreating={isCreating}
-                                stageSize={stageSize}
-                                vm={vm}
-                                ariaRole="region"
-                                ariaLabel={intl.formatMessage(ariaMessages.stage)}
-                                manuallySaveThumbnails={manuallySaveThumbnails}
-                                onSetManualThumbnail={onSetManualThumbnail}
-                                onSetManualThumbnailButtonClick={onSetManualThumbnailButtonClick}
-                                loading={loading}
-                                showNewFeatureCallouts={showNewFeatureCallouts}
-                                userOwnsProject={userOwnsProject}
-                                username={username}
-                                onUpdateProjectThumbnail={onUpdateProjectThumbnail}
-                            />
-                            <Box
-                                className={styles.targetWrapper}
-                                role="region"
-                                aria-label={intl.formatMessage(ariaMessages.targetPane)}
-                                element="section"
-                            >
-                                <TargetPane
-                                    stageSize={stageSize}
-                                    vm={vm}
-                                    onNewSpriteClick={onNewSpriteClick}
-                                    onNewBackdropClick={onNewLibraryBackdropClick}
-                                />
-                            </Box>
                         </Box>
                     </Box>
                     <DragLayer />

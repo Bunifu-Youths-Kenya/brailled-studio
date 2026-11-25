@@ -38,16 +38,16 @@ const Controls = function (props) {
             className={classNames(styles.controlsContainer, className)}
             {...componentProps}
         >
-            <GreenFlag
-                active={active}
-                title={intl.formatMessage(messages.goTitle)}
-                onClick={onGreenFlagClick}
-                isFullScreen={isFullScreen}
-            />
             <StopAll
                 active={active}
                 title={intl.formatMessage(messages.stopTitle)}
                 onClick={onStopAllClick}
+                isFullScreen={isFullScreen}
+            />
+            <GreenFlag
+                active={active}
+                title={intl.formatMessage(messages.goTitle)}
+                onClick={onGreenFlagClick}
                 isFullScreen={isFullScreen}
             />
             {turbo ? (

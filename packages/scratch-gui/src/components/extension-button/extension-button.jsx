@@ -1,6 +1,6 @@
 import React, {useCallback, useContext} from 'react';
 import classNames from 'classnames';
-import {defineMessages, injectIntl} from 'react-intl';
+import {defineMessages, FormattedMessage, injectIntl} from 'react-intl';
 import intlShape from '../../lib/intlShape.js';
 import PropTypes from 'prop-types';
 
@@ -42,6 +42,13 @@ const ExtensionButton = props => {
                     draggable={false}
                     src={addExtensionIcon}
                 />
+                <span className={styles.extensionButtonLabel}>
+                    <FormattedMessage
+                        defaultMessage="Extension"
+                        description="Visible label of the button that adds an extension"
+                        id="brailled.gui.extension"
+                    />
+                </span>
             </button>
         </Box>
     );

@@ -1,0 +1,81 @@
+{
+  "blocks": {
+    "hat": {
+      "id": "hat",
+      "opcode": "event_whenflagclicked",
+      "inputs": {},
+      "fields": {},
+      "next": "move",
+      "parent": null,
+      "topLevel": true,
+      "shadow": false,
+      "x": 40,
+      "y": 40
+    },
+    "move": {
+      "id": "move",
+      "opcode": "motion_movesteps",
+      "inputs": {
+        "STEPS": {
+          "name": "STEPS",
+          "block": "ten",
+          "shadow": "ten"
+        }
+      },
+      "fields": {},
+      "next": "wait",
+      "parent": "hat",
+      "topLevel": false,
+      "shadow": false
+    },
+    "ten": {
+      "id": "ten",
+      "opcode": "math_number",
+      "inputs": {},
+      "fields": {
+        "NUM": {
+          "name": "NUM",
+          "value": "10"
+        }
+      },
+      "next": null,
+      "parent": "move",
+      "topLevel": false,
+      "shadow": true
+    },
+    "wait": {
+      "id": "wait",
+      "opcode": "control_wait",
+      "inputs": {
+        "DURATION": {
+          "name": "DURATION",
+          "block": "two",
+          "shadow": "two"
+        }
+      },
+      "fields": {},
+      "next": null,
+      "parent": "move",
+      "topLevel": false,
+      "shadow": false
+    },
+    "two": {
+      "id": "two",
+      "opcode": "math_positive_number",
+      "inputs": {},
+      "fields": {
+        "NUM": {
+          "name": "NUM",
+          "value": "2"
+        }
+      },
+      "next": null,
+      "parent": "wait",
+      "topLevel": false,
+      "shadow": true
+    }
+  },
+  "scripts": [
+    "hat"
+  ]
+}

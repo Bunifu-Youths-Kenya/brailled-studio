@@ -1,0 +1,46 @@
+@import "../../scratch-gui/src/css/colors.css";
+
+.tabs {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+.tab-list {
+    display: flex;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font: bold 0.75rem "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.tab {
+    flex: 1;
+    padding: 0.5rem;
+    text-align: center;
+    color: $text-primary;
+    background: $ui-tertiary;
+    border: 1px solid $ui-black-transparent;
+    border-radius: 0.5rem 0.5rem 0 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.selected-tab {
+    color: $ui-white;
+    background: $looks-secondary-dark;
+}
+
+.panel {
+    display: none;
+}
+
+.selected-panel {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    padding-top: 0.25rem;
+}

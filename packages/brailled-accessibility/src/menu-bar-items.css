@@ -1,0 +1,23 @@
+.brand-name {
+    padding: 0 0.75rem;
+    font-size: 1.125rem;
+    white-space: nowrap;
+}
+
+.language {
+    gap: 0.25rem;
+}
+
+.language:focus-within {
+    outline: 3px solid #ffd500;
+    outline-offset: -3px;
+}
+
+.language-icon {
+    width: 1.5rem;
+}
+
+.unavailable {
+    cursor: default;
+    opacity: 0.75;
+}

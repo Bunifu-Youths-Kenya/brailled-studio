@@ -73,11 +73,18 @@ const StageSelector = props => {
         >
             <div className={styles.header}>
                 <div className={styles.headerTitle}>
-                    <FormattedMessage
-                        defaultMessage="Stage"
-                        description="Label for the stage in the stage selector"
-                        id="gui.stageSelector.stage"
-                    />
+                    {/* The click reaches the selector's own handler; the button adds keyboard access to it. */}
+                    <button
+                        aria-pressed={selected}
+                        className={styles.headerButton}
+                        type="button"
+                    >
+                        <FormattedMessage
+                            defaultMessage="Stage"
+                            description="Label for the stage in the stage selector"
+                            id="gui.stageSelector.stage"
+                        />
+                    </button>
                 </div>
             </div>
             {url ? (

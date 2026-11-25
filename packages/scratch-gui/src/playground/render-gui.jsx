@@ -8,10 +8,6 @@ import HashParserHOC from '../lib/hash-parser-hoc.jsx';
 import log from '../lib/log.js';
 import {PLATFORM} from '../lib/platform.js';
 
-const onClickLogo = () => {
-    window.location = 'https://scratch.mit.edu';
-};
-
 const handleTelemetryModalCancel = () => {
     log('User canceled telemetry modal');
 };
@@ -79,10 +75,8 @@ export default appTarget => {
             <WrappedGui
                 canEditTitle
                 backpackVisible
-                showComingSoon
                 backpackHost={backpackHost}
                 canSave={false}
-                onClickLogo={onClickLogo}
             />
     );
 };

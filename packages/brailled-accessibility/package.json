@@ -3,5 +3,22 @@
   "version": "0.0.0",
   "private": true,
   "description": "Brailled accessibility layer: outline view, voice editing and AI assistance",
-  "license": "AGPL-3.0-only"
+  "license": "AGPL-3.0-only",
+  "main": "src/index.js",
+  "scripts": {
+    "lint": "eslint",
+    "test": "jest"
+  },
+  "jest": {
+    "testEnvironment": "node"
+  },
+  "peerDependencies": {
+    "classnames": "^2.5.0",
+    "lodash.debounce": "^4.0.8",
+    "prop-types": "^15.8.0",
+    "react": "^18.0.0",
+    "react-intl": "^6.0.0",
+    "react-tabs": "^5.2.0",
+    "scratch-blocks": "^2.2.0"
+  }
 }

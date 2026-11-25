@@ -1,0 +1,214 @@
+{
+  "blocks": {
+    "hat": {
+      "id": "hat",
+      "opcode": "event_whenflagclicked",
+      "inputs": {},
+      "fields": {},
+      "next": "repeat",
+      "parent": null,
+      "topLevel": true,
+      "shadow": false,
+      "x": 40,
+      "y": 40
+    },
+    "repeat": {
+      "id": "repeat",
+      "opcode": "control_repeat",
+      "inputs": {
+        "TIMES": {
+          "name": "TIMES",
+          "block": "times",
+          "shadow": "times"
+        },
+        "SUBSTACK": {
+          "name": "SUBSTACK",
+          "block": "ifelse",
+          "shadow": null
+        }
+      },
+      "fields": {},
+      "next": "after",
+      "parent": "hat",
+      "topLevel": false,
+      "shadow": false
+    },
+    "times": {
+      "id": "times",
+      "opcode": "math_whole_number",
+      "inputs": {},
+      "fields": {
+        "NUM": {
+          "name": "NUM",
+          "value": "10"
+        }
+      },
+      "next": null,
+      "parent": "repeat",
+      "topLevel": false,
+      "shadow": true
+    },
+    "ifelse": {
+      "id": "ifelse",
+      "opcode": "control_if_else",
+      "inputs": {
+        "CONDITION": {
+          "name": "CONDITION",
+          "block": "gt",
+          "shadow": null
+        },
+        "SUBSTACK": {
+          "name": "SUBSTACK",
+          "block": "move",
+          "shadow": null
+        },
+        "SUBSTACK2": {
+          "name": "SUBSTACK2",
+          "block": "say",
+          "shadow": null
+        }
+      },
+      "fields": {},
+      "next": null,
+      "parent": "repeat",
+      "topLevel": false,
+      "shadow": false
+    },
+    "gt": {
+      "id": "gt",
+      "opcode": "operator_gt",
+      "inputs": {
+        "OPERAND1": {
+          "name": "OPERAND1",
+          "block": "xpos",
+          "shadow": "blank"
+        },
+        "OPERAND2": {
+          "name": "OPERAND2",
+          "block": "fifty",
+          "shadow": "fifty"
+        }
+      },
+      "fields": {},
+      "next": null,
+      "parent": "ifelse",
+      "topLevel": false,
+      "shadow": false
+    },
+    "xpos": {
+      "id": "xpos",
+      "opcode": "motion_xposition",
+      "inputs": {},
+      "fields": {},
+      "next": null,
+      "parent": "gt",
+      "topLevel": false,
+      "shadow": false
+    },
+    "blank": {
+      "id": "blank",
+      "opcode": "text",
+      "inputs": {},
+      "fields": {
+        "TEXT": {
+          "name": "TEXT",
+          "value": ""
+        }
+      },
+      "next": null,
+      "parent": "gt",
+      "topLevel": false,
+      "shadow": true
+    },
+    "fifty": {
+      "id": "fifty",
+      "opcode": "text",
+      "inputs": {},
+      "fields": {
+        "TEXT": {
+          "name": "TEXT",
+          "value": "50"
+        }
+      },
+      "next": null,
+      "parent": "gt",
+      "topLevel": false,
+      "shadow": true
+    },
+    "move": {
+      "id": "move",
+      "opcode": "motion_movesteps",
+      "inputs": {
+        "STEPS": {
+          "name": "STEPS",
+          "block": "ten",
+          "shadow": "ten"
+        }
+      },
+      "fields": {},
+      "next": null,
+      "parent": "ifelse",
+      "topLevel": false,
+      "shadow": false
+    },
+    "ten": {
+      "id": "ten",
+      "opcode": "math_number",
+      "inputs": {},
+      "fields": {
+        "NUM": {
+          "name": "NUM",
+          "value": "10"
+        }
+      },
+      "next": null,
+      "parent": "move",
+      "topLevel": false,
+      "shadow": true
+    },
+    "say": {
+      "id": "say",
+      "opcode": "looks_say",
+      "inputs": {
+        "MESSAGE": {
+          "name": "MESSAGE",
+          "block": "hi",
+          "shadow": "hi"
+        }
+      },
+      "fields": {},
+      "next": null,
+      "parent": "ifelse",
+      "topLevel": false,
+      "shadow": false
+    },
+    "hi": {
+      "id": "hi",
+      "opcode": "text",
+      "inputs": {},
+      "fields": {
+        "TEXT": {
+          "name": "TEXT",
+          "value": "hi"
+        }
+      },
+      "next": null,
+      "parent": "say",
+      "topLevel": false,
+      "shadow": true
+    },
+    "after": {
+      "id": "after",
+      "opcode": "control_forever",
+      "inputs": {},
+      "fields": {},
+      "next": null,
+      "parent": "repeat",
+      "topLevel": false,
+      "shadow": false
+    }
+  },
+  "scripts": [
+    "hat"
+  ]
+}

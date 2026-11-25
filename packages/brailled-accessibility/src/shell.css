@@ -1,0 +1,46 @@
+/*
+    Two-tone focus indicator, so that it stays visible on both light and dark backgrounds. `!important`
+    overrides the component styles that remove the outline.
+    It applies to the whole page, because popovers and dialogs are rendered outside the editor's own elements.
+*/
+:global(body) *:focus-visible {
+    outline: 3px solid #1a1a1a !important;
+    outline-offset: 0;
+    box-shadow: 0 0 0 5px #ffd500 !important;
+}
+
+/* The menu bar is purple and touches the window edge. */
+.shell header *:focus-visible {
+    outline-color: #ffd500 !important;
+    outline-offset: -3px;
+    box-shadow: none !important;
+}
+
+/* Whole zones are focused by the skip links; draw their indicator inside their own edges. */
+.shell main:focus-visible,
+.shell aside:focus-visible {
+    outline-offset: -3px;
+    box-shadow: none !important;
+}
+
+.skip-links {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10000;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.25rem;
+    background: #fff;
+    font: bold 0.875rem "Helvetica Neue", Helvetica, Arial, sans-serif;
+    transform: translateY(-200%);
+}
+
+.skip-links:focus-within {
+    transform: none;
+}
+
+.skip-links a {
+    padding: 0.5rem;
+    color: #1a1a1a;
+}

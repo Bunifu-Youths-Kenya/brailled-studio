@@ -15,6 +15,7 @@ const StageWrapperComponent = function (props) {
     const {
         ariaLabel,
         ariaRole,
+        controlsBelowStage,
         isCreating,
         isFullScreen,
         isRtl,
@@ -30,6 +31,41 @@ const StageWrapperComponent = function (props) {
         showNewFeatureCallouts,
         vm
     } = props;
+    // Keyed so that changing their order moves them instead of remounting them.
+    const header = (
+        <Box
+            className={styles.stageMenuWrapper}
+            key="header"
+        >
+            <StageHeader
+                manuallySaveThumbnails={manuallySaveThumbnails}
+                onSetManualThumbnail={onSetManualThumbnail}
+                onSetManualThumbnailButtonClick={onSetManualThumbnailButtonClick}
+                username={username}
+                userOwnsProject={userOwnsProject}
+                loadingOrCreating={loading || isCreating}
+                onUpdateProjectThumbnail={onUpdateProjectThumbnail}
+                showNewFeatureCallouts={showNewFeatureCallouts}
+                stageSize={stageSize}
+                vm={vm}
+            />
+        </Box>
+    );
+    const canvas = (
+        <Box
+            className={styles.stageCanvasWrapper}
+            key="canvas"
+        >
+            {
+                isRendererSupported ?
+                    <Stage
+                        stageSize={stageSize}
+                        vm={vm}
+                    /> :
+                    null
+            }
+        </Box>
+    );
     return (
         <Box
             className={classNames(
@@ -41,30 +77,7 @@ const StageWrapperComponent = function (props) {
             aria-label={ariaLabel}
             element="section"
         >
-            <Box className={styles.stageMenuWrapper}>
-                <StageHeader
-                    manuallySaveThumbnails={manuallySaveThumbnails}
-                    onSetManualThumbnail={onSetManualThumbnail}
-                    onSetManualThumbnailButtonClick={onSetManualThumbnailButtonClick}
-                    username={username}
-                    userOwnsProject={userOwnsProject}
-                    loadingOrCreating={loading || isCreating}
-                    onUpdateProjectThumbnail={onUpdateProjectThumbnail}
-                    showNewFeatureCallouts={showNewFeatureCallouts}
-                    stageSize={stageSize}
-                    vm={vm}
-                />
-            </Box>
-            <Box className={styles.stageCanvasWrapper}>
-                {
-                    isRendererSupported ?
-                        <Stage
-                            stageSize={stageSize}
-                            vm={vm}
-                        /> :
-                        null
-                }
-            </Box>
+            {controlsBelowStage && !isFullScreen ? [canvas, header] : [header, canvas]}
             {loading ? (
                 <Loader isFullScreen={isFullScreen} />
             ) : null}
@@ -75,6 +88,7 @@ const StageWrapperComponent = function (props) {
 StageWrapperComponent.propTypes = {
     ariaLabel: PropTypes.string,
     ariaRole: PropTypes.string,
+    controlsBelowStage: PropTypes.bool,
     isCreating: PropTypes.bool,
     isFullScreen: PropTypes.bool,
     isRendererSupported: PropTypes.bool.isRequired,

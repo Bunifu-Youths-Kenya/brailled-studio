@@ -6,6 +6,7 @@ import {legacyConfig} from '../../legacy-config';
 import SpriteLibrary from '../../containers/sprite-library.jsx';
 import SpriteSelectorComponent from '../sprite-selector/sprite-selector.jsx';
 import StageSelector from '../../containers/stage-selector.jsx';
+import {DevicesPanel, StageTabs} from '../../../../brailled-accessibility/src/index.js';
 import {STAGE_DISPLAY_SIZES} from '../../lib/layout-constants';
 
 import styles from './target-pane.css';
@@ -54,54 +55,60 @@ const TargetPane = ({
         {...componentProps}
     >
 
-        <SpriteSelectorComponent
-            editingTarget={editingTarget}
-            hoveredTarget={hoveredTarget}
-            raised={raiseSprites}
-            selectedId={editingTarget}
-            spriteFileInput={fileInputRef}
-            sprites={sprites}
-            stageSize={stageSize}
-            onChangeSpriteDirection={onChangeSpriteDirection}
-            onChangeSpriteName={onChangeSpriteName}
-            onChangeSpriteRotationStyle={onChangeSpriteRotationStyle}
-            onChangeSpriteSize={onChangeSpriteSize}
-            onChangeSpriteVisibility={onChangeSpriteVisibility}
-            onChangeSpriteX={onChangeSpriteX}
-            onChangeSpriteY={onChangeSpriteY}
-            onDeleteSprite={onDeleteSprite}
-            onDrop={onDrop}
-            onDuplicateSprite={onDuplicateSprite}
-            onExportSprite={onExportSprite}
-            onFileUploadClick={onFileUploadClick}
-            onNewSpriteClick={onNewSpriteClick}
-            onPaintSpriteClick={onPaintSpriteClick}
-            onSelectSprite={onSelectSprite}
-            onSpriteUpload={onSpriteUpload}
-            onSurpriseSpriteClick={onSurpriseSpriteClick}
+        <StageTabs
+            devices={<DevicesPanel />}
+            sprites={
+                <SpriteSelectorComponent
+                    editingTarget={editingTarget}
+                    hoveredTarget={hoveredTarget}
+                    raised={raiseSprites}
+                    selectedId={editingTarget}
+                    spriteFileInput={fileInputRef}
+                    sprites={sprites}
+                    stageSize={stageSize}
+                    onChangeSpriteDirection={onChangeSpriteDirection}
+                    onChangeSpriteName={onChangeSpriteName}
+                    onChangeSpriteRotationStyle={onChangeSpriteRotationStyle}
+                    onChangeSpriteSize={onChangeSpriteSize}
+                    onChangeSpriteVisibility={onChangeSpriteVisibility}
+                    onChangeSpriteX={onChangeSpriteX}
+                    onChangeSpriteY={onChangeSpriteY}
+                    onDeleteSprite={onDeleteSprite}
+                    onDrop={onDrop}
+                    onDuplicateSprite={onDuplicateSprite}
+                    onExportSprite={onExportSprite}
+                    onFileUploadClick={onFileUploadClick}
+                    onNewSpriteClick={onNewSpriteClick}
+                    onPaintSpriteClick={onPaintSpriteClick}
+                    onSelectSprite={onSelectSprite}
+                    onSpriteUpload={onSpriteUpload}
+                    onSurpriseSpriteClick={onSurpriseSpriteClick}
+                />
+            }
+            background={
+                <div className={styles.stageSelectorWrapper}>
+                    {stage.id && <StageSelector
+                        asset={
+                            stage.costume &&
+                            stage.costume.asset
+                        }
+                        backdropCount={stage.costumeCount}
+                        id={stage.id}
+                        selected={stage.id === editingTarget}
+                        onSelect={onSelectSprite}
+                        onNewBackdropClick={onNewBackdropClick}
+                    />}
+                </div>
+            }
         />
-        <div className={styles.stageSelectorWrapper}>
-            {stage.id && <StageSelector
-                asset={
-                    stage.costume &&
-                    stage.costume.asset
-                }
-                backdropCount={stage.costumeCount}
-                id={stage.id}
-                selected={stage.id === editingTarget}
-                onSelect={onSelectSprite}
-                onNewBackdropClick={onNewBackdropClick}
-            />}
-            <div>
-                {spriteLibraryVisible ? (
-                    <SpriteLibrary
-                        vm={vm}
-                        onActivateBlocksTab={onActivateBlocksTab}
-                        onRequestClose={onRequestCloseSpriteLibrary}
-                    />
-                ) : null}
-            </div>
-        </div>
+        {/* Outside the tabs, so that the library shows whichever tab is selected. */}
+        {spriteLibraryVisible ? (
+            <SpriteLibrary
+                vm={vm}
+                onActivateBlocksTab={onActivateBlocksTab}
+                onRequestClose={onRequestCloseSpriteLibrary}
+            />
+        ) : null}
     </div>
 );
 
