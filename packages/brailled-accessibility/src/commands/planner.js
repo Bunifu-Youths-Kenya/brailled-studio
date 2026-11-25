@@ -188,6 +188,10 @@ const operations = {
         return {kind: 'moved', id: block.id, following, position, focusBefore: block.id};
     },
     'wrap': (command, program, context) => {
+        const holder = shapeOf({opcode: command.in, fields: {}}, context.extensionShape);
+        if (holder && branchesOf(command.in).length === 0) {
+            throw new CommandError('notAContainer', {opcode: command.in});
+        }
         const first = stackAnchor(program, command.block, context);
         const chain = chainFrom(program, first.id);
         const count = chain.indexOf(command.through || first.id) + 1;

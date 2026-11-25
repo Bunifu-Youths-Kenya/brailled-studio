@@ -28,15 +28,16 @@ const placeText = (position, after, name, intl) => {
  * @param {object} options.before The program before the command.
  * @param {object} options.after The program afterwards.
  * @param {function(object, string): string} options.name Names a block of a program.
+ * @param {function(object, string): string} options.fullName Names a block in a way that tells its kind apart.
  * @param {function(object): boolean} options.isInstruction Whether a block is an instruction.
  * @param {object} options.intl A react-intl object.
  * @returns {string} The sentence.
  */
-const readBack = ({event, before, after, name, isInstruction, intl}) => {
+const readBack = ({event, before, after, name, fullName, isInstruction, intl}) => {
     const say = (message, values) => intl.formatMessage(message, values);
     switch (event.kind) {
     case 'added': {
-        const block = name(after, event.id);
+        const block = fullName(after, event.id);
         return Object.keys(event.position).length === 0 ?
             say(text.addedScript, {block}) :
             say(text.added, {block, place: placeText(event.position, after, name, intl)});
@@ -58,7 +59,7 @@ const readBack = ({event, before, after, name, isInstruction, intl}) => {
             {block, place: placeText(event.position, after, name, intl)});
     }
     default: {
-        const values = {block: name(before, event.first), holder: name(after, event.id), count: event.count};
+        const values = {block: name(before, event.first), holder: fullName(after, event.id), count: event.count};
         return say(event.count > 1 ? text.wrappedMany : text.wrapped, values);
     }
     }

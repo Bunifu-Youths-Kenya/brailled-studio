@@ -2,12 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Brailled edit command",
   "description": "One edit to the selected sprite or stage, or a request to undo, redo or describe.",
+  "$comment": "Blocks are named by opcode and values by input or field name, so blocks from extensions need no change to this format. See 'Extension blocks' in the package README.",
   "oneOf": [
     {"$ref": "#/$defs/insert"},
     {"$ref": "#/$defs/delete"},
     {"$ref": "#/$defs/set-value"},
     {"$ref": "#/$defs/move"},
     {"$ref": "#/$defs/wrap"},
+    {"$ref": "#/$defs/create"},
+    {"$ref": "#/$defs/rename"},
     {"$ref": "#/$defs/undo"},
     {"$ref": "#/$defs/redo"},
     {"$ref": "#/$defs/describe"}
@@ -40,7 +43,10 @@
       "description": "The start of a stack held by a loop or condition.",
       "required": ["block"],
       "additionalProperties": false,
-      "properties": {"block": {"$ref": "#/$defs/id"}, "branch": {"enum": ["SUBSTACK", "SUBSTACK2"]}}
+      "properties": {
+        "block": {"$ref": "#/$defs/id"},
+        "branch": {"type": "string", "pattern": "^SUBSTACK[0-9]*$", "description": "Such as SUBSTACK2."}
+      }
     },
     "insert": {
       "type": "object",
@@ -103,16 +109,33 @@
         "op": {"const": "wrap"},
         "block": {"$ref": "#/$defs/id"},
         "through": {"$ref": "#/$defs/id"},
-        "in": {
-          "enum": [
-            "control_repeat",
-            "control_forever",
-            "control_repeat_until",
-            "control_if",
-            "control_if_else"
-          ]
-        },
+        "in": {"$ref": "#/$defs/opcode", "description": "A loop or condition, such as control_repeat."},
         "args": {"$ref": "#/$defs/args"}
+      }
+    },
+    "kind": {"enum": ["variable", "list", "message"], "description": "A message is a broadcast message."},
+    "create": {
+      "type": "object",
+      "description": "Make a variable, list or broadcast message. Scope is for all sprites unless given.",
+      "required": ["op", "kind", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "op": {"const": "create"},
+        "kind": {"$ref": "#/$defs/kind"},
+        "name": {"type": "string"},
+        "scope": {"enum": ["all", "sprite"]}
+      }
+    },
+    "rename": {
+      "type": "object",
+      "description": "Rename a variable, list or broadcast message that the selected sprite can use.",
+      "required": ["op", "kind", "name", "to"],
+      "additionalProperties": false,
+      "properties": {
+        "op": {"const": "rename"},
+        "kind": {"$ref": "#/$defs/kind"},
+        "name": {"type": "string", "description": "The present name."},
+        "to": {"type": "string", "description": "The new name."}
       }
     },
     "undo": {

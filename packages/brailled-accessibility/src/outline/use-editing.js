@@ -1,23 +1,31 @@
 import {useCallback, useState} from 'react';
 
 import {CATALOG} from '../commands/catalog.js';
-import {blockOf, deleteCommand, insertCommand, insertPosition} from './editing.js';
+import {blockOf, deleteCommand, insertCommand, insertPosition, WRAPPERS, wrapRange} from './editing.js';
 import {dialogMessages as messages} from './messages.js';
+import useMoving from './use-moving.js';
 
 /**
  * The Outline's editing keys and the dialogs they open.
  * @param {object} options Options.
  * @param {object} options.editor The editing engine.
- * @param {function(): ?object} options.currentNode The item the user is on.
+ * @param {?object} options.program The outline being shown.
+ * @param {function(): ?object[]} options.currentPath The nodes from the top of the outline to the item the
+ * user is on.
  * @param {function(string)} options.announce Says something through the live region.
  * @param {function()} options.refocus Returns focus to the tree once it has been redrawn.
  * @param {object} options.intl A react-intl object.
- * @returns {{dialog: ?object, handleEditKey: function(KeyboardEvent): boolean}} The open dialog, if any, and
- * a key handler that returns whether it used the key.
+ * @returns {{dialog: ?object, movingId: ?string, handleEditKey: function(KeyboardEvent): boolean}} The open
+ * dialog and the item being moved, if any, and a key handler that returns whether it used the key.
  */
-const useEditing = ({editor, currentNode, announce, refocus, intl}) => {
-    // `{type: 'picker'|'values', ...}`
+const useEditing = ({editor, program, currentPath, announce, refocus, intl}) => {
+    // `{type: 'picker'|'values'|'create'|'rename', ...}`
     const [dialog, setDialog] = useState(null);
+    const {movingId, handleMoveKey} = useMoving({program, editor, announce, intl});
+    const currentNode = useCallback(() => {
+        const path = currentPath();
+        return path ? path[path.length - 1] : null;
+    }, [currentPath]);
 
     const close = useCallback(() => {
         refocus();
@@ -74,6 +82,46 @@ const useEditing = ({editor, currentNode, announce, refocus, intl}) => {
         setDialog(editorDialog);
     }, [editor, intl, announce, runFromDialog, close]);
 
+    const openWrap = useCallback(following => {
+        const range = wrapRange(currentPath(), following);
+        if (!range) {
+            announce(intl.formatMessage(messages.chooseBlockToWrap));
+            return;
+        }
+        const node = currentNode();
+        const many = range.through && node.type === 'block';
+        setDialog({
+            type: 'picker',
+            title: intl.formatMessage(many ? messages.wrapFollowing : messages.wrap, {block: node.text}),
+            entries: editor.listBlocks('instruction').filter(entry => WRAPPERS.includes(entry.opcode)),
+            handleChoose: opcode => runFromDialog({op: 'wrap', ...range, in: opcode}),
+            handleCancel: close
+        });
+    }, [editor, currentPath, currentNode, announce, intl, runFromDialog, close]);
+
+    const openCreate = useCallback(() => {
+        setDialog({
+            type: 'create',
+            isStage: editor.listData().isStage,
+            handleCreate: values => runFromDialog({op: 'create', ...values}),
+            handleCancel: close
+        });
+    }, [editor, runFromDialog, close]);
+
+    const openRename = useCallback(() => {
+        const {items} = editor.listData();
+        if (items.length === 0) {
+            announce(intl.formatMessage(messages.nothingToRename));
+            return;
+        }
+        setDialog({
+            type: 'rename',
+            items,
+            handleRename: values => runFromDialog({op: 'rename', ...values}),
+            handleCancel: close
+        });
+    }, [editor, announce, intl, runFromDialog, close]);
+
     const handleEditKey = useCallback(event => {
         const key = event.key.toLowerCase();
         if (event.altKey) return false;
@@ -84,8 +132,14 @@ const useEditing = ({editor, currentNode, announce, refocus, intl}) => {
             return true;
         }
         const node = currentNode();
+        if (handleMoveKey(key, event.shiftKey, node)) return true;
         if (key === 'i') {
             openInsert(event.shiftKey);
+        } else if (key === 'w') {
+            openWrap(event.shiftKey);
+        } else if (key === 'v') {
+            if (event.shiftKey) openRename();
+            else openCreate();
         } else if (key === 'd') {
             const script = event.shiftKey ? blockOf(node) : null;
             editor.run({op: 'describe', ...(script ? {script} : {})});
@@ -108,9 +162,10 @@ const useEditing = ({editor, currentNode, announce, refocus, intl}) => {
             return false;
         }
         return true;
-    }, [editor, currentNode, openInsert, openValues, announce, intl]);
+    }, [editor, currentNode, handleMoveKey, openInsert, openWrap, openCreate, openRename, openValues,
+        announce, intl]);
 
-    return {dialog, handleEditKey};
+    return {dialog, movingId, handleEditKey};
 };
 
 export default useEditing;

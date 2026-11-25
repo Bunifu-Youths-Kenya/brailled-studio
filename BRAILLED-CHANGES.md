@@ -91,6 +91,12 @@ These are new files, not edits to Scratch's own.
 | 2026-11-25 | `packages/brailled-accessibility/test/search.test.js` |
 | 2026-11-25 | `packages/brailled-accessibility/test/validator.test.js` |
 | 2026-11-25 | `packages/brailled-accessibility/SUPPORTED-BLOCKS.md` |
+| 2026-11-25 | `packages/brailled-accessibility/src/commands/data.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/outline/data-dialogs.jsx` |
+| 2026-11-25 | `packages/brailled-accessibility/src/outline/use-moving.js` |
+| 2026-11-25 | `packages/brailled-accessibility/test/data.test.js` |
+| 2026-11-25 | `packages/brailled-accessibility/test/keys.test.js` |
+| 2026-11-25 | `packages/brailled-accessibility/e2e/editor.e2e.cjs` |
 | 2026-11-25 | `packages/logos/Braille bot  Bio.svg` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

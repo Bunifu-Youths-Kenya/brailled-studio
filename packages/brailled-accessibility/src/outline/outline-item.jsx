@@ -1,9 +1,14 @@
 import PropTypes from 'prop-types';
 import React, {useCallback} from 'react';
+import {useIntl} from 'react-intl';
+
+import {dialogMessages} from './messages.js';
 
 import styles from './outline.css';
 
-const OutlineItem = ({node, currentId, collapsed, onSelect, onToggle}) => {
+const OutlineItem = ({node, currentId, movingId, collapsed, onSelect, onToggle}) => {
+    const intl = useIntl();
+    const moving = node.id === movingId;
     const expandable = !!node.children;
     const expanded = expandable && !collapsed.has(node.id);
     const labelId = `brailled-outline-label-${node.id}`;
@@ -44,10 +49,10 @@ const OutlineItem = ({node, currentId, collapsed, onSelect, onToggle}) => {
                     {expandable && (expanded ? '▾' : '▸')}
                 </span>
                 <span
-                    className={styles[node.type]}
+                    className={moving ? `${styles[node.type] || ''} ${styles.moving}` : styles[node.type]}
                     id={labelId}
                 >
-                    {node.text}
+                    {moving ? intl.formatMessage(dialogMessages.beingMoved, {block: node.text}) : node.text}
                 </span>
             </span>
             {expanded ? (
@@ -60,6 +65,7 @@ const OutlineItem = ({node, currentId, collapsed, onSelect, onToggle}) => {
                             collapsed={collapsed}
                             currentId={currentId}
                             key={child.id}
+                            movingId={movingId}
                             node={child}
                             onSelect={onSelect}
                             onToggle={onToggle}
@@ -82,6 +88,7 @@ OutlineItem.propTypes = {
         children: PropTypes.arrayOf(PropTypes.shape({id: PropTypes.string}))
     }).isRequired,
     currentId: PropTypes.string,
+    movingId: PropTypes.string,
     collapsed: PropTypes.instanceOf(Set).isRequired,
     onSelect: PropTypes.func.isRequired,
     onToggle: PropTypes.func.isRequired

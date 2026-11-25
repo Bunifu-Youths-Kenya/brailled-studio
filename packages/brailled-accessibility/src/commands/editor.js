@@ -13,16 +13,19 @@ import DEFAULT_WORDS from '../outline/words.js';
 import {makePatch, matches, reverse, writePatch} from './apply.js';
 import {CATALOG} from './catalog.js';
 import {createContext, randomId} from './context.js';
+import {itemsInScope, itemsOf, planData} from './data.js';
 import CommandError from './error.js';
 import {readbacks, reasons} from './messages.js';
 import plan from './planner.js';
-import {copy, isValue, shapeOf, snapshot} from './program.js';
+import {branchesOf, copy, isValue, shapeOf, snapshot} from './program.js';
 import {readBack, summarise} from './readback.js';
 import checkCommand from './schema-check.js';
 import {createBlock, menuChoices} from './values.js';
 
 const HISTORY_LIMIT = 100;
-const SOLO = ['undo', 'redo', 'describe'];
+// Operations that cannot be batched with others.
+const SOLO = ['undo', 'redo', 'describe', 'create', 'rename'];
+const DATA = ['create', 'rename'];
 
 const defaultEnvironment = () => ({
     intl: createIntl({locale: 'en', defaultLocale: 'en', onError: () => {}}),
@@ -47,11 +50,21 @@ const createEditor = (vm, {newId = randomId} = {}) => {
     const listeners = new Set();
     // Undo and redo stacks, by sprite.
     const histories = new Map();
+    // For each project's stage, the messages created here, by id.
+    const messageSets = new Map();
+
+    const messagesOf = () => {
+        const stage = vm.runtime.getTargetForStage();
+        if (!messageSets.has(stage.id)) messageSets.set(stage.id, new Map());
+        return messageSets.get(stage.id);
+    };
 
     const historyOf = target => {
         if (!histories.has(target.id)) histories.set(target.id, {undo: [], redo: []});
         return histories.get(target.id);
     };
+
+    const say = (message, values) => environment.intl.formatMessage(message, values);
 
     const definitionSource = () => (environment.scratchBlocks ?
         createDefinitionSource(environment.scratchBlocks) :
@@ -63,14 +76,19 @@ const createEditor = (vm, {newId = randomId} = {}) => {
         words: environment.words
     });
     const name = (program, id) => describer(program)(program.blocks[id]);
+    // The name that tells a kind of block apart: "if" and "if, else" would otherwise sound the same.
+    const fullName = (program, id) => (branchesOf(program.blocks[id].opcode).length > 1 ?
+        say(readbacks.withElse, {block: name(program, id)}) :
+        name(program, id));
 
     const contextFor = () => {
         if (!vm.editingTarget) throw new CommandError('noTarget');
         const definitions = definitionSource();
-        return createContext({vm, name, getDefinition: definitions, newId});
+        const unusedMessages = itemsOf(vm, 'message', messagesOf())
+            .filter(item => !item.variable)
+            .map(item => ({id: item.id, name: item.name}));
+        return createContext({vm, name, getDefinition: definitions, newId, unusedMessages});
     };
-
-    const say = (message, values) => environment.intl.formatMessage(message, values);
 
     const report = result => {
         listeners.forEach(listener => listener(result));
@@ -118,7 +136,7 @@ const createEditor = (vm, {newId = randomId} = {}) => {
         for (const command of commands) {
             const {program: next, event} = plan(command, program, context);
             sentences.push(readBack({
-                event, before: program, after: next, name, isInstruction, intl: environment.intl
+                event, before: program, after: next, name, fullName, isInstruction, intl: environment.intl
             }));
             program = next;
             first = first || event;
@@ -127,18 +145,45 @@ const createEditor = (vm, {newId = randomId} = {}) => {
         return {original, program, sentences, first, last};
     };
 
-    // Write one side of a history entry into the project.
-    const write = (target, entry, patch) => {
-        const stage = vm.runtime.getTargetForStage();
-        // Redrawing the workspace discards messages that no block uses, so bring back those needed.
-        broadcastsIn(patch).forEach(field => stage.createVariable(field.id, field.value, 'broadcast_msg'));
-        writePatch(target.blocks, patch);
-        // Comments go and come back with their blocks.
-        for (const [id, comment] of Object.entries(entry.comments)) {
-            if (patch.after[id]) target.comments[comment.id] = comment;
-            else delete target.comments[comment.id];
-        }
-        vm.emitWorkspaceUpdate();
+    const currentName = id => {
+        const owner = vm.runtime.targets.find(target => target.variables[id]);
+        return owner ? owner.variables[id].name : messagesOf().get(id);
+    };
+
+    // A history entry for a change to blocks. It can be reversed if they are still as it left them.
+    const blockEntry = (target, patch, comments) => {
+        const patchFor = direction => (direction === 'undo' ? reverse(patch) : patch);
+        return {
+            check: direction => {
+                if (!matches(target.blocks, patchFor(direction))) throw new CommandError('changedSince');
+            },
+            perform: direction => {
+                const side = patchFor(direction);
+                const stage = vm.runtime.getTargetForStage();
+                // Redrawing the workspace discards messages that no block uses, so bring back those needed.
+                broadcastsIn(side).forEach(field => stage.createVariable(
+                    field.id, messagesOf().get(field.id) ?? field.value, 'broadcast_msg'));
+                writePatch(target.blocks, side, currentName);
+                // Comments go and come back with their blocks.
+                for (const [id, comment] of Object.entries(comments)) {
+                    if (side.after[id]) target.comments[comment.id] = comment;
+                    else delete target.comments[comment.id];
+                }
+                vm.emitWorkspaceUpdate();
+            }
+        };
+    };
+
+    const record = (target, entry) => {
+        const history = historyOf(target);
+        history.undo.push(entry);
+        if (history.undo.length > HISTORY_LIMIT) history.undo.shift();
+        history.redo.length = 0;
+        return {ok: true,
+            changed: true,
+            dataChanged: !!entry.data,
+            message: entry.sentence,
+            focusId: entry.focusAfter};
     };
 
     const edit = commands => {
@@ -154,34 +199,58 @@ const createEditor = (vm, {newId = randomId} = {}) => {
             if (comment && !patch.after[id]) comments[id] = comment;
         }
         const entry = {
-            patch,
-            comments,
+            ...blockEntry(target, patch, comments),
             sentence: sentences.join('. '),
             focusBefore: first.focusBefore,
             focusAfter: last.kind === 'deleted' ? null : last.id
         };
-        const history = historyOf(target);
-        write(target, entry, patch);
-        history.undo.push(entry);
-        if (history.undo.length > HISTORY_LIMIT) history.undo.shift();
-        history.redo.length = 0;
-        return {ok: true, changed: true, message: entry.sentence, focusId: entry.focusAfter};
+        entry.perform('redo');
+        return record(target, entry);
+    };
+
+    const planDataCommand = command => {
+        checkCommand(command);
+        if (!vm.editingTarget) throw new CommandError('noTarget');
+        return planData({command, vm, messages: messagesOf(), newId});
+    };
+
+    // Create or rename a variable, list or message.
+    const editData = command => {
+        const change = planDataCommand(command);
+        if (!change) return {ok: true, changed: false, message: say(readbacks.noChange)};
+        let message = readbacks.renamedItem;
+        if (change.kind === 'created') {
+            message = change.values.kind === 'message' ? readbacks.createdMessage : readbacks.createdItem;
+        }
+        const entry = {
+            check: change.check,
+            perform: direction => {
+                change.perform(direction);
+                if (change.redraw) vm.emitWorkspaceUpdate();
+            },
+            data: true,
+            sentence: say(message, change.values),
+            focusBefore: null,
+            focusAfter: null
+        };
+        const target = vm.editingTarget;
+        entry.perform('redo');
+        return record(target, entry);
     };
 
     const travel = direction => {
         if (!vm.editingTarget) throw new CommandError('noTarget');
-        const target = vm.editingTarget;
-        const history = historyOf(target);
+        const history = historyOf(vm.editingTarget);
         const entry = history[direction][history[direction].length - 1];
         if (!entry) throw new CommandError(direction === 'undo' ? 'nothingToUndo' : 'nothingToRedo');
-        const patch = direction === 'undo' ? reverse(entry.patch) : entry.patch;
-        if (!matches(target.blocks, patch)) throw new CommandError('changedSince');
-        write(target, entry, patch);
+        entry.check(direction);
+        entry.perform(direction);
         history[direction].pop();
         history[direction === 'undo' ? 'redo' : 'undo'].push(entry);
         return {
             ok: true,
             changed: true,
+            dataChanged: !!entry.data,
             message: say(direction === 'undo' ? readbacks.undone : readbacks.redone, {sentence: entry.sentence}),
             focusId: direction === 'undo' ? entry.focusBefore : entry.focusAfter
         };
@@ -208,14 +277,16 @@ const createEditor = (vm, {newId = randomId} = {}) => {
     /**
      * Carry out a command, or several editing commands as one step that can be undone together.
      * @param {object|object[]} input Commands matching `schema.json`.
-     * @returns {{ok: boolean, changed: boolean, message: string, reason: ?string, focusId: ?string}} The
-     * result. `message` is the sentence to say; subscribers receive the result too.
+     * @returns {{ok: boolean, changed: boolean, message: string, reason: ?string, focusId: ?string,
+     * dataChanged: ?boolean}} The result. `message` is the sentence to say; `dataChanged` means variables, lists
+     * or messages changed. Subscribers receive the result too.
      */
     const run = input => {
         const commands = Array.isArray(input) ? input : [input];
         try {
             if (commands.length === 1 && SOLO.includes(commands[0]?.op)) {
                 const [command] = commands;
+                if (DATA.includes(command.op)) return report(editData(command));
                 checkCommand(command);
                 return report(command.op === 'describe' ? describe(command) : travel(command.op));
             }
@@ -233,7 +304,8 @@ const createEditor = (vm, {newId = randomId} = {}) => {
     const validate = input => {
         const commands = Array.isArray(input) ? input : [input];
         try {
-            if (commands.length === 1 && SOLO.includes(commands[0]?.op)) checkCommand(commands[0]);
+            if (commands.length === 1 && DATA.includes(commands[0]?.op)) planDataCommand(commands[0]);
+            else if (commands.length === 1 && SOLO.includes(commands[0]?.op)) checkCommand(commands[0]);
             else prepare(commands);
             return {ok: true};
         } catch (error) {
@@ -259,7 +331,7 @@ const createEditor = (vm, {newId = randomId} = {}) => {
                 const program = {blocks: {}, scripts: []};
                 try {
                     const block = createBlock(program, opcode, {}, context);
-                    return [{opcode, name: name(program, block.id), category: opcode.split('_')[0]}];
+                    return [{opcode, name: fullName(program, block.id), category: opcode.split('_')[0]}];
                 } catch (error) {
                     // Not usable here: a stage without motion, or a project without a list.
                     if (!(error instanceof CommandError)) throw error;
@@ -352,10 +424,24 @@ const createEditor = (vm, {newId = randomId} = {}) => {
         return walk(blockId);
     };
 
+    /**
+     * The variables, lists and messages that the selected sprite or stage can use.
+     * @returns {{isStage: boolean, items: Array<{kind: string, name: string, scope: string}>}} Them, and whether
+     * the stage is selected.
+     */
+    const listData = () => {
+        if (!vm.editingTarget) return {isStage: false, items: []};
+        const stage = vm.runtime.getTargetForStage();
+        const items = ['variable', 'list', 'message'].flatMap(kind => itemsInScope(vm, kind, messagesOf())
+            .map(item => ({kind, name: item.name, scope: item.owner === stage ? 'all' : 'sprite'})));
+        return {isStage: !!vm.editingTarget.isStage, items};
+    };
+
     return {
         run,
         validate,
         listBlocks,
+        listData,
         valuesOf,
         setEnvironment: next => {
             environment = {...defaultEnvironment(), ...next};

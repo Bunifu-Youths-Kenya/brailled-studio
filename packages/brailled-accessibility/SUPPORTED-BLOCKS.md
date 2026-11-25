@@ -175,5 +175,18 @@ Blocks that editing commands can create and whose values they can change: 122 op
 | Hidden older blocks `control_while`, `control_for_each`, `control_all_at_once` | no | no | yes | yes |
 | Any other opcode | no | no | no | yes |
 
-Also not supported: creating or renaming variables and lists, and editing comments. A new broadcast message can be
-named in a command, but the keyboard interface only offers existing messages.
+Also not supported: deleting variables, lists or messages (except by undoing their creation), cloud variables,
+and editing comments.
+
+## Variables, lists and messages
+
+| | Create | Rename | Delete |
+| - | - | - | - |
+| Variables (for all sprites, or one sprite) | yes | yes | by undo only |
+| Lists (for all sprites, or one sprite) | yes | yes | by undo only |
+| Broadcast messages | yes; saved once a block uses it | yes | by undo only |
+| Cloud variables | no | no | no |
+
+## Loops and conditions that can wrap blocks
+
+`control_repeat`, `control_forever`, `control_repeat_until`, `control_if`, `control_if_else`.

@@ -59,8 +59,16 @@ describe('commands that are rejected', () => {
         ['an extra property in a nested block', {op: 'insert',
             block: 'control_wait',
             args: {DURATION: {block: 'sensing_timer', id: 'x'}}}, /wrong kind of value/],
-        ['a wrapper that is not a loop or condition', {op: 'wrap', block: 'move', in: 'looks_say'},
-            /"in" must be one of/],
+        ['a wrapper that holds nothing', {op: 'wrap', block: 'move', in: 'looks_say'},
+            /"say Hello!" is not a loop or condition|"say .*" is not a loop or condition/],
+        ['an unknown wrapper', {op: 'wrap', block: 'move', in: 'control_unless'},
+            /no block called "control_unless"/],
+        ['a badly named branch', {op: 'insert',
+            block: 'looks_show',
+            inside: {block: 'move', branch: 'ELSE'}}, /wrong kind of value for "inside.branch"/],
+        ['a data command without a kind', {op: 'create', name: 'x'}, /needs "kind"/],
+        ['a kind that does not exist', {op: 'create', kind: 'table', name: 'x'},
+            /"kind" must be one of: variable, list, message/],
         ['an unknown opcode', {op: 'insert', block: 'motion_teleport', after: 'move'},
             /no block called "motion_teleport"/],
         ['an unknown nested opcode', {op: 'set-value',
@@ -179,7 +187,8 @@ describe('commands that are rejected', () => {
 
     test('the schema lists every operation', () => {
         expect(schema.oneOf.map(option => option.$ref.split('/').pop()))
-            .toEqual(['insert', 'delete', 'set-value', 'move', 'wrap', 'undo', 'redo', 'describe']);
+            .toEqual(
+                ['insert', 'delete', 'set-value', 'move', 'wrap', 'create', 'rename', 'undo', 'redo', 'describe']);
     });
 });
 

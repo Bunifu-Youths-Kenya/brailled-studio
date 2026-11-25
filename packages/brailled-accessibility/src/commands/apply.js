@@ -1,9 +1,14 @@
 // Writes planned changes into a VM block container, and takes them back.
 import {copy} from './program.js';
 
-// Comparable text for a block: key order, position and empty slots do not matter.
+// A field that refers to a variable, list or message by id.
+const isReference = field => !!field && typeof field === 'object' && 'variableType' in field && !!field.id;
+
+// Comparable text for a block: key order, position, empty slots and the names of referenced variables, which
+// can change, do not matter.
 const canonical = block => JSON.stringify(block, (key, value) => {
     if (key === 'x' || key === 'y') return;
+    if (isReference(value)) return {id: value.id, variableType: value.variableType};
     if (key === 'inputs') {
         return Object.fromEntries(Object.entries(value)
             .filter(([, input]) => input.block || input.shadow)
@@ -51,15 +56,21 @@ const matches = (container, patch) => Object.entries(patch.before).every(([id, e
  * Change a VM block container using its own methods.
  * @param {object} container A target's `blocks`.
  * @param {object} patch From `makePatch`.
+ * @param {function(string): ?string} currentName The present name of a variable, list or message, by id.
  */
-const writePatch = (container, patch) => {
+const writePatch = (container, patch, currentName) => {
     // A script that someone has dragged stays there, unless the command itself moves it.
     const planned = Object.entries(patch.after).map(([id, block]) => {
         if (!block) return null;
         const old = patch.before[id];
         const current = container.getBlock(id);
         const unmoved = old && current && block.topLevel && old.x === block.x && old.y === block.y;
-        return {...copy(block), ...(unmoved ? {x: current.x, y: current.y} : {})};
+        const written = {...copy(block), ...(unmoved ? {x: current.x, y: current.y} : {})};
+        // It may have been renamed since the block was recorded.
+        for (const field of Object.values(written.fields).filter(isReference)) {
+            field.value = currentName(field.id) ?? field.value;
+        }
+        return written;
     });
     for (const id of Object.keys(patch.after)) {
         const block = container.getBlock(id);

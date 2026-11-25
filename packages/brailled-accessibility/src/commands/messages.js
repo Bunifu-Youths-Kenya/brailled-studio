@@ -47,7 +47,18 @@ const reasons = defineMessages(Object.fromEntries(Object.entries({
     nothingToUndo: 'There is nothing to undo.',
     nothingToRedo: 'There is nothing to redo.',
     changedSince: 'The program has since been changed in another way, so this cannot be safely reversed.',
-    oneAtATime: 'Undo, redo and describe must be run on their own.'
+    oneAtATime: 'Undo, redo, describe, create and rename must be run on their own.',
+    notAContainer: '"{opcode}" is not a loop or condition, so nothing can go inside it.',
+    emptyName: 'A {kind, select, list {list} message {message} other {variable}} needs a name.',
+    nameTaken: 'There is already a {kind, select, list {list} message {message} other {variable}} ' +
+        'called "{name}".',
+    nameUsedBySprite: 'A sprite already has its own {kind, select, list {list} other {variable}} ' +
+        'called "{name}".',
+    stageScope: 'The stage\'\'s variables and lists are for all sprites.',
+    messageScope: 'Messages are always for all sprites.',
+    noItem: 'There is no {kind, select, list {list} message {message} other {variable}} called "{name}".',
+    itemInUse: 'Blocks use "{name}", so it cannot be removed. Delete or change those blocks first.',
+    cloudVariable: 'Cloud variables cannot be renamed here.'
 }).map(([key, defaultMessage]) => [key, {
     id: `brailled.command.reason.${key}`,
     defaultMessage,
@@ -72,8 +83,13 @@ const readbacks = defineMessages(Object.fromEntries(Object.entries({
     after: 'after {block}',
     before: 'before {block}',
     inside: 'inside {block}',
+    withElse: '{block}, else',
     insideThen: 'in the then part of {block}',
     insideElse: 'in the else part of {block}',
+    createdItem: 'Created {kind, select, list {list} other {variable}} {name}, ' +
+        '{scope, select, sprite {for this sprite only} other {for all sprites}}',
+    createdMessage: 'Created message {name}. It is saved with the project once a block uses it.',
+    renamedItem: 'Renamed {kind, select, list {list} message {message} other {variable}} {from} to {to}',
     undone: 'Undone. {sentence}',
     redone: 'Redone. {sentence}',
     emptyProgram: '{name} has no blocks.',

@@ -25,6 +25,7 @@ const problem = (value, rawNode, path) => {
     }
     if (node.type && typeOf(value) !== node.type) return new CommandError('badValue', {path});
     if (node.minLength && value.length < node.minLength) return new CommandError('badValue', {path});
+    if (node.pattern && !new RegExp(node.pattern).test(value)) return new CommandError('badValue', {path});
     if (node.type !== 'object') return null;
 
     const missing = (node.required || []).find(name => !Object.prototype.hasOwnProperty.call(value, name));

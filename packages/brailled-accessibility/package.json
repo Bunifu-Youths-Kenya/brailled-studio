@@ -7,7 +7,8 @@
   "main": "src/index.js",
   "scripts": {
     "lint": "eslint",
-    "test": "jest"
+    "test": "jest",
+    "test:e2e": "node e2e/editor.e2e.cjs"
   },
   "jest": {
     "testEnvironment": "node"

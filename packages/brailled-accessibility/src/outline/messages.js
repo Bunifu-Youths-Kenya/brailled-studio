@@ -11,8 +11,9 @@ const messages = defineMessages({
     },
     hint: {
         id: 'brailled.outline.hint',
-        defaultMessage: 'Arrow keys move. I adds a block after this one, Shift+I before. Enter edits values. ' +
-            'Delete removes. D reads the program. Control+Z undoes, Control+Y redoes. {shortcut} switches to Blocks.',
+        defaultMessage: 'Arrow keys move around. I adds, Enter edits, Delete removes, M moves, W wraps. ' +
+            'V makes a variable, list or message. D reads the program. Control+Z undoes, Control+Y redoes. ' +
+            '{shortcut} switches to Blocks.',
         description: 'Instructions for the outline view'
     },
     treeLabel: {
@@ -140,7 +141,38 @@ const dialogMessages = fromTexts('brailled.edit', 'Text of the outline editing d
     noChange: 'No change.',
     noValues: 'This block has no values to edit.',
     valuesUnsupported: 'The values of this block cannot be edited here yet.',
+    moving: 'Moving {block}. Go to the destination, then press M to put it after, Shift+M before, ' +
+        'or N for a new script. Escape cancels.',
+    beingMoved: '{block} (being moved)',
+    moveCancelled: 'Move cancelled.',
+    chooseBlockToMove: 'Choose a block or a script to move.',
+    wrap: 'Put {block} inside',
+    wrapFollowing: 'Put {block} and the blocks under it inside',
+    chooseBlockToWrap: 'Choose a block or a script to put inside a loop or condition.',
+    nothingToRename: 'There is nothing to rename.',
     chooseBlockToDelete: 'Choose a block or a script to delete.'
+});
+
+const dataMessages = fromTexts('brailled.data', 'Text of the variable, list and message dialogs', {
+    createTitle: 'New variable, list or message',
+    renameTitle: 'Rename a variable, list or message',
+    name: 'Name',
+    type: 'Type',
+    scope: 'Used by',
+    allSprites: 'All sprites',
+    thisSprite: 'This sprite only',
+    create: 'Create',
+    rename: 'Rename',
+    which: 'Which one',
+    newName: 'New name',
+    item: '{kind} {name}',
+    ownItem: '{kind} {name}, this sprite only'
+});
+
+const kindMessages = fromTexts('brailled.kind', 'A type of project data', {
+    variable: 'variable',
+    list: 'list',
+    message: 'message'
 });
 
 const categoryMessages = fromTexts('brailled.category', 'Name of a group of blocks', {
@@ -177,6 +209,8 @@ export {
     buildWords,
     categoryMessages,
     colourMessages,
+    dataMessages,
     dialogMessages,
+    kindMessages,
     messages
 };

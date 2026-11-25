@@ -37,6 +37,16 @@ describe('what a command says', () => {
         expect(say(nested, command)).toBe(sentence);
     });
 
+    test('tells an if with an else apart from a plain if', () => {
+        const {editor} = makeProject({program: simple});
+        expect(editor.run({op: 'insert', block: 'control_if_else', after: 'wait'}).message)
+            .toBe('Added: if empty then, else, after wait 2 seconds');
+        expect(editor.run({op: 'wrap', block: 'move', in: 'control_if'}).message)
+            .toBe('Put move 10 steps inside if empty then');
+        const names = editor.listBlocks('instruction').map(entry => entry.name);
+        expect(new Set(names).size).toBe(names.length);
+    });
+
     test('undo and redo repeat what is reversed or redone', () => {
         const {editor} = makeProject({program: simple});
         editor.run({op: 'insert', block: 'motion_movesteps', after: 'wait'});

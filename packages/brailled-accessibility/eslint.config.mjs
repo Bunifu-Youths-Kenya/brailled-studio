@@ -2,6 +2,8 @@ import {eslintConfigScratch} from 'eslint-config-scratch';
 import globals from 'globals';
 
 export default eslintConfigScratch.defineConfig(
+    // Browser scripts that mix Node and page code.
+    {ignores: ['e2e/**']},
     eslintConfigScratch.legacy.base,
     {
         files: ['{src,test}/**/*.{js,jsx}'],

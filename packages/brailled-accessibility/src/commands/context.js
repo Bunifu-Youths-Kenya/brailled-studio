@@ -38,13 +38,16 @@ const extensionShapeOf = (runtime, opcode) => {
  * @param {function(object, string): string} options.name Names a block of a program.
  * @param {function(object): ?object} options.getDefinition Label definitions of blocks.
  * @param {function(): string} [options.newId] Makes block and message ids.
+ * @param {Array<{id: string, name: string}>} [options.unusedMessages] Messages that no block uses yet.
  * @returns {object} The context.
  */
-const createContext = ({vm, name, getDefinition, newId = randomId}) => {
+const createContext = ({vm, name, getDefinition, newId = randomId, unusedMessages = []}) => {
     const target = vm.editingTarget;
     const stage = vm.runtime.getTargetForStage();
     const inScope = target.isStage ? [stage] : [target, stage];
     const broadcasts = variablesOfType([stage], 'broadcast_msg');
+    broadcasts.push(...unusedMessages
+        .filter(message => !broadcasts.some(known => known.id === message.id || known.name === message.name)));
     const spriteNames = () => vm.runtime.targets
         .filter(other => other.isOriginal && !other.isStage && other !== target)
         .map(other => other.sprite.name);

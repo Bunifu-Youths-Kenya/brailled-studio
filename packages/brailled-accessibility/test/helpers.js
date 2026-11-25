@@ -1,37 +1,39 @@
-// A stand-in project around the VM's real block container.
+// A small project made of the VM's real targets and block containers.
 import {createEditor} from '../src/commands/editor.js';
 import {snapshot} from '../src/commands/program.js';
 
 const Blocks = require('../../scratch-vm/src/engine/blocks.js');
+const Target = require('../../scratch-vm/src/engine/target.js');
 
 const copy = value => JSON.parse(JSON.stringify(value));
 
-const variable = (id, name, type = '') => ({id, name, type, value: 0});
-
 const makeProject = ({program = {blocks: {}, scripts: []}, isStage = false} = {}) => {
-    const runtime = {targets: [], _blockInfo: [], emitProjectChanged: () => {}};
-    const makeTarget = (id, name, stage) => ({
-        id,
-        isStage: stage,
-        isOriginal: true,
-        blocks: new Blocks(runtime),
-        comments: {},
-        variables: {},
-        sprite: {name, costumes: [{name: `${name} one`}, {name: `${name} two`}], sounds: [{name: 'Meow'}]},
-        getName: () => name,
-        createVariable (variableId, variableName, type) {
-            if (!this.variables[variableId]) {
-                this.variables[variableId] = variable(variableId, variableName, type);
-            }
-        }
-    });
+    const runtime = {
+        targets: [],
+        _blockInfo: [],
+        emitProjectChanged: () => {},
+        requestBlocksUpdate: () => {},
+        requestRemoveMonitor: () => {},
+        requestUpdateMonitor: () => {},
+        canAddCloudVariable: () => false
+    };
+    runtime.monitorBlocks = new Blocks(runtime, true);
+    const makeTarget = (id, name, stage) => {
+        const target = new Target(runtime);
+        Object.assign(target, {
+            id,
+            isStage: stage,
+            isOriginal: true,
+            sprite: {name, costumes: [{name: `${name} one`}, {name: `${name} two`}], sounds: [{name: 'Meow'}]},
+            getName: () => name
+        });
+        return target;
+    };
     const stage = makeTarget('stage', 'Stage', true);
     const sprite = makeTarget('sprite1', 'Sprite1', false);
     const other = makeTarget('sprite2', 'Apple', false);
-    stage.variables = {
-        score: variable('score', 'my variable'),
-        names: variable('names', 'fruit', 'list')
-    };
+    stage.createVariable('score', 'my variable', '');
+    stage.createVariable('names', 'fruit', 'list');
     runtime.targets = [stage, sprite, other];
     runtime.getTargetForStage = () => stage;
     const target = isStage ? stage : sprite;
@@ -40,9 +42,16 @@ const makeProject = ({program = {blocks: {}, scripts: []}, isStage = false} = {}
     target.blocks.getScripts().splice(0, Infinity, ...copied.scripts);
 
     const vm = {editingTarget: target, runtime, emitWorkspaceUpdate: jest.fn()};
+    runtime.getEditingTarget = () => vm.editingTarget;
     let ids = 0;
     const editor = createEditor(vm, {newId: () => `new${++ids}`});
-    return {vm, editor, target, stage, other, program: () => snapshot(target.blocks)};
+    // Everything a command may change, in every target.
+    const everything = () => copy(runtime.targets.map(t => ({
+        ...snapshot(t.blocks),
+        variables: Object.fromEntries(Object.entries(t.variables)
+            .map(([key, variable]) => [key, {name: variable.name, type: variable.type, value: variable.value}]))
+    })));
+    return {vm, editor, target, stage, other, program: () => snapshot(target.blocks), everything};
 };
 
 // Every link between blocks must agree from both ends.

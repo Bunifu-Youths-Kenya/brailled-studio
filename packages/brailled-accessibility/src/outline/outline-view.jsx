@@ -8,6 +8,7 @@ import useKeptState from '../use-kept-state.js';
 import {VIEW_SHORTCUT_LABEL} from '../view-shortcut.js';
 import createDefinitionSource from './block-definitions.js';
 import BlockPicker from './block-picker.jsx';
+import {CreateDataDialog, RenameDataDialog} from './data-dialogs.jsx';
 import diffOutlines from './diff.js';
 import {buildWords, messages} from './messages.js';
 import {findPath, keepPlace, navigate, reveal} from './navigation.js';
@@ -31,6 +32,13 @@ const REBUILD_DELAY_MS = 150;
 const REBUILD_MAX_WAIT_MS = 600;
 // A closing dialog needs a moment before screen readers hear the live region again.
 const ANNOUNCE_DELAY_MS = 150;
+
+// The palette lists variables only when told to, which a redraw of the workspace does not do.
+const refreshPalette = () => {
+    require('scratch-blocks').getMainWorkspace()
+        ?.getToolbox()
+        ?.forceRerender();
+};
 
 const readProgram = (vm, intl) => {
     const target = vm.editingTarget;
@@ -141,6 +149,7 @@ const OutlineView = ({vm, active}) => {
 
     // Show and say the result of every command, wherever it came from.
     useEffect(() => editor.subscribe(result => {
+        if (result.dataChanged) refreshPalette();
         if (result.changed) {
             rebuildRef.current({silent: true});
             const {focusId} = result;
@@ -188,16 +197,16 @@ const OutlineView = ({vm, active}) => {
         });
     }, []);
 
-    const currentNode = useCallback(() => {
-        const path = place?.currentId && findPath(program.nodes, place.currentId);
-        return path ? path[path.length - 1] : null;
-    }, [program, place]);
+    const currentPath = useCallback(
+        () => (place?.currentId ? findPath(program.nodes, place.currentId) : null),
+        [program, place]);
 
     const refocus = useCallback(() => {
         focusCurrentRef.current = true;
     }, []);
 
-    const {dialog, handleEditKey} = useEditing({editor, currentNode, announce, refocus, intl});
+    const {dialog, movingId, handleEditKey} =
+        useEditing({editor, program, currentPath, announce, refocus, intl});
 
     useLayoutEffect(() => {
         if (!focusCurrentRef.current || dialog) return;
@@ -269,6 +278,7 @@ const OutlineView = ({vm, active}) => {
                                         collapsed={place.collapsed}
                                         currentId={place.currentId}
                                         key={node.id}
+                                        movingId={movingId}
                                         node={node}
                                         onSelect={handleSelect}
                                         onToggle={handleToggle}
@@ -302,6 +312,20 @@ const OutlineView = ({vm, active}) => {
                     title={dialog.title}
                     onCancel={dialog.handleCancel}
                     onChoose={dialog.handleChoose}
+                />
+            ) : null}
+            {dialog?.type === 'create' ? (
+                <CreateDataDialog
+                    isStage={dialog.isStage}
+                    onCancel={dialog.handleCancel}
+                    onCreate={dialog.handleCreate}
+                />
+            ) : null}
+            {dialog?.type === 'rename' ? (
+                <RenameDataDialog
+                    items={dialog.items}
+                    onCancel={dialog.handleCancel}
+                    onRename={dialog.handleRename}
                 />
             ) : null}
             {dialog?.type === 'values' ? (
