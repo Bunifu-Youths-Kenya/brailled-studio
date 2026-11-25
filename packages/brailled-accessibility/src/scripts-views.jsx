@@ -3,14 +3,10 @@ import PropTypes from 'prop-types';
 import React, {useCallback} from 'react';
 import {defineMessages, FormattedMessage, useIntl} from 'react-intl';
 
-import {VIEW_SHORTCUT_LABEL} from './view-shortcut.js';
+import {VIEW_TOGGLE} from './actions/shortcuts.js';
+import {SCRIPTS_VIEWS} from './views.js';
 
 import styles from './scripts-views.css';
-
-const SCRIPTS_VIEWS = Object.freeze({
-    blocks: 'blocks',
-    outline: 'outline'
-});
 
 const messages = defineMessages({
     toggleLabel: {
@@ -46,7 +42,7 @@ const ScriptsViewToggle = ({view, onChange}) => {
         >
             {Object.values(SCRIPTS_VIEWS).map(value => (
                 <button
-                    aria-keyshortcuts={VIEW_SHORTCUT_LABEL}
+                    aria-keyshortcuts={VIEW_TOGGLE.label}
                     aria-pressed={view === value}
                     className={styles.toggleButton}
                     key={value}

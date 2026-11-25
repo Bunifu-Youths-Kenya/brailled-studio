@@ -1,7 +1,7 @@
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React from 'react';
-import {FormattedMessage} from 'react-intl';
+import {FormattedMessage, useIntl} from 'react-intl';
 import {connect} from 'react-redux';
 import useMenuNavigation from '../../hooks/use-menu-navigation';
 
@@ -62,6 +62,7 @@ const PreferenceMenu = ({
     isRtl,
     depth
 }) => {
+    const intl = useIntl();
     const itemKeys = Object.keys(itemsMap);
     const selectedItem = itemsMap[selectedItemKey];
 
@@ -78,6 +79,7 @@ const PreferenceMenu = ({
 
     return (
         <MenuItem
+            ariaLabel={intl.formatMessage(submenuLabel)}
             isExpanded={isExpanded()}
             isDataMenuItemWrapper
             ref={menuRef}

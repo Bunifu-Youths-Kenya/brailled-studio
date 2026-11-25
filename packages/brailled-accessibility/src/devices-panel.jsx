@@ -45,7 +45,10 @@ const DevicesPanel = () => {
     }, []);
 
     return (
-        <div className={styles.panel}>
+        <div
+            className={styles.panel}
+            data-brailled-device-mode={mode}
+        >
             <div className={styles.card}>
                 <div
                     aria-hidden="true"

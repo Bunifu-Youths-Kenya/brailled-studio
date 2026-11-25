@@ -56,6 +56,8 @@ const TargetPane = ({
     >
 
         <StageTabs
+            vm={vm}
+            onOpenSpriteLibrary={onNewSpriteClick}
             devices={<DevicesPanel />}
             sprites={
                 <SpriteSelectorComponent

@@ -11,7 +11,7 @@ the editor needs around them.
 | `src/devices-panel.jsx` | Devices panel (interface only; nothing connects yet) |
 | `src/scripts-views.jsx` | Blocks / Outline / Python toggle |
 | `src/palette-area.jsx` | Search placeholder and the block category landmark |
-| `src/view-shortcut.js` | Alt+Shift+O between Blocks and Outline |
+| `src/actions/` | The action registry, local commands, context snapshot and editor-wide live region |
 | `src/use-kept-state.js` | State that survives the editor rebuilding on a language change |
 | `src/outline/` | The Outline view and its editing keys and dialogs |
 | `src/commands/` | The editing command format, validator and executor |
@@ -70,6 +70,66 @@ configuration. The package has no build step and is not listed in the root `work
 resolve from the root `node_modules`. Jest in `scratch-gui` compiles it using this package's `.babelrc`.
 
 All user-visible strings go through `react-intl`, with ids starting `brailled.`. No translations exist yet.
+
+## Actions
+
+Everything the editor offers is one list, `src/actions/registry.js`. Each action has an id, a spoken name and
+description, its shortcuts, an availability check and a handler. The Outline's keys, the global shortcuts and
+typed commands all go through it, and voice and AI input should too. Nothing here calls an AI or sends anything
+off the device.
+
+| Action ids | Shortcut | Typed command |
+| - | - | - |
+| `help.whereAmI` | Alt+Shift+W | "where am I" |
+| `help.whatCanIDo` | Alt+Shift+H | "what can I do here" |
+| `help.commandBox` | Alt+Shift+K | |
+| `go.menu`, `go.stage`, `go.devices`, `go.sprites`, `go.background`, `go.palette`, `go.scripts` | | "go to menu", "go to the stage", "go to block palette" and so on |
+| `view.toggle` | Alt+Shift+O | "switch view" |
+| `view.blocks`, `view.outline` | | "show blocks", "go to outline" |
+| `view.python` | | "show Python" (says it is coming soon) |
+| `move.next`, `move.previous` | | "next", "previous" |
+| `program.describe` | D in the Outline | "read program" |
+| `program.describeScript` | Shift+D in the Outline | "read script" |
+| `edit.undo`, `edit.redo` | Control+Z, Control+Y in the Outline | "undo", "redo" |
+| `edit.insert`, `edit.insertBefore`, `edit.delete`, `edit.values`, `edit.move`, `edit.moveBefore`, `edit.moveNewScript`, `edit.cancelMove`, `edit.wrap`, `edit.wrapFollowing`, `edit.createData`, `edit.renameData` | The Outline keys above | The action's name, such as "add block" |
+| `project.run`, `project.stop` | | "run", "stop" |
+| `sprite.library` | | "open sprite library" |
+
+- **Typed commands** go in the command box. They are matched against fixed English phrases and the action names
+  in the user's language; anything else is refused with a hint.
+- **Answers** are spoken through one live region that stays available on every tab.
+- **Next and previous** move through the outline when it is shown, and otherwise through the controls of the
+  current part of the editor.
+- **Undo and redo** apply to edits made through editing commands, not to changes dragged in the Blocks view.
+- An action that cannot be used says why when asked for by command; its key is left alone.
+
+### Context snapshot
+
+`getApp(vm).snapshot()` returns plain data: the editor tab and view, the focused part of the editor and control
+(from ARIA names), the selected sprite, the place in the outline, any block being moved, the stage tab, the device
+and its Upload or Live mode, whether the project is running, and the actions available. `snapshotToText` turns
+it into eight or nine short lines for a model to read. In development builds the app is `window.brailledApp`,
+with `snapshotText()`.
+
+It holds sprite names and block text, which students write. Treat it as their data before sending it anywhere.
+
+## Accessible names
+
+`npm run audit:names` (with the dev server running) checks 32 screens, menus and dialogs against Chrome's
+accessibility tree and fails on any new control without a name.
+
+Not fixed, because they are inside third-party libraries:
+
+| Element | Where | Why |
+| - | - | - |
+| `data-radix-focus-guard` spans | Right click menus | Invisible focus guards of the menu library |
+| `data-react-modal-body-trap` div | Libraries and dialogs | Invisible focus guard of the dialog library |
+| `blocklyWidgetDiv` | Editing a value on a block | The block library's container; the text box inside it is named |
+| Block shapes (`blocklyPath`) | The Blocks view | The block library gives drawn blocks no names. The Outline is the accessible way to read them |
+
+Typing on a block in the Blocks view gives a box named only "Block value": the library does not say which value
+it is. The audit does not cover every extension's dialogs, the sound editor with every tool, or screens that need
+hardware.
 
 ## Editing commands
 

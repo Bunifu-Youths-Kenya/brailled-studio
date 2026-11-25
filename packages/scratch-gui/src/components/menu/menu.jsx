@@ -19,6 +19,7 @@ const MenuComponent = React.forwardRef(({
             }
         )}
         ref={ref}
+        role="menu"
     >
         {children}
     </ul>
@@ -87,7 +88,8 @@ const MenuItem = React.forwardRef(({
         aria-label={ariaLabel}
         aria-selected={isSelected}
         aria-disabled={isDisabled}
-        role={ariaRole}
+        // An item takes its accessible name from its content only if it has a role that allows that.
+        role={ariaRole ?? (isDataMenuItem || isDataMenuItemWrapper ? 'menuitem' : null)}
         onKeyDown={onParentKeyDown}
         data-menu-item={isDataMenuItem}
         data-menu-item-wrapper={isDataMenuItemWrapper}

@@ -22,6 +22,7 @@ import CostumeLibrary from '../../containers/costume-library.jsx';
 import BackdropLibrary from '../../containers/backdrop-library.jsx';
 import Watermark from '../../containers/watermark.jsx';
 import {
+    BrailledActions,
     OutlineView,
     PaletteArea,
     SCRIPTS_VIEWS,
@@ -31,8 +32,7 @@ import {
     ScriptsViews,
     SkipLinks,
     shellClassName,
-    useKeptState,
-    useViewShortcut
+    useKeptState
 } from '../../../../brailled-accessibility/src/index.js';
 
 import Backpack from '../../containers/backpack.jsx';
@@ -229,14 +229,6 @@ const GUIComponent = props => {
     }
 
     const [scriptsView, setScriptsView] = useKeptState(vm, 'scriptsView', SCRIPTS_VIEWS.blocks);
-    const showBlocksTab = useCallback(() => onActivateTab(BLOCKS_TAB_INDEX), [onActivateTab]);
-    useViewShortcut({
-        enabled: !isPlayerOnly && !isFullScreen,
-        view: scriptsView,
-        isBlocksTab: activeTabIndex === BLOCKS_TAB_INDEX,
-        onChangeView: setScriptsView,
-        onShowBlocksTab: showBlocksTab
-    });
 
     useEffect(() => {
         if (props.platform) {
@@ -304,6 +296,13 @@ const GUIComponent = props => {
                     {...componentProps}
                 >
                     <SkipLinks />
+                    <BrailledActions
+                        tab={activeTabIndex}
+                        view={scriptsView}
+                        vm={vm}
+                        onChangeTab={onActivateTab}
+                        onChangeView={setScriptsView}
+                    />
                     {telemetryModalVisible ? (
                         <TelemetryModal
                             isRtl={isRtl}

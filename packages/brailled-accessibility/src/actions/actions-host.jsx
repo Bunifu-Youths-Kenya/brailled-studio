@@ -1,0 +1,191 @@
+import PropTypes from 'prop-types';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {useIntl} from 'react-intl';
+
+import Dialog from '../outline/dialog.jsx';
+import {dialogMessages} from '../outline/messages.js';
+import {getApp} from './app.js';
+import {speech} from './messages.js';
+import parseCommand from './parser.js';
+import {snapshotToText} from './snapshot.js';
+
+import dialogStyles from '../outline/dialog.css';
+import styles from './actions-host.css';
+
+const CommandBox = ({app, onClose}) => {
+    const intl = useIntl();
+    const [error, setError] = useState(null);
+
+    const handleSubmit = event => {
+        event.preventDefault();
+        const text = new FormData(event.target).get('command');
+        const id = parseCommand(text, app.actionNames());
+        if (!id) {
+            setError(intl.formatMessage(text.trim() ? speech.commandUnknown : speech.commandEmpty, {text}));
+            return;
+        }
+        onClose(id);
+    };
+    const handleCancel = () => onClose(null);
+
+    return (
+        <Dialog
+            title={intl.formatMessage(speech.commandTitle)}
+            // eslint-disable-next-line react/jsx-no-bind
+            onCancel={handleCancel}
+        >
+            <form
+                noValidate
+                // eslint-disable-next-line react/jsx-no-bind
+                onSubmit={handleSubmit}
+            >
+                <label
+                    className={dialogStyles.label}
+                    htmlFor="brailled-command"
+                >
+                    {intl.formatMessage(speech.commandLabel)}
+                </label>
+                <input
+                    aria-describedby="brailled-command-hint"
+                    autoComplete="off"
+                    className={dialogStyles.input}
+                    data-autofocus
+                    id="brailled-command"
+                    name="command"
+                    type="text"
+                />
+                <p
+                    className={dialogStyles.count}
+                    id="brailled-command-hint"
+                >
+                    {intl.formatMessage(speech.commandHint)}
+                </p>
+                <p
+                    className={dialogStyles.error}
+                    role="alert"
+                >
+                    {error}
+                </p>
+                <button
+                    className={dialogStyles.button}
+                    type="submit"
+                >
+                    {intl.formatMessage(speech.commandRun)}
+                </button>
+                <button
+                    className={dialogStyles.button}
+                    type="button"
+                    // eslint-disable-next-line react/jsx-no-bind
+                    onClick={handleCancel}
+                >
+                    {intl.formatMessage(dialogMessages.cancel)}
+                </button>
+            </form>
+        </Dialog>
+    );
+};
+
+CommandBox.propTypes = {
+    app: PropTypes.shape({actionNames: PropTypes.func.isRequired}).isRequired,
+    onClose: PropTypes.func.isRequired
+};
+
+// The editor-wide part of the actions: the live region, the global shortcuts and the command box. It also tells
+// actions which view and tab are shown.
+const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
+    const intl = useIntl();
+    const app = getApp(vm);
+    const [notice, setNotice] = useState({text: '', serial: 0});
+    const [commandBoxOpen, setCommandBoxOpen] = useState(false);
+    const gui = useRef({});
+
+    // Kept current on every render, so that actions see what is shown now.
+    Object.assign(gui.current, {
+        tab,
+        view,
+        setView: onChangeView,
+        setTab: onChangeTab,
+        openCommandBox: () => setCommandBoxOpen(true)
+    });
+
+    useEffect(() => app.setIntl(intl), [app, intl]);
+    useEffect(() => app.register('gui', gui.current), [app]);
+    useEffect(() => app.subscribe(
+        text => setNotice(current => ({text, serial: current.serial + 1}))
+    ), [app]);
+
+    useEffect(() => {
+        // Lets the actions and the snapshot be tried from the browser console in development builds.
+        if (process.env.NODE_ENV !== 'production') {
+            window.brailledApp = Object.assign(app, {snapshotText: () => snapshotToText(app.snapshot())});
+        }
+    }, [app]);
+
+    useEffect(() => {
+        const handleKeyDown = event => {
+            // Dialogs keep the keyboard to themselves.
+            if (event.repeat || document.querySelector('.ReactModal__Overlay, dialog[open]')) return;
+            if (app.handleKey(event, 'global')) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown, true);
+        return () => document.removeEventListener('keydown', handleKeyDown, true);
+    }, [app]);
+
+    // The block library creates a text box, with no name, wherever a value is typed on a block.
+    useEffect(() => {
+        const handleFocus = event => {
+            const box = event.target;
+            if (box.classList?.contains('blocklyHtmlInput') && !box.getAttribute('aria-label')) {
+                box.setAttribute('aria-label', intl.formatMessage(speech.blockValueBox));
+            }
+        };
+        document.addEventListener('focus', handleFocus, true);
+        return () => document.removeEventListener('focus', handleFocus, true);
+    }, [intl]);
+
+    // The command runs after the box has closed, so that focus is back where the user was.
+    const pending = useRef(null);
+    const closeCommandBox = useCallback(id => {
+        pending.current = id;
+        setCommandBoxOpen(false);
+    }, []);
+    useEffect(() => {
+        if (commandBoxOpen || !pending.current) return;
+        const id = pending.current;
+        pending.current = null;
+        app.perform(id);
+    }, [app, commandBoxOpen]);
+
+    return (
+        <React.Fragment>
+            <div
+                aria-atomic="true"
+                aria-live="polite"
+                className={styles.announcer}
+                data-brailled-announcer
+            >
+                {/* A new element each time, so that a repeated message is announced again. */}
+                <span key={notice.serial}>{notice.text}</span>
+            </div>
+            {commandBoxOpen ? (
+                <CommandBox
+                    app={app}
+                    onClose={closeCommandBox}
+                />
+            ) : null}
+        </React.Fragment>
+    );
+};
+
+BrailledActions.propTypes = {
+    vm: PropTypes.shape({on: PropTypes.func}).isRequired,
+    view: PropTypes.string.isRequired,
+    tab: PropTypes.number.isRequired,
+    onChangeView: PropTypes.func.isRequired,
+    onChangeTab: PropTypes.func.isRequired
+};
+
+export default BrailledActions;

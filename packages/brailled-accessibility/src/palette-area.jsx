@@ -10,6 +10,11 @@ const messages = defineMessages({
         defaultMessage: 'Block categories',
         description: 'Accessible name of the block category menu'
     },
+    blockList: {
+        id: 'brailled.palette.blockList',
+        defaultMessage: 'Block list',
+        description: 'Accessible name of the list of blocks that can be dragged into the workspace'
+    },
     searchComingSoon: {
         id: 'brailled.palette.searchComingSoon',
         defaultMessage: 'Search blocks (coming soon)',
@@ -23,10 +28,13 @@ const PaletteArea = ({children}) => {
     const intl = useIntl();
     const containerRef = useRef(null);
     const categoriesLabel = intl.formatMessage(messages.categories);
+    const blockListLabel = intl.formatMessage(messages.blockList);
 
     // The block library creates the category menu itself, and creates a new one whenever the workspace is
     // rebuilt, so label it after every render.
     useEffect(() => {
+        containerRef.current.querySelector('.blocklyFlyout .blocklyWorkspace')
+            ?.setAttribute('aria-label', blockListLabel);
         const categories = containerRef.current.querySelector('.blocklyToolbox');
         if (!categories) return;
         categories.setAttribute('role', 'navigation');

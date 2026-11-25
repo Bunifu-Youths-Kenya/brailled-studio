@@ -1,12 +1,12 @@
 import {useCallback, useState} from 'react';
 
 import {CATALOG} from '../commands/catalog.js';
-import {blockOf, deleteCommand, insertCommand, insertPosition, WRAPPERS, wrapRange} from './editing.js';
+import {deleteCommand, insertCommand, insertPosition, WRAPPERS, wrapRange} from './editing.js';
 import {dialogMessages as messages} from './messages.js';
 import useMoving from './use-moving.js';
 
 /**
- * The Outline's editing keys and the dialogs they open.
+ * The Outline's editing operations and the dialogs they open.
  * @param {object} options Options.
  * @param {object} options.editor The editing engine.
  * @param {?object} options.program The outline being shown.
@@ -15,8 +15,8 @@ import useMoving from './use-moving.js';
  * @param {function(string)} options.announce Says something through the live region.
  * @param {function()} options.refocus Returns focus to the tree once it has been redrawn.
  * @param {object} options.intl A react-intl object.
- * @returns {{dialog: ?object, movingId: ?string, handleEditKey: function(KeyboardEvent): boolean}} The open
- * dialog and the item being moved, if any, and a key handler that returns whether it used the key.
+ * @returns {{dialog: ?object, movingId: ?string, operations: object}} The open dialog and the item being moved,
+ * if any, and the operations that actions carry out.
  */
 const useEditing = ({editor, program, currentPath, announce, refocus, intl}) => {
     // `{type: 'picker'|'values'|'create'|'rename', ...}`
@@ -122,50 +122,47 @@ const useEditing = ({editor, program, currentPath, announce, refocus, intl}) => 
         });
     }, [editor, announce, intl, runFromDialog, close]);
 
-    const handleEditKey = useCallback(event => {
-        const key = event.key.toLowerCase();
-        if (event.altKey) return false;
-        if (event.ctrlKey || event.metaKey) {
-            if (key === 'z') editor.run({op: event.shiftKey ? 'redo' : 'undo'});
-            else if (key === 'y') editor.run({op: 'redo'});
-            else return false;
-            return true;
-        }
+    const remove = useCallback(() => {
+        const command = deleteCommand(currentNode());
+        if (command) editor.run(command);
+        else announce(intl.formatMessage(messages.chooseBlockToDelete));
+    }, [editor, currentNode, announce, intl]);
+
+    // Returns false where Enter should open or close the item instead.
+    const editValues = useCallback(() => {
         const node = currentNode();
-        if (handleMoveKey(key, event.shiftKey, node)) return true;
-        if (key === 'i') {
-            openInsert(event.shiftKey);
-        } else if (key === 'w') {
-            openWrap(event.shiftKey);
-        } else if (key === 'v') {
-            if (event.shiftKey) openRename();
-            else openCreate();
-        } else if (key === 'd') {
-            const script = event.shiftKey ? blockOf(node) : null;
-            editor.run({op: 'describe', ...(script ? {script} : {})});
-        } else if (key === 'delete' || key === 'backspace') {
-            const command = deleteCommand(node);
-            if (command) editor.run(command);
-            else announce(intl.formatMessage(messages.chooseBlockToDelete));
-        } else if (key === 'enter' && node?.type === 'block') {
-            if (editor.valuesOf(node.id).length > 0) {
-                openValues(node);
-            } else if (node.children) {
-                // Nothing to edit, so Enter opens or closes it as usual.
-                return false;
-            } else {
-                // Custom and extension blocks have values, which the editor does not know how to change.
-                const unsupported = !CATALOG[node.opcode];
-                announce(intl.formatMessage(unsupported ? messages.valuesUnsupported : messages.noValues));
-            }
-        } else {
+        if (node?.type !== 'block') return false;
+        if (editor.valuesOf(node.id).length > 0) {
+            openValues(node);
+        } else if (node.children) {
             return false;
+        } else {
+            // Custom and extension blocks have values, which the editor does not know how to change.
+            const unsupported = !CATALOG[node.opcode];
+            announce(intl.formatMessage(unsupported ? messages.valuesUnsupported : messages.noValues));
         }
         return true;
-    }, [editor, currentNode, handleMoveKey, openInsert, openWrap, openCreate, openRename, openValues,
-        announce, intl]);
+    }, [editor, currentNode, openValues, announce, intl]);
 
-    return {dialog, movingId, handleEditKey};
+    const operations = {
+        insert: openInsert,
+        remove,
+        editValues,
+        move: before => {
+            handleMoveKey('m', before, currentNode());
+        },
+        moveToNewScript: () => {
+            handleMoveKey('n', false, currentNode());
+        },
+        cancelMove: () => {
+            handleMoveKey('escape', false, currentNode());
+        },
+        wrap: openWrap,
+        createData: openCreate,
+        renameData: openRename
+    };
+
+    return {dialog, movingId, operations};
 };
 
 export default useEditing;

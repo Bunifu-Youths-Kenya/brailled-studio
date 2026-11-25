@@ -51,6 +51,7 @@ const PromptComponent = props => (
             </Box>
             <Box>
                 <input
+                    aria-label={props.label}
                     autoFocus
                     className={styles.variableNameTextInput}
                     defaultValue={props.defaultValue}

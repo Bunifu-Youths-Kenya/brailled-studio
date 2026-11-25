@@ -11,7 +11,7 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-25 | `packages/scratch-gui/src/reducers/vm.ts` | Non-production builds assign the VM to `window.vm`. Adds a type declaration for `process`, which the package's TypeScript config lacks. | Inspect projects from the browser console. |
 | 2026-11-25 | `packages/scratch-gui/webpack.config.js` | The dev server listens on `localhost` only. | Keep the development editor off the local network. |
 | 2026-11-25 | `packages/scratch-gui/src/components/gui/gui.jsx` | Stage column moved ahead of the editor; stage controls placed below the stage; skip links, landmark ids, view toggle and palette wrapper added from `brailled-accessibility`. | mBlock-style layout with matching reading and focus order; screen reader zones. |
-| 2026-11-25 | `packages/scratch-gui/src/components/gui/gui.jsx` | Renders the Outline view, registers the Alt+Shift+O shortcut, and keeps the chosen view when the interface is rebuilt. | Read-only Outline view. |
+| 2026-11-25 | `packages/scratch-gui/src/components/gui/gui.jsx` | Renders the Outline view and keeps the chosen view when the interface is rebuilt. Renders `BrailledActions`: shortcuts, command box and live region. | Outline view and action registry. |
 | 2026-11-25 | `packages/scratch-gui/src/components/gui/gui.css` | Row for the editor tabs plus view toggle; end padding on the editor column. | Place the toggle top right and keep the last column off the window edge. |
 | 2026-11-25 | `packages/scratch-gui/src/components/stage-wrapper/stage-wrapper.jsx` | New `controlsBelowStage` prop renders the stage controls after the stage, except in full screen. Both parts are keyed. | Controls under the stage without breaking the full screen focus trap or the player. |
 | 2026-11-25 | `packages/scratch-gui/src/components/controls/controls.jsx` | Stop button comes before the green flag (everywhere, including the player). | Layout order: stop, green flag, stage size. |
@@ -22,6 +22,16 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-25 | `packages/scratch-gui/src/components/menu-bar/menu-bar.jsx` | Logo replaced by the "Brailled" name; language picker moved to the bar; Save button added; Tutorials and Debug replaced by Help (placeholder) and Examples (opens the tutorial library); Settings moved after Edit, without language; unused logo imports and prop declarations removed. | Target menu bar, with no Scratch logo. |
 | 2026-11-25 | `packages/scratch-gui/src/playground/render-gui.jsx` | No longer passes `showComingSoon` or `onClickLogo`. | Removes the Share, community and "scratch-cat" account placeholders and the link to scratch.mit.edu. |
 | 2026-11-25 | `packages/scratch-gui/package.json` | Jest `babelrcRoots` includes `../brailled-accessibility`. | Tests that render the editor must compile the new package. |
+| 2026-11-25 | `packages/scratch-gui/src/components/target-pane/target-pane.jsx` | Passes the VM and the sprite library handler to the stage tabs. | The "open sprite library" action. |
+| 2026-11-25 | `packages/scratch-gui/src/components/menu/menu.jsx` | Menus have role `menu`; selectable items have role `menuitem`. | Focusable menu items had no accessible name. |
+| 2026-11-25 | `packages/scratch-gui/src/components/menu-bar/preference-menu.jsx` | The submenu item is named. | Missing accessible name. |
+| 2026-11-25 | `packages/scratch-gui/src/components/sprite-selector-item/sprite-selector-item.jsx` | The right click menu is named. | Missing accessible name. |
+| 2026-11-25 | `packages/scratch-gui/src/components/monitor/monitor.jsx` | The right click menu is named after its readout. | Missing accessible name. |
+| 2026-11-25 | `packages/scratch-gui/src/components/prompt/prompt.jsx` | The name input is labelled. | Missing accessible name. |
+| 2026-11-25 | `packages/scratch-gui/src/components/question/question.jsx` | The answer box and send button are named. | The button showed only an icon; neither had a name. |
+| 2026-11-25 | `packages/scratch-gui/src/components/library/library.jsx` | The scrolling list is a named group. | Missing accessible name. |
+| 2026-11-25 | `packages/scratch-paint/src/components/mode-tools/mode-tools.jsx` | Brush and eraser size inputs are labelled. | Missing accessible name. |
+| 2026-11-25 | `packages/scratch-paint/src/components/stroke-width-indicator.jsx` | The outline width input is labelled. | Missing accessible name. |
 
 ## Files added by Brailled
 
@@ -58,7 +68,6 @@ These are new files, not edits to Scratch's own.
 | 2026-11-25 | `packages/brailled-accessibility/src/outline/tree.js` |
 | 2026-11-25 | `packages/brailled-accessibility/src/outline/words.js` |
 | 2026-11-25 | `packages/brailled-accessibility/src/use-kept-state.js` |
-| 2026-11-25 | `packages/brailled-accessibility/src/view-shortcut.js` |
 | 2026-11-25 | `packages/brailled-accessibility/test/diff.test.js` |
 | 2026-11-25 | `packages/brailled-accessibility/test/fixtures/empty-sprite.json` |
 | 2026-11-25 | `packages/brailled-accessibility/test/fixtures/nested-loop-if-else.json` |
@@ -97,6 +106,19 @@ These are new files, not edits to Scratch's own.
 | 2026-11-25 | `packages/brailled-accessibility/test/data.test.js` |
 | 2026-11-25 | `packages/brailled-accessibility/test/keys.test.js` |
 | 2026-11-25 | `packages/brailled-accessibility/e2e/editor.e2e.cjs` |
+| 2026-11-25 | `packages/brailled-accessibility/e2e/audit-names.cjs` |
+| 2026-11-25 | `packages/brailled-accessibility/src/actions/actions-host.css` |
+| 2026-11-25 | `packages/brailled-accessibility/src/actions/actions-host.jsx` |
+| 2026-11-25 | `packages/brailled-accessibility/src/actions/app.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/actions/dom.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/actions/messages.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/actions/parser.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/actions/registry.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/actions/shortcuts.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/actions/snapshot.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/views.js` |
+| 2026-11-25 | `packages/brailled-accessibility/test/actions.test.js` |
+| 2026-11-25 | `packages/brailled-accessibility/test/snapshot.test.js` |
 | 2026-11-25 | `packages/logos/Braille bot  Bio.svg` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

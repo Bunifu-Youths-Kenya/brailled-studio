@@ -3,13 +3,14 @@ import PropTypes from 'prop-types';
 import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 
-import {getEditor} from '../commands/editor.js';
+import {getApp} from '../actions/app.js';
+import {VIEW_TOGGLE} from '../actions/shortcuts.js';
 import useKeptState from '../use-kept-state.js';
-import {VIEW_SHORTCUT_LABEL} from '../view-shortcut.js';
 import createDefinitionSource from './block-definitions.js';
 import BlockPicker from './block-picker.jsx';
 import {CreateDataDialog, RenameDataDialog} from './data-dialogs.jsx';
 import diffOutlines from './diff.js';
+import {blockOf} from './editing.js';
 import {buildWords, messages} from './messages.js';
 import {findPath, keepPlace, navigate, reveal} from './navigation.js';
 import OutlineItem from './outline-item.jsx';
@@ -30,8 +31,6 @@ const VM_EVENTS = [
 // A running project reports changes continuously, so rebuild at a limited rate.
 const REBUILD_DELAY_MS = 150;
 const REBUILD_MAX_WAIT_MS = 600;
-// A closing dialog needs a moment before screen readers hear the live region again.
-const ANNOUNCE_DELAY_MS = 150;
 
 // The palette lists variables only when told to, which a redraw of the workspace does not do.
 const refreshPalette = () => {
@@ -81,20 +80,22 @@ const describeChange = (previous, next, active, intl) => {
  * @param {object} props Props.
  * @param {object} props.vm The virtual machine.
  * @param {boolean} props.active Whether the outline is the view being shown.
- * @returns {React.ReactElement} The view and its live region.
+ * @returns {React.ReactElement} The view and its dialogs.
  */
 const OutlineView = ({vm, active}) => {
     const intl = useIntl();
     const [keptPlaces, setKeptPlaces] = useKeptState(vm, 'outlinePlaces', {});
-    const [state, setState] = useState({program: null, places: keptPlaces, notice: {text: '', serial: 0}});
+    const [state, setState] = useState({program: null, places: keptPlaces});
+    // The last thing announced, shown for sighted helpers.
+    const [said, setSaid] = useState('');
     const containerRef = useRef(null);
     const programRef = useRef(null);
     const activeRef = useRef(active);
     const focusCurrentRef = useRef(false);
     activeRef.current = active;
     const rebuildRef = useRef(null);
-    const announceTimerRef = useRef(null);
-    const editor = getEditor(vm);
+    const app = getApp(vm);
+    const {editor, announce} = app;
 
     useEffect(() => {
         // `silent` is for changes that the editing engine announces itself.
@@ -106,7 +107,7 @@ const OutlineView = ({vm, active}) => {
             const announcement = silent ? null : describeChange(previous, next, activeRef.current, intl);
             // Rebuilding can remove the focused element, which would drop the user out of the tree.
             if (containerRef.current.contains(document.activeElement)) focusCurrentRef.current = true;
-            setState(({places, notice}) => {
+            setState(({places}) => {
                 const place = places[next.targetId] || {currentId: null, collapsed: new Set(), nodes: []};
                 const currentId = keepPlace(place.nodes, next.nodes, place.currentId);
                 return {
@@ -116,10 +117,10 @@ const OutlineView = ({vm, active}) => {
                             collapsed: reveal(next.nodes, place.collapsed, currentId),
                             currentId,
                             nodes: next.nodes
-                        }},
-                    notice: announcement ? {text: announcement, serial: notice.serial + 1} : notice
+                        }}
                 };
             });
+            if (announcement) announce(announcement);
         };
         rebuildRef.current = rebuild;
         // VM events carry data of their own, which `rebuild` must not take for options.
@@ -130,16 +131,9 @@ const OutlineView = ({vm, active}) => {
             schedule.cancel();
             VM_EVENTS.forEach(event => vm.removeListener(event, schedule));
         };
-    }, [vm, intl]);
+    }, [vm, intl, announce]);
 
-    const announce = useCallback(text => {
-        clearTimeout(announceTimerRef.current);
-        announceTimerRef.current = setTimeout(() => {
-            setState(current => ({...current, notice: {text, serial: current.notice.serial + 1}}));
-        }, ANNOUNCE_DELAY_MS);
-    }, []);
-
-    useEffect(() => () => clearTimeout(announceTimerRef.current), []);
+    useEffect(() => app.subscribe(setSaid), [app]);
 
     useEffect(() => {
         editor.setEnvironment({intl, words: buildWords(intl), scratchBlocks: require('scratch-blocks')});
@@ -169,7 +163,7 @@ const OutlineView = ({vm, active}) => {
         announce(result.message);
     }), [editor, announce]);
 
-    const {program, places, notice} = state;
+    const {program, places} = state;
     const place = program && places[program.targetId];
 
     useEffect(() => {
@@ -205,8 +199,46 @@ const OutlineView = ({vm, active}) => {
         focusCurrentRef.current = true;
     }, []);
 
-    const {dialog, movingId, handleEditKey} =
+    const {dialog, movingId, operations} =
         useEditing({editor, program, currentPath, announce, refocus, intl});
+
+    // What actions ask of the outline. Kept current on every render.
+    const controller = useRef({});
+    Object.assign(controller.current, operations, {
+        isMoving: () => !!movingId,
+        movingText: () => (movingId ? findPath(program.nodes, movingId)?.at(-1).text : null),
+        currentBlock: () => blockOf(currentPath()?.at(-1)),
+        // Where the user is, for the context snapshot.
+        position: () => {
+            const path = program && currentPath();
+            if (!path) return null;
+            const node = path.at(-1);
+            return {
+                item: node.text,
+                level: node.level,
+                position: node.posinset,
+                count: node.setsize,
+                script: path[0].posinset,
+                scripts: program.nodes.length
+            };
+        },
+        step: direction => {
+            const result = place?.currentId &&
+                navigate(program.nodes, place, direction > 0 ? 'ArrowDown' : 'ArrowUp');
+            if (!result) return null;
+            const node = findPath(program.nodes, result.currentId).at(-1);
+            refocus();
+            updatePlace(result);
+            return {
+                moved: result.currentId !== place.currentId,
+                item: node.text,
+                level: node.level,
+                position: node.posinset,
+                count: node.setsize
+            };
+        }
+    });
+    useEffect(() => app.register('outline', controller.current), [app]);
 
     useLayoutEffect(() => {
         if (!focusCurrentRef.current || dialog) return;
@@ -222,7 +254,7 @@ const OutlineView = ({vm, active}) => {
         };
         // Focus returns to the tree after an edit, which may remove the focused item.
         focusCurrentRef.current = true;
-        if (handleEditKey(event)) {
+        if (app.handleKey(event, 'outline')) {
             used();
             return;
         }
@@ -233,7 +265,7 @@ const OutlineView = ({vm, active}) => {
         used();
         focusCurrentRef.current = true;
         updatePlace(result);
-    }, [program, place, updatePlace, handleEditKey]);
+    }, [app, program, place, updatePlace]);
 
     return (
         <React.Fragment>
@@ -257,14 +289,14 @@ const OutlineView = ({vm, active}) => {
                             className={styles.hint}
                             id="brailled-outline-hint"
                         >
-                            {intl.formatMessage(messages.hint, {shortcut: VIEW_SHORTCUT_LABEL})}
+                            {intl.formatMessage(messages.hint, {shortcut: VIEW_TOGGLE.label})}
                         </p>
                         {/* For sighted helpers; screen readers hear the live region below. */}
                         <p
                             aria-hidden="true"
                             className={styles.result}
                         >
-                            {notice.text}
+                            {said}
                         </p>
                         {program.nodes.length > 0 ? (
                             <ul
@@ -296,15 +328,6 @@ const OutlineView = ({vm, active}) => {
                     </React.Fragment>
                 ) : null}
             </section>
-            <div
-                aria-atomic="true"
-                aria-live="polite"
-                className={styles.announcer}
-                data-brailled-announcer
-            >
-                {/* A new element each time, so that a repeated message is announced again. */}
-                <span key={notice.serial}>{notice.text}</span>
-            </div>
             {dialog?.type === 'picker' ? (
                 <BlockPicker
                     entries={dialog.entries}

@@ -416,6 +416,152 @@ const check = (name, ok, detail = '') => {
             window.vm.runtime.getTargetForStage().variables).find(v => v.name === 'food')?.value.length > 0));
     });
 
+    await group('actions: where am I and what can I do', async t => {
+        const {page, key, said, pause} = t;
+        const heard = async () => {
+            await pause(500);
+            return said();
+        };
+        const command = async text => {
+            await key('Alt+Shift+KeyK', 500);
+            await t.type(text);
+            await key('Enter', 900);
+            return said();
+        };
+        await t.sample();
+        await page.evaluate(() => document.activeElement.blur());
+        await key('Alt+Shift+KeyW', 600);
+        check('where am I, with nothing focused', /^Nothing has keyboard focus\. Sprite Sprite1 is selected\. Blocks view\./
+            .test(await said()), await said());
+        await page.locator('.blocklyToolboxCategoryContainer#motion').focus();
+        await key('Alt+Shift+KeyW', 600);
+        check('where am I, in the palette', /^You are in the block palette, on Motion, tree item\./.test(await said()),
+            await said());
+        await key('Alt+Shift+KeyO', 900);
+        await t.goTo('move 10 steps');
+        await key('Alt+Shift+KeyW', 600);
+        check('where am I, in the outline',
+            /^You are in the scripts area, on move 10 steps, tree item\..*Outline view\. In the outline: move 10 steps, level 2, 2 of 4, in script 1 of 1\. The project is stopped\./
+                .test(await said()), await said());
+        let answer = await command('where am I?');
+        check('typed "where am I" reports where focus was', /on move 10 steps, tree item/.test(answer), answer);
+        check('focus is back where it was', (await t.focused()).text === 'move 10 steps');
+
+        answer = await command('what can I do here');
+        check('what can I do here, in the outline', /^Here you can: .*add block \(I\).*Anywhere you can: .*where am I \(Alt\+Shift\+W\)/
+            .test(answer), answer);
+        await page.locator('header select').focus();
+        await key('Alt+Shift+KeyH', 600);
+        answer = await said();
+        check('outline shortcuts are not offered from the menu',
+            answer.startsWith('Anywhere you can:') && /add block,/.test(answer) && !/add block \(I\)/.test(answer), answer);
+        await key('Alt+Shift+KeyW', 600);
+        check('where am I, in the menu', /^You are in the menu bar, on Language, drop-down\./.test(await said()),
+            await said());
+
+        answer = await command('read program');
+        check('read program', answer === 'When green flag clicked: move 10 steps, wait 1 second, say Hello!.', answer);
+
+        await page.locator('[data-brailled-outline] [tabindex="0"]').focus();
+        await t.goTo('move 10 steps');
+        answer = await command('next');
+        check('next in the outline', answer === 'wait 1 second. Level 2, 3 of 4.', answer);
+        check('next moves focus', (await t.focused()).text === 'wait 1 second');
+        answer = await command('previous');
+        check('previous in the outline', answer === 'move 10 steps. Level 2, 2 of 4.', answer);
+
+        await t.goTo('say Hello!');
+        await key('Delete', 900);
+        answer = await command('undo');
+        check('typed undo', answer === 'Undone. Deleted: say Hello!', answer);
+        answer = await command('redo');
+        check('typed redo', answer === 'Redone. Deleted: say Hello!', answer);
+
+        const zoneOf = () => page.evaluate(() => {
+            const e = document.activeElement;
+            return e.closest('[data-brailled-zone="palette"]') ? 'palette' :
+                e.dataset.brailledStageTab || e.closest('header,aside,main')?.tagName.toLowerCase();
+        });
+        for (const [text, zone, spoken] of [
+            ['go to menu', 'header', 'Menu bar.'],
+            ['go to the stage', 'aside', 'Stage area.'],
+            ['go to devices', 'devices', 'Devices tab.'],
+            ['go to sprites', 'sprites', 'Sprites tab.'],
+            ['go to background', 'background', 'Background tab.'],
+            ['go to scripts', 'main', 'Scripts area.'],
+            ['go to block palette', 'palette', 'Block categories.'],
+            ['go to menu', 'header', 'Menu bar.'],
+            ['go to block palette', 'palette', 'Block categories.'],
+            ['show outline', 'main', 'Outline view.'],
+            ['go to block palette', 'palette', 'Block categories.']
+        ]) {
+            answer = await command(text);
+            check(text, await zoneOf() === zone && answer === spoken, `${await zoneOf()} / ${answer}`);
+        }
+        await command('go to devices');
+        await key('Alt+Shift+KeyW', 600);
+        check('where am I reports the device mode', /Live mode\. No device connected\./.test(await said()), await said());
+        answer = await command('next');
+        check('next outside the outline moves between controls', /, (tab|button|radio button|link|text field)\.$/
+            .test(answer), answer);
+
+        answer = await command('add block');
+        check('an action that needs the outline says so', /^Switch to the Outline view first/.test(answer), answer);
+        answer = await command('show python');
+        check('Python is coming soon', answer === 'The Python view is coming soon.', answer);
+        await command('show outline');
+        check('show outline', await page.locator('[data-brailled-outline]').isVisible());
+
+        await page.evaluate(() => {
+            window.brailled.run({op: 'insert', block: 'control_forever'});
+        });
+        await pause(800);
+        await page.locator('[data-brailled-outline] [tabindex="0"]').focus();
+        await t.goTo('forever');
+        answer = await command('run');
+        const running = await page.evaluate(() => window.brailledApp.snapshot().project.running);
+        check('typed run starts the project', answer === 'Project started.', answer);
+        await page.evaluate(() => {
+            const blocks = window.vm.editingTarget.blocks;
+            const loop = Object.values(blocks._blocks).find(b => b.opcode === 'control_forever');
+            window.brailled.run({op: 'insert', block: 'event_whenflagclicked'});
+            window.brailled.run({op: 'move', block: loop.id,
+                after: Object.values(blocks._blocks).filter(b => b.opcode === 'event_whenflagclicked').pop().id});
+            window.vm.greenFlag();
+        });
+        await pause(800);
+        check('the snapshot knows the project is running',
+            await page.evaluate(() => window.brailledApp.snapshot().project.running), String(running));
+        answer = await command('stop');
+        check('typed stop', answer === 'Project stopped.' &&
+            !await page.evaluate(() => window.brailledApp.snapshot().project.running), answer);
+
+        const snapshot = await page.evaluate(() => ({data: window.brailledApp.snapshot(),
+            text: window.brailledApp.snapshotText()}));
+        check('snapshot data', snapshot.data.sprite.name === 'Sprite1' && snapshot.data.view.scripts === 'outline' &&
+            snapshot.data.device.mode === 'live' && snapshot.data.actions.length > 20 && !!snapshot.data.outline);
+        check('snapshot text is compact', snapshot.text.split('\n').length <= 10 && snapshot.text.length < 1500,
+            `${snapshot.text.length} characters`);
+        console.log(snapshot.text.split('\n').map(line => `       ${line}`).join('\n'));
+
+        await key('Alt+Shift+KeyK', 500);
+        check('axe: command box', (await t.axe()).length === 0, (await t.axe()).join('; '));
+        await t.type('make me a sandwich');
+        await key('Enter', 500);
+        check('an unknown command is explained in the box',
+            /I do not understand "make me a sandwich"/.test(await page.locator('dialog [role="alert"]').textContent()));
+        await key('Escape', 500);
+
+        await page.getByRole('tab', {name: 'Costumes'}).click();
+        await pause(800);
+        await page.getByRole('tab', {name: 'Costumes'}).focus();
+        await key('Alt+Shift+KeyW', 600);
+        check('answers are heard on the Costumes tab', /Costumes tab\./.test(await heard()) &&
+            await page.locator('[data-brailled-announcer]').evaluate(el => !!el.offsetParent), await said());
+        await command('open sprite library');
+        check('open sprite library', await page.locator('.ReactModal__Content').count() === 1);
+    });
+
     check('no page, workspace or Brailled errors', errors.length === 0, errors.slice(0, 4).join(' || '));
     console.log(`\n${results.filter(Boolean).length}/${results.length} checks passed; screenshots in ${out}`);
     await browser.close();

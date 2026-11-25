@@ -397,10 +397,12 @@ class LibraryComponent extends React.Component {
                     </div>
                 )}
                 <div
+                    aria-label={this.props.title}
                     className={classNames(styles.libraryScrollGrid, {
                         [styles.withFilterBar]: this.props.filterable || this.props.tags
                     })}
                     ref={this.setFilteredDataRef}
+                    role="group"
                     tabIndex={-1}
                 >
                     {this.state.loaded ? this.renderData(this.getFilteredData()) : (

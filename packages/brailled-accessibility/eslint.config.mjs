@@ -23,7 +23,11 @@ export default eslintConfigScratch.defineConfig(
         }
     },
     {
-        files: ['src/outline/block-definitions.js', 'src/outline/outline-view.jsx'],
+        files: [
+            'src/actions/actions-host.jsx',
+            'src/outline/block-definitions.js',
+            'src/outline/outline-view.jsx'
+        ],
         languageOptions: {
             // webpack provides `require`, used to load scratch-blocks only when it is first needed, and
             // replaces `process.env.NODE_ENV`.

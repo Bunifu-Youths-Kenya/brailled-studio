@@ -130,6 +130,7 @@ const ModeToolsComponent = props => {
                     />
                 </div>
                 <LiveInput
+                    aria-label={intl.formatMessage(currentMessage)}
                     range
                     small
                     max={MAX_STROKE_WIDTH}
@@ -159,6 +160,7 @@ const ModeToolsComponent = props => {
                     />
                 </div>
                 <LiveInput
+                    aria-label={intl.formatMessage(messages.eraserSize)}
                     range
                     small
                     max={MAX_STROKE_WIDTH}

@@ -5,11 +5,20 @@ import DeleteButton from '../delete-button/delete-button.jsx';
 import styles from './sprite-selector-item.css';
 import contextMenuStyles from '../context-menu/context-menu.css';
 import {DangerousMenuItem, MenuItem} from '../context-menu/context-menu.jsx';
-import {FormattedMessage} from 'react-intl';
+import {defineMessages, FormattedMessage, useIntl} from 'react-intl';
 import * as ContextMenu from '@radix-ui/react-context-menu';
 import {KEY} from '../../lib/navigation-keys.js';
 
+const messages = defineMessages({
+    contextMenu: {
+        defaultMessage: '{name} actions',
+        description: 'Accessible name of the right click menu of a sprite, costume or sound',
+        id: 'brailled.spriteSelectorItem.contextMenu'
+    }
+});
+
 const SpriteSelectorItem = props => {
+    const intl = useIntl();
     useEffect(() => {
         const handleResize = () => {
             const contextMenu = document.querySelector('[data-radix-popper-content-wrapper]');
@@ -82,6 +91,7 @@ const SpriteSelectorItem = props => {
             {(props.onDuplicateButtonClick || props.onDeleteButtonClick || props.onExportButtonClick) && (
                 <ContextMenu.Portal>
                     <ContextMenu.Content
+                        aria-label={intl.formatMessage(messages.contextMenu, {name: props.name})}
                         className={contextMenuStyles.contextMenuContent}
                         collisionPadding={10}
                         sticky="always"

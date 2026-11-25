@@ -77,6 +77,7 @@ const MonitorComponent = props => (
             </Box>
         </Draggable>
         <ContextMenu.Content
+            aria-label={props.label}
             className={contextMenuStyles.contextMenuContent}
             collisionPadding={10}
             sticky="always"
