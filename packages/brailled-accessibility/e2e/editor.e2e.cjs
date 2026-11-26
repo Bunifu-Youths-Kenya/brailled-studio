@@ -4,6 +4,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const {pathToFileURL} = require('url');
 const {chromium} = require('playwright-chromium');
 
 const repo = path.resolve(__dirname, '../../..');
@@ -82,6 +83,30 @@ const results = [];
 const check = (name, ok, detail = '') => {
     results.push(ok);
     console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `  [${detail}]` : ''}`);
+};
+
+// The real AI server, with a stand-in for the model it would ask. `model.reply` is what the model answers.
+const startAiServer = async (env = {}) => {
+    const from = file => import(pathToFileURL(path.join(repo, 'packages/brailled-ai-server/src', file)).href);
+    const [{createApp}, {readConfig}] = await Promise.all([from('app.ts'), from('config.ts')]);
+    const model = {reply: null, asked: []};
+    const fetcher = (_, options) => {
+        const user = JSON.parse(JSON.parse(options.body).messages[1].content);
+        model.asked.push(user);
+        const content = typeof model.reply === 'function' ? model.reply(user) : model.reply;
+        return Promise.resolve(Response.json({choices: [{finish_reason: 'stop',
+            message: {content: typeof content === 'string' ? content : JSON.stringify(content)}}]}));
+    };
+    const config = readConfig({OPENROUTER_API_KEY: 'not-a-real-key',
+        OPENROUTER_MODEL: 'stand-in',
+        ALLOWED_ORIGINS: new URL(url).origin,
+        ...env});
+    const app = createApp(config, {fetcher, log: () => {}});
+    const server = await new Promise(resolve => {
+        const listening = app.listen(0, 'localhost', () => resolve(listening));
+    });
+    const endpoint = `http://localhost:${server.address().port}/api/assistant`;
+    return {model, endpoint, close: () => server.close()};
 };
 
 (async () => {
@@ -799,7 +824,7 @@ const check = (name, ok, detail = '') => {
         check('Escape answers no', await dialog.count() === 0 && await t.data() === program);
 
         answer = await say('make me a sandwich');
-        check('other words get an answer and change nothing', /not a command I know.*AI helper is not available/
+        check('other words get an answer and change nothing', /not a command I know.*there is no AI helper here/
             .test(answer) && await t.data() === program, answer);
 
         for (const [error, message] of [
@@ -1077,6 +1102,178 @@ const check = (name, ok, detail = '') => {
             await page.screenshot({path: path.join(out, `${title.replace(/ /g, '-')}.png`)});
         }, {init: [fakeSpeech, fakeVoice], firstVisit: true, config: answer});
     }
+
+    const ai = await startAiServer();
+    const aiConfig = endpoint => ({json: {voice: true, aiEndpoint: endpoint}});
+    const helper = page => page.locator('dialog');
+    const failed = 'I couldn\'t work that out, please try again.';
+
+    await group('AI helper', async t => {
+        const {page, key, pause} = t;
+        const bar = page.locator('[data-brailled-zone="voice"]');
+        const ask = async text => {
+            await typed(t, text);
+            await pause(900);
+        };
+        const refOf = (user, opcode) => user.program.find(line => line.includes(` ${opcode}:`)).trim()
+            .split(' ')[0];
+
+        check('the notice says what the AI helper receives',
+            /AI requests send your words and program to an AI service\./.test(await bar.textContent()));
+        await page.setViewportSize({width: 1024, height: 768});
+        await pause(800);
+        check('the longer notice fits inside the bar\'s padding at 1024 wide', await bar.evaluate(el => {
+            const space = el.getBoundingClientRect().bottom - parseFloat(getComputedStyle(el).paddingBottom);
+            return Array.from(el.querySelectorAll('*')).every(child => child.closest('[role="group"]') ||
+                child.getBoundingClientRect().bottom <= space + 0.5);
+        }));
+        await page.screenshot({path: path.join(out, 'ai-voice-bar-1024.png')});
+        await page.setViewportSize({width: 1366, height: 768});
+        await t.sample();
+        await key('Alt+Shift+KeyO', 900);
+        await key('Alt+Shift+KeyK', 500);
+        check('the command box says where other requests go',
+            /sent to the AI helper, with your program/.test(await page.locator('dialog').textContent()));
+        await key('Escape', 500);
+        await t.goTo('move 10 steps');
+        await typed(t, 'read program');
+        check('local commands never reach the model', ai.model.asked.length === 0);
+        const program = await t.data();
+
+        ai.model.reply = user => ({type: 'proposal', summary: 'Repeat the move.', steps: [
+            {command: {op: 'wrap', block: refOf(user, 'motion_movesteps'), in: 'control_repeat',
+                args: {TIMES: 4}}},
+            {command: {op: 'insert', block: 'motion_turnright', after: refOf(user, 'motion_movesteps'),
+                args: {DEGREES: 90}}},
+            {action: 'project.run'}
+        ]});
+        await ask('make my sprite go in a square');
+        check('the real server accepts the editor\'s request', ai.model.asked.length === 1);
+        const [sent] = ai.model.asked;
+        check('it sends words, place, program, blocks and actions as text',
+            sent.request === 'make my sprite go in a square' && sent.whereTheStudentIs.outline.item === 'move 10 steps' &&
+            sent.program.some(line => /^ +b2 motion_movesteps: move 10 steps$/.test(line)) &&
+            sent.blocks.length > 100 && sent.actions.some(action => action.id === 'project.run') &&
+            !/<[a-z]+[ >]|data:image/.test(JSON.stringify(sent)), `${JSON.stringify(sent).length} characters`);
+        const dialog = helper(page);
+        check('a suggestion is shown', await dialog.count() === 1 &&
+            await dialog.locator('h2').textContent() === 'Suggestion from the AI helper. Nothing has changed.');
+        const steps = await dialog.locator('li').allTextContents();
+        check('each step is described by the editor', steps.length === 3 &&
+            /^Put move 10 steps inside repeat 4$/.test(steps[0]) &&
+            /^Add turn .* 90 degrees, after move 10 steps$/.test(steps[1]) && steps[2] === 'Use the action "run"',
+        steps.join(' | '));
+        check('it says nothing will be changed', /Approving a suggestion is not available yet/
+            .test(await dialog.textContent()));
+        check('"Close" has focus and the dialog is described', (await t.focused()).text.trim() === 'Close' &&
+            await dialog.getAttribute('aria-describedby') === 'brailled-ai-reply');
+        check('axe: AI suggestion', (await t.axe()).length === 0, (await t.axe()).join('; '));
+        check('nothing has changed', await t.data() === program &&
+            !await page.evaluate(() => window.brailledApp.snapshot().project.running));
+        await page.screenshot({path: path.join(out, 'ai-suggestion.png')});
+        await key('Enter', 900);
+        check('closing changes nothing and returns focus', await dialog.count() === 0 && await t.data() === program &&
+            (await t.focused()).text === 'move 10 steps' && await t.said() === 'Closed. Nothing was changed.',
+        await t.said());
+
+        for (const [name, reply] of [
+            ['prose', 'Sure, I will add that.'],
+            ['a made-up block', {type: 'proposal', summary: 'Fly.', steps: [
+                {command: {op: 'insert', block: 'motion_fly'}}]}],
+            ['a command the validator refuses', user => ({type: 'proposal', summary: 'Far.', steps: [
+                {command: {op: 'set-value', block: refOf(user, 'motion_movesteps'), name: 'STEPS', value: 'far'}}]})],
+            ['an extra property', {type: 'explanation', text: 'Hi', run: true}]
+        ]) {
+            ai.model.reply = reply;
+            await ask('please change something');
+            check(`${name}: says it could not work it out, changes nothing`, await t.said() === failed &&
+                await dialog.count() === 0 && await t.data() === program, await t.said());
+        }
+
+        ai.model.reply = user => (user.answersYourQuestion ?
+            {type: 'explanation', text: `You chose ${user.request}.`} :
+            {type: 'question', question: 'How many times?', choices: ['Four', 'Ten']});
+        await ask('repeat it');
+        check('a question is shown with numbered choices', await dialog.locator('h2').textContent() ===
+            'The AI helper asks' && await dialog.locator('ol li button').count() === 2);
+        check('the answer box has focus', (await t.focused()).tag === 'input');
+        check('axe: AI question', (await t.axe()).length === 0, (await t.axe()).join('; '));
+        await dialog.getByRole('button', {name: 'Ten'}).click();
+        await pause(1500);
+        check('a choice answers it, with the question', /You chose Ten\./.test(await dialog.textContent()) &&
+            ai.model.asked.at(-1).answersYourQuestion.question === 'How many times?');
+        check('axe: AI explanation', (await t.axe()).length === 0, (await t.axe()).join('; '));
+        await key('Escape', 700);
+        await ask('repeat it');
+        await t.type('7');
+        await key('Enter', 1500);
+        check('a typed answer works', /You chose 7\./.test(await dialog.textContent()));
+        await key('Escape', 700);
+
+        // By voice.
+        const say = async (text, confidence = 0.95) => {
+            await page.evaluate(said => {
+                window.speech.say = said;
+            }, [text, confidence]);
+            await page.keyboard.down('F2');
+            await pause(600);
+            await page.keyboard.up('F2');
+            await pause(1500);
+        };
+        const before = ai.model.asked.length;
+        await say('repeat it');
+        check('spoken words that are not commands go to the AI helper', ai.model.asked.length === before + 1 &&
+            await dialog.count() === 1);
+        await say('four');
+        check('the talk key answers a question', /You chose four\./.test(await dialog.textContent()),
+            await dialog.textContent());
+        await say('close');
+        check('"close" closes the reply', await dialog.count() === 0);
+        await say('do something odd', 0.3);
+        check('doubtful words are confirmed before they are sent', ai.model.asked.length === before + 2 &&
+            /I am not sure/.test(await dialog.textContent()));
+        await key('Enter', 700);
+        check('answering no sends nothing', ai.model.asked.length === before + 2 && await dialog.count() === 0);
+        check('through it all, nothing has changed', await t.data() === program);
+
+        await page.evaluate(() => window.vm.setEditingTarget(window.vm.runtime.getTargetForStage().id));
+        await pause(900);
+        ai.model.reply = {type: 'explanation', text: 'The stage is behind the sprites.'};
+        await ask('what is the stage');
+        check('a request about the stage is accepted', /behind the sprites/.test(await dialog.textContent()));
+    }, {init: [fakeSpeech, fakeVoice], config: aiConfig(ai.endpoint)});
+
+    const limited = await startAiServer({REQUESTS_PER_MINUTE_PER_ADDRESS: '1'});
+    limited.model.reply = {type: 'explanation', text: 'Hello.'};
+    await group('AI helper limits', async t => {
+        await typed(t, 'hello there');
+        await t.pause(900);
+        await t.key('Escape', 700);
+        await typed(t, 'hello again');
+        await t.pause(900);
+        check('a limit is explained', /too many requests/.test(await t.said()), await t.said());
+    }, {config: aiConfig(limited.endpoint)});
+    limited.close();
+
+    await group('AI helper unreachable', async t => {
+        await typed(t, 'hello there');
+        await t.pause(900);
+        check('a server that is not there is explained', /cannot be reached\. Everything else still works/
+            .test(await t.said()), await t.said());
+        await typed(t, 'go to menu');
+        check('and local commands still work', await t.said() === 'Menu bar.');
+    }, {config: aiConfig('http://localhost:9/api/assistant')});
+
+    await group('no AI helper', async t => {
+        const before = ai.model.asked.length;
+        await t.key('Alt+Shift+KeyK', 500);
+        await t.type('make a square');
+        await t.key('Enter', 500);
+        check('without an address, other requests are refused as before',
+            /I do not understand "make a square"/.test(await t.page.locator('dialog [role="alert"]').textContent()) &&
+            ai.model.asked.length === before);
+    });
+    ai.close();
 
     check('no page, workspace or Brailled errors', errors.length === 0, errors.slice(0, 4).join(' || '));
     console.log(`\n${results.filter(Boolean).length}/${results.length} checks passed; screenshots in ${out}`);

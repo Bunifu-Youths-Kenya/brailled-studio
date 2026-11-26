@@ -5,6 +5,7 @@
  * `outline`), an availability check and a handler. Shortcuts that can be chosen come from `shortcutsFor`.
  * Both functions take the app (see `app.js`). `available` returns true or the key of a message saying why not.
  * `run` may return a sentence to announce, or false if it did nothing and the key should keep its usual meaning.
+ * The AI helper may propose any action that is not marked `proposable: false`.
  */
 import {SCRIPTS_VIEWS} from '../views.js';
 import {descriptions, names, speech} from './messages.js';
@@ -32,8 +33,11 @@ const define = (id, options) => {
 };
 
 // Actions whose shortcuts work while focus is in the Outline.
-const inTree = (id, shortcuts, run, available = inOutline) =>
-    define(id, {scope: 'outline', shortcuts, run, available});
+const inTree = (id, shortcuts, run, available = inOutline, options = {}) =>
+    define(id, {scope: 'outline', shortcuts, run, available, ...options});
+// An edit made by hand, at the focused block. The AI helper proposes edit commands instead, which are checked.
+const byHand = (id, shortcuts, run, available = inOutline) =>
+    inTree(id, shortcuts, run, available, {proposable: false});
 
 const goTo = (id, zone, available = withGui) => define(id, {
     available,
@@ -50,6 +54,7 @@ const ACTIONS = [
         run: app => describeAbilities(app.snapshot(), app.intl())
     }),
     define('help.commandBox', {
+        proposable: false,
         shortcuts: [altShift('K')],
         available: withGui,
         run: app => app.gui().openCommandBox()
@@ -65,6 +70,7 @@ const ACTIONS = [
     goTo('go.voice', 'voice'),
 
     define('voice.talk', {
+        proposable: false,
         shortcutsFor: app => [TALK_KEYS[app.settings.get().talkKey]],
         available: app => {
             if (withVoice(app) !== true) return 'voiceOff';
@@ -74,6 +80,7 @@ const ACTIONS = [
         run: app => app.voice().toggle()
     }),
     define('voice.settings', {
+        proposable: false,
         available: app => (withVoice(app) === true ? withGui(app) : 'voiceOff'),
         run: app => app.gui().openSettings()
     }),
@@ -102,22 +109,22 @@ const ACTIONS = [
         app.editor.run({op: 'describe', ...(script ? {script} : {})});
     }, withSprite),
 
-    inTree('edit.insert', [plain('i', 'I')], app => app.outline().insert(false)),
-    inTree('edit.insertBefore', [shift('i', 'Shift+I')], app => app.outline().insert(true)),
-    inTree('edit.delete', [plain('Delete'), plain('Backspace')], app => app.outline().remove()),
-    inTree('edit.values', [plain('Enter')], app => app.outline().editValues()),
-    inTree('edit.move', [plain('m', 'M')], app => app.outline().move(false)),
-    inTree('edit.moveBefore', [shift('m', 'Shift+M')], app => app.outline().move(true)),
-    inTree('edit.moveNewScript', [plain('n', 'N')], app => app.outline().moveToNewScript(), whileMoving),
-    inTree('edit.cancelMove', [plain('Escape')], app => app.outline().cancelMove(), whileMoving),
-    inTree('edit.wrap', [plain('w', 'W')], app => app.outline().wrap(false)),
-    inTree('edit.wrapFollowing', [shift('w', 'Shift+W')], app => app.outline().wrap(true)),
-    inTree('edit.createData', [plain('v', 'V')], app => app.outline().createData()),
-    inTree('edit.renameData', [shift('v', 'Shift+V')], app => app.outline().renameData()),
-    inTree('edit.undo', [control('z', 'Control+Z')], app => {
+    byHand('edit.insert', [plain('i', 'I')], app => app.outline().insert(false)),
+    byHand('edit.insertBefore', [shift('i', 'Shift+I')], app => app.outline().insert(true)),
+    byHand('edit.delete', [plain('Delete'), plain('Backspace')], app => app.outline().remove()),
+    byHand('edit.values', [plain('Enter')], app => app.outline().editValues()),
+    byHand('edit.move', [plain('m', 'M')], app => app.outline().move(false)),
+    byHand('edit.moveBefore', [shift('m', 'Shift+M')], app => app.outline().move(true)),
+    byHand('edit.moveNewScript', [plain('n', 'N')], app => app.outline().moveToNewScript(), whileMoving),
+    byHand('edit.cancelMove', [plain('Escape')], app => app.outline().cancelMove(), whileMoving),
+    byHand('edit.wrap', [plain('w', 'W')], app => app.outline().wrap(false)),
+    byHand('edit.wrapFollowing', [shift('w', 'Shift+W')], app => app.outline().wrap(true)),
+    byHand('edit.createData', [plain('v', 'V')], app => app.outline().createData()),
+    byHand('edit.renameData', [shift('v', 'Shift+V')], app => app.outline().renameData()),
+    byHand('edit.undo', [control('z', 'Control+Z')], app => {
         app.editor.run({op: 'undo'});
     }, withSprite),
-    inTree('edit.redo', [control('y', 'Control+Y'),
+    byHand('edit.redo', [control('y', 'Control+Y'),
         {key: 'z', ctrl: true, shift: true, label: 'Control+Shift+Z'}], app => {
         app.editor.run({op: 'redo'});
     }, withSprite),

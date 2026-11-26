@@ -108,7 +108,34 @@ const readbacks = defineMessages(Object.fromEntries(Object.entries({
     description: 'Spoken result of an editing command'
 }])));
 
+// What a command would do, said before it is done. Keys match those above.
+const plans = defineMessages(Object.fromEntries(Object.entries({
+    addedScript: 'Start a new script with {block}',
+    added: 'Add {block}, {place}',
+    deleted: 'Delete {block}',
+    deletedHolding: 'Delete {block}, and {count, plural, one {# block} other {# blocks}} inside it',
+    deletedStack: 'Delete {count, plural, one {# block} other {# blocks}}, starting with {block}',
+    changed: 'Change {previous} to {block}',
+    moved: 'Move {block}, {place}',
+    movedStack: 'Move {block} and the blocks under it, {place}',
+    movedScript: 'Move {block} to a new script',
+    wrapped: 'Put {block} inside {holder}',
+    wrappedMany: 'Put {count} blocks, starting with {block}, inside {holder}',
+    createdItem: 'Create {kind, select, list {list} other {variable}} {name}, ' +
+        '{scope, select, sprite {for this sprite only} other {for all sprites}}',
+    createdMessage: 'Create message {name}',
+    renamedItem: 'Rename {kind, select, list {list} message {message} other {variable}} {from} to {to}',
+    undo: 'Undo the last change: {sentence}',
+    redo: 'Redo: {sentence}',
+    describe: 'Read the program'
+}).map(([key, defaultMessage]) => [key, {
+    id: `brailled.command.plan.${key}`,
+    defaultMessage,
+    description: 'A proposed change, not yet made'
+}])));
+
 export {
+    plans,
     readbacks,
     reasons
 };

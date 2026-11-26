@@ -1,0 +1,264 @@
+import type { AddressInfo } from 'node:net'
+import type { Server } from 'node:http'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createApp, type Options } from '../src/app.ts'
+import { readConfig } from '../src/config.ts'
+import { createRateLimiter } from '../src/limits.ts'
+import { readRequest } from '../src/request.ts'
+
+const KEY = 'sk-test-secret'
+const ORIGIN = 'http://localhost:8601'
+
+const request = () => ({
+  transcript: 'add a move block',
+  language: 'en',
+  context: { view: { tab: 'code', scripts: 'outline' }, sprite: { name: 'Sprite1', isStage: false } },
+  program: ['script 1', '  b1 event_whenflagclicked: when green flag clicked'],
+  data: ['variable "my variable" for all sprites'],
+  blocks: ['motion_movesteps (stack) "move 10 steps" STEPS=number'],
+  actions: [{ id: 'project.run', name: 'run', description: 'Starts the project.' }],
+})
+
+interface Sent {
+  messages: { role: string; content: string }[]
+  provider: Record<string, unknown>
+}
+
+// What was sent to the model.
+const sentBy = (fetcher: ReturnType<typeof upstream>) => JSON.parse(fetcher.mock.calls[0][1]?.body as string) as Sent
+
+const userMessage = (fetcher: ReturnType<typeof upstream>) =>
+  JSON.parse(sentBy(fetcher).messages[1].content) as Record<string, unknown>
+
+const proposal = {
+  type: 'proposal',
+  summary: 'Add a move block.',
+  steps: [{ command: { op: 'insert', block: 'motion_movesteps', after: 'b1' } }],
+}
+
+const completion = (content: unknown, finish = 'stop') =>
+  Response.json({ choices: [{ finish_reason: finish, message: { content } }] })
+
+let server: Server | undefined
+afterEach(() => server?.close())
+
+const start = async (env: Record<string, string> = {}, options: Options = {}) => {
+  const config = readConfig({ OPENROUTER_API_KEY: KEY, OPENROUTER_MODEL: 'test/model', ...env })
+  const lines: string[] = []
+  const app = createApp(config, { log: (line) => lines.push(line), ...options })
+  const listening = await new Promise<Server>((resolve) => {
+    const started = app.listen(0, 'localhost', () => resolve(started))
+  })
+  server = listening
+  const base = `http://localhost:${(listening.address() as AddressInfo).port}`
+  const post = (body: unknown = request(), headers: Record<string, string> = {}) =>
+    fetch(`${base}/api/assistant`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: ORIGIN, ...headers },
+      body: typeof body === 'string' ? body : JSON.stringify(body),
+    })
+  return { base, post, lines }
+}
+
+const upstream = (answer: () => Response | Promise<Response>) =>
+  vi.fn<typeof fetch>(() => Promise.resolve(answer()))
+
+describe('asking the model', () => {
+  it('sends the request with the key, the schema and privacy preferences, and passes the reply back', async () => {
+    const fetcher = upstream(() => completion(JSON.stringify(proposal)))
+    const { post } = await start({}, { fetcher })
+    const response = await post()
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ reply: proposal })
+    expect(response.headers.get('access-control-allow-origin')).toBe(ORIGIN)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+
+    const [url, init] = fetcher.mock.calls[0]
+    expect(url).toBe('https://openrouter.ai/api/v1/chat/completions')
+    expect(init?.headers).toEqual({ Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' })
+    const sent = sentBy(fetcher)
+    expect(sent).toMatchObject({
+      model: 'test/model',
+      response_format: { type: 'json_object' },
+      provider: { require_parameters: true, data_collection: 'deny', zdr: true },
+    })
+    expect(sent.messages.map((message) => message.role)).toEqual(['system', 'user'])
+    expect(sent.messages[0].content).toContain('"title":"Brailled edit command"')
+    expect(userMessage(fetcher)).toEqual({
+      request: 'add a move block',
+      language: 'en',
+      whereTheStudentIs: request().context,
+      program: request().program,
+      data: request().data,
+      blocks: request().blocks,
+      actions: request().actions,
+    })
+  })
+
+  it('includes the question being answered', async () => {
+    const fetcher = upstream(() => completion(JSON.stringify(proposal)))
+    const { post } = await start({}, { fetcher })
+    const previous = { question: 'How far?', choices: ['10', '20'] }
+    await post({ ...request(), previous })
+    expect(userMessage(fetcher).answersYourQuestion).toEqual(previous)
+  })
+
+  it('can allow providers that keep data, only when told to', async () => {
+    const fetcher = upstream(() => completion(JSON.stringify(proposal)))
+    const { post } = await start(
+      { OPENROUTER_DENY_DATA_COLLECTION: 'false', OPENROUTER_ZERO_DATA_RETENTION: 'false' },
+      { fetcher },
+    )
+    await post()
+    expect(sentBy(fetcher).provider).toEqual({ require_parameters: true, data_collection: 'allow' })
+  })
+
+  it.each([
+    ['plain text', completion('Sure! Here is a plan.')],
+    ['JSON in a code fence', completion(`\`\`\`json\n${JSON.stringify(proposal)}\n\`\`\``)],
+    ['a list', completion('[1, 2]')],
+    ['an unknown form', completion('{"type":"run"}')],
+    ['no text', completion(null)],
+    ['a reply cut short', completion('{"type":"explanation","text":"a', 'length')],
+  ])('refuses %s', async (_, answer) => {
+    const { post } = await start({}, { fetcher: upstream(() => answer.clone()) })
+    const response = await post()
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({ error: 'invalid_output' })
+  })
+
+  it.each([
+    ['an error status', () => new Response('quoted request text', { status: 402 })],
+    ['an error in the reply', () => Response.json({ choices: [{ error: { code: 429, message: 'x' } }] })],
+    ['no choices', () => Response.json({})],
+    ['a reply that is not JSON', () => new Response('<html>')],
+  ])('reports %s without passing it on', async (_, answer) => {
+    const { post, lines } = await start({}, { fetcher: upstream(answer) })
+    const response = await post()
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({ error: 'upstream_error' })
+    expect(lines.join()).not.toContain('quoted request text')
+  })
+
+  it('gives up on a model that takes too long', async () => {
+    const fetcher = vi.fn<typeof fetch>(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(init.signal?.reason as Error))
+        }),
+    )
+    const { post } = await start({ UPSTREAM_TIMEOUT_MS: '20' }, { fetcher })
+    const response = await post()
+    expect(response.status).toBe(504)
+  })
+
+  it('never logs or returns the key or what the student wrote', async () => {
+    const fetcher = upstream(() => completion(JSON.stringify(proposal)))
+    const { post, lines } = await start({}, { fetcher })
+    const body = await (await post()).text()
+    expect(body).not.toContain(KEY)
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatch(/^assistant: replied in \d+ ms$/)
+  })
+
+  it('refuses everything until a key and a model are set', async () => {
+    const fetcher = upstream(() => completion('{}'))
+    const { post, base } = await start({ OPENROUTER_API_KEY: '' }, { fetcher })
+    expect((await post()).status).toBe(503)
+    expect(await (await fetch(`${base}/healthz`)).json()).toEqual({ ok: true, configured: false })
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+})
+
+describe('who may call, and how much', () => {
+  const answering = () => upstream(() => completion(JSON.stringify(proposal)))
+
+  it('refuses other web pages', async () => {
+    const fetcher = answering()
+    const { post, base } = await start({}, { fetcher })
+    const response = await post(request(), { Origin: 'https://elsewhere.example' })
+    expect(response.status).toBe(403)
+    expect(response.headers.get('access-control-allow-origin')).toBeNull()
+    expect((await fetch(`${base}/api/assistant`, { method: 'OPTIONS', headers: { Origin: ORIGIN } })).status).toBe(204)
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('accepts only JSON', async () => {
+    const { post } = await start({}, { fetcher: answering() })
+    expect((await post(JSON.stringify(request()), { 'Content-Type': 'text/plain' })).status).toBe(415)
+    expect((await post('{', {})).status).toBe(400)
+  })
+
+  it('refuses requests that are too large', async () => {
+    const fetcher = answering()
+    const { post } = await start({ MAX_REQUEST_BYTES: '2000' }, { fetcher })
+    const response = await post({ ...request(), blocks: Array(100).fill('x'.repeat(100)) })
+    expect(response.status).toBe(413)
+    expect(await response.json()).toEqual({ error: 'too_large' })
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('limits each address, saying when to try again', async () => {
+    const fetcher = answering()
+    const { post } = await start({ REQUESTS_PER_MINUTE_PER_ADDRESS: '2' }, { fetcher })
+    expect((await post()).status).toBe(200)
+    expect((await post()).status).toBe(200)
+    const refused = await post()
+    expect(refused.status).toBe(429)
+    expect(Number(refused.headers.get('retry-after'))).toBeGreaterThan(0)
+    expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+
+  it('counts a minute for an address and everyone, and a day for everyone', () => {
+    let time = 0
+    const limit = createRateLimiter({ perAddressPerMinute: 2, perMinute: 3, perDay: 5 }, () => time)
+    expect([limit('a'), limit('a'), limit('a')]).toEqual([null, null, 60])
+    expect([limit('b'), limit('c')]).toEqual([null, 60])
+    time = 60_000
+    expect([limit('a'), limit('b')]).toEqual([null, null])
+    time = 120_000
+    expect(limit('d')).toBe(86_400 - 120)
+    time = 86_400_000
+    expect(limit('d')).toBeNull()
+  })
+
+  it('reads limits that are whole numbers only', () => {
+    expect(() => readConfig({ REQUESTS_PER_MINUTE: 'many' })).toThrow(/REQUESTS_PER_MINUTE/)
+    expect(() => readConfig({ MAX_REQUEST_BYTES: '0' })).toThrow(/MAX_REQUEST_BYTES/)
+    expect(readConfig({})).toMatchObject({
+      host: 'localhost',
+      denyDataCollection: true,
+      zeroDataRetention: true,
+      allowedOrigins: [ORIGIN],
+      trustedProxies: 0,
+    })
+  })
+})
+
+describe('what may be sent', () => {
+  it('accepts a request from the editor', () => {
+    expect(readRequest(request())).toHaveProperty('request')
+  })
+
+  it.each([
+    ['a picture', { screenshot: 'data:image/png;base64,AAAA' }, 'unknown field'],
+    ['page content', { dom: '<body>' }, 'unknown field'],
+    ['page content in the context', { context: { html: '<body>' } }, 'context'],
+    ['an enormous context', { context: { focus: 'x'.repeat(7000) } }, 'context'],
+    ['no words', { transcript: '  ' }, 'transcript'],
+    ['too many words', { transcript: 'a'.repeat(501) }, 'transcript'],
+    ['a block that is not text', { blocks: [{}] }, 'blocks'],
+    ['too many blocks', { blocks: Array(401).fill('x') }, 'blocks'],
+    ['an action with more than a name', { actions: [{ id: 'a.b', name: 'a', description: 'b', run: 1 }] }, 'actions'],
+    ['a bad action id', { actions: [{ id: 'delete everything', name: 'a', description: 'b' }] }, 'actions'],
+    ['an odd question', { previous: { question: 'a' } }, 'previous'],
+  ])('refuses %s', (_, change, problem) => {
+    expect(readRequest({ ...request(), ...change })).toEqual({ problem })
+  })
+
+  it('refuses a missing part', () => {
+    const { program: _, ...rest } = request()
+    expect(readRequest(rest)).toEqual({ problem: 'program' })
+    expect(readRequest(null)).toEqual({ problem: 'body' })
+  })
+})

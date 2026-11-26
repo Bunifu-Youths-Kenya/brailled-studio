@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import React, {useCallback, useEffect, useRef, useState, useSyncExternalStore} from 'react';
 import {useIntl} from 'react-intl';
 
+import AiHelper from '../ai/ai-helper.jsx';
 import Dialog from '../outline/dialog.jsx';
 import {dialogMessages} from '../outline/messages.js';
 import {getApp} from './app.js';
@@ -20,13 +21,17 @@ const CommandBox = ({app, onClose}) => {
 
     const handleSubmit = event => {
         event.preventDefault();
-        const text = new FormData(event.target).get('command');
+        const text = String(new FormData(event.target).get('command'))
+            .trim();
         const id = parseCommand(text, app.actionNames());
-        if (!id) {
-            setError(intl.formatMessage(text.trim() ? speech.commandUnknown : speech.commandEmpty, {text}));
-            return;
+        if (id) {
+            onClose({id});
+        } else if (text && app.assistant()) {
+            // What is not a command goes to the AI helper, as when spoken.
+            onClose({ask: text});
+        } else {
+            setError(intl.formatMessage(text ? speech.commandUnknown : speech.commandEmpty, {text}));
         }
-        onClose(id);
     };
     const handleCancel = () => onClose(null);
 
@@ -61,6 +66,7 @@ const CommandBox = ({app, onClose}) => {
                     id="brailled-command-hint"
                 >
                     {intl.formatMessage(speech.commandHint)}
+                    {app.assistant() ? ` ${intl.formatMessage(speech.commandHintAi)}` : null}
                 </p>
                 <p
                     className={dialogStyles.error}
@@ -88,7 +94,10 @@ const CommandBox = ({app, onClose}) => {
 };
 
 CommandBox.propTypes = {
-    app: PropTypes.shape({actionNames: PropTypes.func.isRequired}).isRequired,
+    app: PropTypes.shape({
+        actionNames: PropTypes.func.isRequired,
+        assistant: PropTypes.func.isRequired
+    }).isRequired,
     onClose: PropTypes.func.isRequired
 };
 
@@ -160,15 +169,16 @@ const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
 
     // The command runs after the box has closed, so that focus is back where the user was.
     const pending = useRef(null);
-    const closeCommandBox = useCallback(id => {
-        pending.current = id;
+    const closeCommandBox = useCallback(command => {
+        pending.current = command;
         setCommandBoxOpen(false);
     }, []);
     useEffect(() => {
         if (commandBoxOpen || !pending.current) return;
-        const id = pending.current;
+        const {id, ask} = pending.current;
         pending.current = null;
-        app.perform(id);
+        if (id) app.perform(id);
+        else app.assistant()?.handle(ask);
     }, [app, commandBoxOpen]);
 
     return (
@@ -182,6 +192,7 @@ const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
                 {/* A new element each time, so that a repeated message is announced again. */}
                 <span key={notice.serial}>{notice.text}</span>
             </div>
+            <AiHelper app={app} />
             {asking ? <ScreenReaderQuestion app={app} /> : null}
             {settingsOpen ? (
                 <VoiceSettings

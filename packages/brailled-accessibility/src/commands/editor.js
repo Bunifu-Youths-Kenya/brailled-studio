@@ -15,7 +15,7 @@ import {CATALOG} from './catalog.js';
 import {createContext, randomId} from './context.js';
 import {itemsInScope, itemsOf, planData} from './data.js';
 import CommandError from './error.js';
-import {readbacks, reasons} from './messages.js';
+import {plans, readbacks, reasons} from './messages.js';
 import plan from './planner.js';
 import {branchesOf, copy, isValue, shapeOf, snapshot} from './program.js';
 import {readBack, summarise} from './readback.js';
@@ -313,6 +313,137 @@ const createEditor = (vm, {newId = randomId} = {}) => {
         }
     };
 
+    // Replace "new2", the block that step 2 makes, with its id.
+    const withMadeBlocks = (command, made) => {
+        const resolve = id => {
+            const step = /^new([0-9]+)$/.exec(id)?.[1];
+            if (!step) return id;
+            if (!made[step - 1]) throw new CommandError('noSuchBlock', {id});
+            return made[step - 1];
+        };
+        const resolved = {...command};
+        for (const key of ['block', 'after', 'before', 'through', 'script']) {
+            // In "insert" the block is a kind of block, not one in the program.
+            if (!Object.hasOwn(resolved, key) || (key === 'block' && command.op === 'insert')) continue;
+            resolved[key] = resolve(resolved[key]);
+        }
+        if (resolved.inside) resolved.inside = {...resolved.inside, block: resolve(resolved.inside.block)};
+        return resolved;
+    };
+
+    /**
+     * Check a list of proposed steps, each planned on the result of those before, and say what each would do.
+     * Nothing is changed. A step may name the block an earlier step makes as "new" and that step's number.
+     * @param {Array<?object>} commands One per step: a command matching `schema.json`, or null for a step that
+     * is not a command.
+     * @returns {{ok: boolean, sentences: ?Array<?string>, reason: ?string, step: ?number}} The sentences in
+     * step order, or why the step numbered `step` (from 1) cannot be done.
+     */
+    const preview = commands => {
+        let step = 0;
+        try {
+            commands.forEach((command, index) => {
+                step = index + 1;
+                if (command !== null) checkCommand(command);
+            });
+            if (!vm.editingTarget) throw new CommandError('noTarget');
+            const context = contextFor();
+            const isInstruction = block => !block.shadow && block.opcode !== 'procedures_prototype' &&
+                !isValue(shapeOf(block, context.extensionShape));
+            const lists = {variable: context.variables, list: context.lists, message: context.broadcasts};
+            let program = snapshot(vm.editingTarget.blocks);
+            const made = [];
+            const sentences = commands.map((command, index) => {
+                step = index + 1;
+                if (command === null) return null;
+                if (command.op === 'undo' || command.op === 'redo') {
+                    // The history is of the program as it is now, so nothing can come with it.
+                    if (commands.length > 1) throw new CommandError('oneAtATime');
+                    const entry = historyOf(vm.editingTarget)[command.op].at(-1);
+                    if (!entry) throw new CommandError(command.op === 'undo' ? 'nothingToUndo' : 'nothingToRedo');
+                    entry.check(command.op);
+                    return say(plans[command.op], {sentence: entry.sentence});
+                }
+                if (command.op === 'describe') {
+                    const script = command.script && withMadeBlocks(command, made).script;
+                    if (script && !program.blocks[script]) throw new CommandError('noSuchBlock', {id: script});
+                    return say(plans.describe);
+                }
+                if (DATA.includes(command.op)) {
+                    const change = planDataCommand(command);
+                    if (!change) return say(readbacks.noChange);
+                    const {kind, name: itemName, from, to} = change.values;
+                    // Later steps see the new name.
+                    if (change.kind === 'created') {
+                        if (lists[kind].some(item => item.name === itemName)) {
+                            throw new CommandError('nameTaken', {kind, name: itemName});
+                        }
+                        lists[kind].push({id: context.newId(), name: itemName});
+                    } else {
+                        const item = lists[kind].find(candidate => candidate.name === from);
+                        if (item) item.name = to;
+                    }
+                    let message = plans.renamedItem;
+                    if (change.kind === 'created') {
+                        message = kind === 'message' ? plans.createdMessage : plans.createdItem;
+                    }
+                    return say(message, change.values);
+                }
+                const {program: next, event} = plan(withMadeBlocks(command, made), program, context);
+                const sentence = readBack({
+                    event,
+                    before: program,
+                    after: next,
+                    name,
+                    fullName,
+                    isInstruction,
+                    intl: environment.intl,
+                    text: {...readbacks, ...plans}
+                });
+                if (event.kind === 'added' || event.kind === 'wrapped') made[index] = event.id;
+                program = next;
+                return sentence;
+            });
+            return {ok: true, sentences};
+        } catch (error) {
+            return {ok: false, reason: rejected(error).reason, step};
+        }
+    };
+
+    // The selected sprite's program as the Outline shows it.
+    const outline = () => (vm.editingTarget ?
+        buildOutline({...snapshot(vm.editingTarget.blocks),
+            getDefinition: definitionSource(),
+            words: environment.words}) :
+        []);
+
+    /**
+     * Every block that can be created for the selected sprite, with the values it takes.
+     * @returns {Array<{opcode: string, name: string, shape: string, values: object[]}>} Each value has a `name`,
+     * the `type` of thing it takes and, for a menu, its `choices`.
+     */
+    const blockSpecs = () => {
+        const context = contextFor();
+        return Object.entries(CATALOG).flatMap(([opcode, entry]) => {
+            const program = {blocks: {}, scripts: []};
+            let block;
+            try {
+                block = createBlock(program, opcode, {}, context);
+            } catch (error) {
+                // Not usable here: a stage without motion, or a project without a list.
+                if (!(error instanceof CommandError)) throw error;
+                return [];
+            }
+            const values = Object.entries({...entry.inputs, ...entry.fields}).map(([slot, spec]) => {
+                const type = spec.type || spec.kind;
+                if (type !== 'menu' && type !== 'choice') return {name: slot, type};
+                const choices = menuChoices(spec, block, slot, program, context).map(choice => choice.value);
+                return {name: slot, type: 'choice', choices};
+            });
+            return [{opcode, name: fullName(program, block.id), shape: entry.shape, values}];
+        });
+    };
+
     /**
      * The blocks that can be created for the selected sprite, each with its spoken name.
      * @param {'instruction'|'value'|'boolean'} kind What the block is wanted for.
@@ -440,6 +571,9 @@ const createEditor = (vm, {newId = randomId} = {}) => {
     return {
         run,
         validate,
+        preview,
+        outline,
+        blockSpecs,
         listBlocks,
         listData,
         valuesOf,

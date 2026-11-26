@@ -1,0 +1,32 @@
+import {defineMessages} from 'react-intl';
+
+// What the AI helper's part of the editor says.
+const aiMessages = defineMessages(Object.fromEntries(Object.entries({
+    asking: 'Asking the AI helper.',
+    busy: 'Still waiting for the AI helper.',
+    failed: 'I couldn\'t work that out, please try again.',
+    unreachable: 'The AI helper cannot be reached. Everything else still works.',
+    tooMany: 'The AI helper has had too many requests. Wait a minute and try again.',
+    tooBig: 'This program is too big to send to the AI helper.',
+    notReady: 'The AI helper is not set up on this server.',
+    noSprite: 'Select a sprite before asking the AI helper.',
+    dismissed: 'Closed. Nothing was changed.',
+    closeFirst: 'Close the AI helper\'s window first.',
+    proposalTitle: 'Suggestion from the AI helper. Nothing has changed.',
+    summary: 'The AI says: {summary}',
+    stepsHeading: 'What it would do:',
+    cannotApprove: 'Approving a suggestion is not available yet, so nothing will be changed.',
+    action: 'Use the action "{name}"',
+    questionTitle: 'The AI helper asks',
+    answerLabel: 'Your answer',
+    answerHint: 'Type an answer, choose one, or hold {key} and say it.',
+    send: 'Send answer',
+    explanationTitle: 'The AI helper says',
+    close: 'Close'
+}).map(([key, defaultMessage]) => [key, {
+    id: `brailled.ai.${key}`,
+    defaultMessage,
+    description: 'AI helper'
+}])));
+
+export default aiMessages;

@@ -103,7 +103,7 @@ describe('holding to talk', () => {
         const {vm, say, heard} = setUp();
         say('draw me a house');
         expect(heard).toEqual([expect.stringMatching(
-            /^I heard: draw me a house\. That is not a command I know, and the AI helper is not available yet/)]);
+            /^I heard: draw me a house\. That is not a command I know, and there is no AI helper here/)]);
         expect(vm.start).not.toHaveBeenCalled();
         expect(vm.stopAll).not.toHaveBeenCalled();
     });
@@ -111,7 +111,7 @@ describe('holding to talk', () => {
     test('other words go to the assistant once there is one', () => {
         const {app, say} = setUp();
         const handle = jest.fn();
-        app.register('assistant', {handle});
+        app.register('assistant', {handle, isOpen: () => false});
         say('draw me a house');
         expect(handle).toHaveBeenCalledWith('draw me a house', {source: 'voice'});
         // Local commands never reach it.
@@ -432,7 +432,7 @@ describe('the configuration', () => {
     test.each([
         [{voice: true}, true], [{voice: false}, false], [{voice: 'true'}, false], [{}, false]
     ])('%o turns voice on: %s', async (file, voice) => {
-        expect(await loaded(() => Promise.resolve(file))).toEqual({voice, unreadable: false});
+        expect(await loaded(() => Promise.resolve(file))).toEqual({voice, aiEndpoint: null, unreadable: false});
     });
 
     test.each([
@@ -440,7 +440,22 @@ describe('the configuration', () => {
         ['something else', () => Promise.resolve('voice')],
         ['a list', () => Promise.resolve([true])]
     ])('is off for %s', async (_, load) => {
-        expect(await loaded(load)).toEqual({voice: false, unreadable: true});
+        expect(await loaded(load)).toEqual({voice: false, aiEndpoint: null, unreadable: true});
+    });
+
+    test.each([
+        ['https://ai.school.example/api/assistant', 'https://ai.school.example/api/assistant'],
+        ['http://localhost:8787/api/assistant', 'http://localhost:8787/api/assistant'],
+        ['http://127.0.0.1:8787/a', 'http://127.0.0.1:8787/a'],
+        ['/api/assistant', '/api/assistant'],
+        ['http://ai.school.example/api/assistant', null],
+        ['//elsewhere.example/api', null],
+        [['javascript', 'alert(1)'].join(':'), null],
+        ['api/assistant', null],
+        ['', null],
+        [true, null]
+    ])('takes %j as the AI helper\'s address: %j', async (aiEndpoint, expected) => {
+        expect((await loaded(() => Promise.resolve({voice: false, aiEndpoint}))).aiEndpoint).toBe(expected);
     });
 
     test('is off when there is nothing to load', () => {

@@ -97,7 +97,7 @@ const createApp = (vm, {
         sprites: () => parts.get('sprites') || null,
         // The voice controller, see `voice/controller.js`.
         voice: () => parts.get('voice') || null,
-        // `{handle(text, {source})}`: takes what is not a local command.
+        // The AI helper, see `ai/assistant.js`: takes what is not a local command.
         assistant: () => parts.get('assistant') || null,
 
         subscribe: listener => {
@@ -254,6 +254,15 @@ const createApp = (vm, {
                 };
             });
         },
+
+        // The actions the AI helper may propose now.
+        proposableActions: () => ACTIONS
+            .filter(action => action.proposable !== false && !app.unavailable(action))
+            .map(action => ({
+                id: action.id,
+                name: app.say(action.name),
+                description: app.say(action.description)
+            })),
 
         snapshot: () => buildSnapshot({app, document, intl, actions: app.availableActions()})
     };

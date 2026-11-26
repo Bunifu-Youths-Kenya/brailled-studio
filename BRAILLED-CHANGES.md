@@ -33,7 +33,7 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-25 | `packages/scratch-paint/src/components/mode-tools/mode-tools.jsx` | Brush and eraser size inputs are labelled. | Missing accessible name. |
 | 2026-11-25 | `packages/scratch-paint/src/components/stroke-width-indicator.jsx` | The outline width input is labelled. | Missing accessible name. |
 | 2026-11-25 | `packages/scratch-gui/src/components/gui/gui.jsx` | Renders the voice bar below the editor, and gives the editor area a class so that it shares the height. | Voice input. |
-| 2026-11-25 | `AGENTS.md` | Lists the `brailled-accessibility` package. | The guide asks for the layout to stay current. |
+| 2026-11-25 | `AGENTS.md` | Lists the `brailled-accessibility` and `brailled-ai-server` packages. | The guide asks for the layout to stay current. |
 
 ## Files added by Brailled
 
@@ -138,5 +138,26 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `PRIVACY-NOTES.md` |
 | 2026-11-26 | `packages/brailled-accessibility/src/config.js` |
 | 2026-11-26 | `packages/scratch-gui/static/brailled-config.json` |
+| 2026-11-26 | `packages/brailled-accessibility/src/ai/ai-helper.jsx` |
+| 2026-11-26 | `packages/brailled-accessibility/src/ai/assistant.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/ai/messages.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/ai/proposal.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/ai/reply.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/ai/request.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/ai.test.js` |
+| 2026-11-26 | `packages/brailled-ai-server/.env.example` |
+| 2026-11-26 | `packages/brailled-ai-server/README.md` |
+| 2026-11-26 | `packages/brailled-ai-server/eslint.config.mjs` |
+| 2026-11-26 | `packages/brailled-ai-server/package-lock.json` |
+| 2026-11-26 | `packages/brailled-ai-server/package.json` |
+| 2026-11-26 | `packages/brailled-ai-server/src/app.ts` |
+| 2026-11-26 | `packages/brailled-ai-server/src/config.ts` |
+| 2026-11-26 | `packages/brailled-ai-server/src/index.ts` |
+| 2026-11-26 | `packages/brailled-ai-server/src/limits.ts` |
+| 2026-11-26 | `packages/brailled-ai-server/src/openrouter.ts` |
+| 2026-11-26 | `packages/brailled-ai-server/src/prompt.ts` |
+| 2026-11-26 | `packages/brailled-ai-server/src/request.ts` |
+| 2026-11-26 | `packages/brailled-ai-server/test/server.test.ts` |
+| 2026-11-26 | `packages/brailled-ai-server/tsconfig.json` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

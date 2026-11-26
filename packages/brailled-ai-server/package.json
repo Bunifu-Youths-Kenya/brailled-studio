@@ -1,0 +1,29 @@
+{
+  "name": "brailled-ai-server",
+  "version": "0.0.0",
+  "description": "Asks an AI model for suggestions on behalf of the Brailled editor, keeping the API key on the server",
+  "license": "AGPL-3.0-only",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "lint": "eslint",
+    "start": "node --env-file-if-exists=.env src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "express": "4.22.3"
+  },
+  "devDependencies": {
+    "@types/express": "4.17.25",
+    "@types/node": "26.6.5",
+    "eslint": "9.39.5",
+    "eslint-config-scratch": "14.1.97",
+    "globals": "16.5.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  }
+}

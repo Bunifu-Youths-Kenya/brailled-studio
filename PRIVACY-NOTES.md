@@ -13,7 +13,7 @@ Voice is optional: everything can be done from the keyboard.
 | Where does the sound go? | Chrome sends it to Google's servers ([MDN](https://developer.mozilla.org/docs/Web/API/SpeechRecognition)). Other browsers may use their maker's service or the device |
 | When is the microphone open? | Only while the talk key or button is held, or for one phrase after a tap, for at most 60 seconds (15 unless changed) |
 | What does Brailled receive? | The words, and how sure the service is |
-| What does Brailled keep or send? | The words are shown on screen until replaced. Brailled's own code does not store or send them, or the sound |
+| What does Brailled keep or send? | The words are shown on screen until replaced and are not stored. If an AI helper is set up, words that are not commands are sent to it (see below). The sound is not sent by Brailled |
 
 What Google or another provider keeps, for how long and for what purpose is set by that provider. It has not
 been reviewed for Brailled.
@@ -101,8 +101,37 @@ browser if needed. Clearing the site's data also removes the settings.
 
 ## AI helper
 
-There is none yet, and nothing is sent to an AI. When one is added, this file must say what it receives. The
-context snapshot holds sprite names and block text, which students write.
+Off unless whoever runs the editor sets `aiEndpoint` in `static/brailled-config.json` to the address of a
+[Brailled AI server](packages/brailled-ai-server/README.md). Without it nothing is sent to an AI.
+
+**What is sent, and when.** Only when a student says or types something that is not one of the editor's own
+commands, or answers the helper's question:
+
+| Sent | Can contain personal information? |
+| - | - |
+| What the student said or typed (at most 500 characters), and the question it answers | Yes, whatever they say |
+| The selected sprite's program, as text | Yes: text students write in blocks |
+| Names of sprites, variables, lists and messages; the project's blocks by kind | Yes, if students put names in them |
+| Where the student is: view, focused control, place in the program, device mode, running state, language | Little |
+| The editor's list of blocks and actions | No |
+
+Not sent: sound, pictures, costumes, screenshots, the page itself, the project file, the project's title, or the
+answer to the screen reader question. The programs of other sprites are not sent.
+
+**Where it goes.** Editor → your AI server → [OpenRouter](https://openrouter.ai/) → the company running the
+chosen model. The server keeps and logs none of it, only whether a request worked and how long it took. By
+default it asks OpenRouter to use only providers that do not collect data (`data_collection: "deny"`) and
+endpoints with zero data retention (`zdr`). Those are OpenRouter's settings and the providers' promises, which
+Brailled cannot check. Read the terms of OpenRouter and of the model's provider.
+
+**Control.** Nothing the AI replies with is carried out. Its suggestions are checked by the editor and only
+described.
+
+**Notice and consent.** The voice bar says that AI requests send the student's words and program to an AI
+service, and the command box says where other requests go. What is in
+[Notice and consent](#notice-and-consent) applies to the AI helper too: tell students and families, get consent
+for children, and ask students not to include names or personal details. Turning voice off does not turn off the
+AI helper; remove `aiEndpoint` for that.
 
 ## The rest of the editor
 

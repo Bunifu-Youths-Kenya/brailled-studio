@@ -1,5 +1,5 @@
 // The sentences that say what a command did, and the spoken summary of a program.
-import {readbacks as text} from './messages.js';
+import {readbacks} from './messages.js';
 import {branchesOf} from './program.js';
 
 const END_WORDS = {
@@ -10,7 +10,7 @@ const END_WORDS = {
     control_if_else: 'endIf'
 };
 
-const placeText = (position, after, name, intl) => {
+const placeText = (position, after, name, intl, text) => {
     if (position.after) return intl.formatMessage(text.after, {block: name(after, position.after)});
     if (position.before) return intl.formatMessage(text.before, {block: name(after, position.before)});
     const {block, branch} = position.inside;
@@ -31,16 +31,17 @@ const placeText = (position, after, name, intl) => {
  * @param {function(object, string): string} options.fullName Names a block in a way that tells its kind apart.
  * @param {function(object): boolean} options.isInstruction Whether a block is an instruction.
  * @param {object} options.intl A react-intl object.
+ * @param {object} [options.text] The sentences to use: what was done, or what is proposed.
  * @returns {string} The sentence.
  */
-const readBack = ({event, before, after, name, fullName, isInstruction, intl}) => {
+const readBack = ({event, before, after, name, fullName, isInstruction, intl, text = readbacks}) => {
     const say = (message, values) => intl.formatMessage(message, values);
     switch (event.kind) {
     case 'added': {
         const block = fullName(after, event.id);
         return Object.keys(event.position).length === 0 ?
             say(text.addedScript, {block}) :
-            say(text.added, {block, place: placeText(event.position, after, name, intl)});
+            say(text.added, {block, place: placeText(event.position, after, name, intl, text)});
     }
     case 'deleted': {
         const block = name(before, event.id);
@@ -56,7 +57,7 @@ const readBack = ({event, before, after, name, fullName, isInstruction, intl}) =
         const block = name(after, event.id);
         if (event.position.newScript) return say(text.movedScript, {block});
         return say(event.following ? text.movedStack : text.moved,
-            {block, place: placeText(event.position, after, name, intl)});
+            {block, place: placeText(event.position, after, name, intl, text)});
     }
     default: {
         const values = {block: name(before, event.first), holder: fullName(after, event.id), count: event.count};
@@ -74,6 +75,7 @@ const capitalise = sentence => sentence.charAt(0).toUpperCase() + sentence.slice
  * @returns {string} The summary.
  */
 const summarise = (scripts, intl) => {
+    const text = readbacks;
     const say = (message, values) => intl.formatMessage(message, values);
     const stack = nodes => nodes.map((node, index) => {
         if (node.type === 'empty') return say(text.summaryNothing);

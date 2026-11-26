@@ -100,7 +100,8 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     const state = useSyncExternalStore(voice.subscribe, voice.getState);
     const talkKey = TALK_KEYS[useSettings(app).talkKey];
     // Off until the configuration says otherwise. Then there is nothing to hear, set or send.
-    const off = useSyncExternalStore(app.config.subscribe, app.config.get).voice !== true;
+    const {voice: allowed, aiEndpoint} = useSyncExternalStore(app.config.subscribe, app.config.get);
+    const off = allowed !== true;
 
     useEffect(() => app.register('voice', voice), [app, voice]);
     useEffect(() => {
@@ -124,8 +125,8 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
             }
             // Read when pressed, so that a new choice applies at once.
             if (!matches(TALK_KEYS[app.settings.get().talkKey], event)) return;
-            // Dialogs keep the keyboard to themselves, apart from the voice's own question.
-            if (hasOpenDialog(document) && !voice.getState().pending) return;
+            // Dialogs keep the keyboard to themselves, apart from the voice's own question and the AI's replies.
+            if (hasOpenDialog(document) && !voice.getState().pending && !app.assistant()?.isOpen()) return;
             event.preventDefault();
             event.stopPropagation();
             if (!event.repeat) voice.press('key');
@@ -282,7 +283,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
                         className={styles.privacy}
                         id="brailled-voice-privacy"
                     >
-                        {intl.formatMessage(voiceMessages.privacy)}
+                        {intl.formatMessage(aiEndpoint ? voiceMessages.privacyWithAi : voiceMessages.privacy)}
                     </p>
                 </div>
             )}

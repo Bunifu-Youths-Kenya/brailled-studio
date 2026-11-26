@@ -14,6 +14,7 @@ the editor needs around them.
 | `src/actions/` | The action registry, local commands, context snapshot and editor-wide live region |
 | `src/voice/` | The voice bar, the speech-to-text interface and what happens to what was heard |
 | `src/speech/` | Reading replies aloud |
+| `src/ai/` | The AI helper: what is sent, checking what comes back, and showing it |
 | `src/settings.js` | The student's choices, kept in the browser |
 | `src/config.js` | What whoever runs the editor allows |
 | `src/use-kept-state.js` | State that survives the editor rebuilding on a language change |
@@ -79,7 +80,7 @@ All user-visible strings go through `react-intl`, with ids starting `brailled.`.
 
 Everything the editor offers is one list, `src/actions/registry.js`. Each action has an id, a spoken name and
 description, its shortcuts, an availability check and a handler. The Outline's keys, the global shortcuts and
-typed commands all go through it, and voice and AI input should too. Nothing here calls an AI or sends anything
+typed commands, spoken commands and the AI helper all go through it. Local commands call no AI and send nothing
 off the device.
 
 | Action ids | Shortcut | Typed command |
@@ -102,8 +103,8 @@ off the device.
 | `voice.settings` | | "voice settings" |
 
 - **Typed commands** go in the command box, and spoken ones come from the voice bar. Both are matched against
-  fixed English phrases and the action names in the user's language. The command box refuses anything else with
-  a hint.
+  fixed English phrases and the action names in the user's language. Anything else goes to the
+  [AI helper](#ai-helper); without one the command box refuses it with a hint.
 - **Answers** are spoken through one live region that stays available on every tab.
 - **Next and previous** move through the outline when it is shown, and otherwise through the controls of the
   current part of the editor.
@@ -118,7 +119,8 @@ and its Upload or Live mode, whether the project is running, and the actions ava
 it into eight or nine short lines for a model to read. In development builds the app is `window.brailledApp`,
 with `snapshotText()`.
 
-It holds sprite names and block text, which students write. Treat it as their data before sending it anywhere.
+It holds sprite names and block text, which students write. Treat it as their data. The AI helper sends it, as
+[PRIVACY-NOTES.md](../../PRIVACY-NOTES.md#ai-helper) describes.
 
 ## Voice input
 
@@ -155,8 +157,7 @@ neither the screen reader nor the editor is heard as speech.
    focus. Answer with a button, or hold the talk key and say "yes" or "no". Nothing is done until the answer is
    yes.
 2. A local command (the typed commands above) runs where focus was, even if you used the button.
-3. Anything else goes to the AI helper. There is none yet, so the answer says so. A helper registers with
-   `getApp(vm).register('assistant', {handle(text, {source})})` and must only propose actions.
+3. Anything else goes to the [AI helper](#ai-helper), if one is set up; if not, the answer says so.
 
 Replies are spoken by the screen reader through the live region and shown in the status line.
 
@@ -193,6 +194,36 @@ their own message. Commands are understood in English phrases and in the action 
 `listen({language, onReady, onHear, onEnd})`, which returns `{stop(), cancel()}`. Return your provider from
 `createSpeechProvider`, or pass `createProvider` to `VoiceBar`. Changing the service changes where students'
 speech goes: follow the checklist in [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md).
+
+## AI helper
+
+Optional. It needs the [Brailled AI server](../brailled-ai-server/README.md) and its address as `aiEndpoint` in
+`static/brailled-config.json`: an `https` address, a path starting with `/`, or `http` on this computer.
+
+**It never edits.** Anything said, or typed in the command box, that is not a local command is sent with the
+context snapshot, the selected sprite's program, the usable blocks and the actions it may propose. The reply is
+one of:
+
+| Reply | What the student gets |
+| - | - |
+| Proposal | The AI's one-sentence summary, then each step described by the editor itself |
+| Question | The question and any numbered choices. Type, choose or say an answer |
+| Explanation | The text |
+
+**Approving a proposal is not built yet**, so nothing can be run.
+
+**Checking.** The whole reply must have exactly one of those forms (`src/ai/reply.js`). Every command in a
+proposal goes through the editing engine's validator (`editor.preview`): each step is planned on the result of the
+steps before it, on a copy of the program. Steps use the references `b1`, `b2` from the program that was sent, or
+`new1` for the block that step 1 makes; other ids are refused. Actions must be ones that were offered. If anything
+fails, or another sprite was selected meanwhile, the student hears "I couldn't work that out, please try again"
+and nothing is shown or changed. The reason is written to the browser console.
+
+**Actions it may propose** are those usable at the time, except edits made by hand at the focused block, which
+would escape the validator, and opening the command box, listening and voice settings.
+
+While a reply is open, the talk key still works: "close" or "cancel" closes it, "stop" stops the project, and
+anything else answers a question.
 
 ## Accessible names
 

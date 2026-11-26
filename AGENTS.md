@@ -68,7 +68,8 @@ rejected by the pre-commit hook.
 
 ```text
 packages/
-├── brailled-accessibility/ Brailled outline view, editing commands, actions and voice input
+├── brailled-accessibility/ Brailled outline view, editing commands, actions, voice input and AI helper
+├── brailled-ai-server/     Server that asks an AI model for the Brailled AI helper
 ├── scratch-gui/            React-based editor UI
 ├── scratch-vm/             Virtual machine that runs Scratch projects
 ├── scratch-render/         WebGL renderer for the stage
@@ -83,6 +84,7 @@ scripts/                    Monorepo-level utility scripts
 | Package | Language | Bundler | Tests |
 | - | - | - | - |
 | `brailled-accessibility` | JavaScript / JSX | scratch-gui's webpack | Jest |
+| `brailled-ai-server` | TypeScript | — | Vitest |
 | `scratch-gui` | JavaScript / JSX (some TypeScript) | webpack | Jest |
 | `scratch-vm` | JavaScript | webpack | Tap |
 | `scratch-render` | JavaScript | webpack | Tap |

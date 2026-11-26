@@ -11,6 +11,13 @@ import parseCommand from './parser.js';
  * @returns {string} `action`, `assistant`, `unknown` or `blocked`.
  */
 const routeCommand = (app, text, source) => {
+    // While the AI helper's reply is open, what is said is about it, apart from stopping the project.
+    const assistant = app.assistant();
+    if (assistant?.isOpen()) {
+        if (parseCommand(text, app.actionNames()) === 'project.stop') app.perform('project.stop');
+        else assistant.respond(text);
+        return 'assistant';
+    }
     if (hasOpenDialog(globalThis.document)) {
         app.announce(app.say(speech.closeDialog));
         return 'blocked';
@@ -20,8 +27,7 @@ const routeCommand = (app, text, source) => {
         app.perform(id);
         return 'action';
     }
-    // The assistant only ever proposes; see its own part.
-    const assistant = app.assistant();
+    // The assistant only ever proposes.
     if (assistant) {
         assistant.handle(text, {source});
         return 'assistant';

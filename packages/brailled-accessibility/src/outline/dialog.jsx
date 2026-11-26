@@ -4,7 +4,7 @@ import React, {useCallback, useEffect, useLayoutEffect, useRef} from 'react';
 import styles from './dialog.css';
 
 // A modal dialog. The browser keeps focus inside it and closes it on Escape.
-const Dialog = ({title, onCancel, children}) => {
+const Dialog = ({title, describedBy, onCancel, children}) => {
     const dialogRef = useRef(null);
 
     useLayoutEffect(() => {
@@ -25,6 +25,7 @@ const Dialog = ({title, onCancel, children}) => {
 
     return (
         <dialog
+            aria-describedby={describedBy}
             aria-labelledby="brailled-dialog-title"
             className={styles.dialog}
             ref={dialogRef}
@@ -43,6 +44,7 @@ const Dialog = ({title, onCancel, children}) => {
 
 Dialog.propTypes = {
     title: PropTypes.string.isRequired,
+    describedBy: PropTypes.string,
     onCancel: PropTypes.func.isRequired,
     children: PropTypes.node
 };
