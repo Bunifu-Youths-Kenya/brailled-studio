@@ -76,7 +76,7 @@ A recording of a child's voice is personal data, and voices can identify people.
 ## Wake word (demo mode)
 
 Calling the assistant by saying "Hey Mboni" is off unless the school allows it (`"wakeWord": {"enabled": true}`)
-**and** a student turns it on, with F4 or in Voice settings. It is off again after a reload and after "Reset for new
+**and** a student turns it on, with the Hands-free button, F4 or Voice settings. It is off again after a reload and after "Reset for new
 student", and the choice is not stored.
 
 **While it listens, the sound around the computer goes to the browser's speech service the whole time** (Chrome:

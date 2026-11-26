@@ -75,6 +75,12 @@ const voiceMessages = fromTexts('brailled.voice', 'Voice input', {
     wakeListening: 'Listening for “Hey {assistant}”',
     wakePaused: 'Wake word paused',
     wakeStop: 'Stop (F4)',
+    handsFree: 'Hands-free (F4)',
+    handsFreeHint: 'Sends room sound online',
+    noVoiceAll: 'No voice here, so nothing is read aloud. On Linux: close Chrome, then start it with ' +
+        '--enable-speech-dispatcher.',
+    noVoiceReplies: 'No voice here: only {assistant}’s replies are read aloud. On Linux, start Chrome with ' +
+        '--enable-speech-dispatcher.',
     wakeNotice: 'Demo mode: while this is on, the sound around you goes to your browser’s speech service ' +
         '(Chrome: Google).',
     wakeNoticeAi: 'Demo mode: while this is on, the sound around you goes to your browser’s speech service ' +

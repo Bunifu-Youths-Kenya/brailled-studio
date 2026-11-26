@@ -20,6 +20,7 @@ import dialogStyles from '../outline/dialog.css';
 import styles from './voice-bar.css';
 
 const BUTTON_KEYS = [' ', 'Enter'];
+const VOICES_MS = 2000;
 const ZONE = '[data-brailled-zone="voice"], [data-brailled-voice-dialog]';
 
 // Asks before acting on words that may have been misheard.
@@ -124,6 +125,17 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
     const aiMode = useSyncExternalStore(app.subscribeMode, app.mode);
     const online = useSyncExternalStore(app.online.subscribe, app.online.provider) !== 'browser';
 
+    // A browser lists its voices a moment after it starts: before that, none missing is reported.
+    const [voicesKnown, setVoicesKnown] = useState(0);
+    useEffect(() => {
+        const listed = () => setVoicesKnown(times => times + 1);
+        const timer = setTimeout(listed, VOICES_MS);
+        window.speechSynthesis?.addEventListener?.('voiceschanged', listed);
+        return () => {
+            clearTimeout(timer);
+            window.speechSynthesis?.removeEventListener?.('voiceschanged', listed);
+        };
+    }, []);
     useEffect(() => app.register('voice', voice), [app, voice]);
     useEffect(() => {
         const leave = app.register('wake', wake);
@@ -263,13 +275,26 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
     let barStatus = state.pending && !status ? hint : status;
     if (state.heard && barStatus.startsWith(`${heardLine} `)) barStatus = barStatus.slice(heardLine.length + 1);
     const handleSettings = () => app.perform('voice.settings');
-    const handleStopWaking = () => wake.stop();
+    const handleWaking = () => {
+        if (waking.on) wake.stop();
+        else wake.start();
+    };
+    // Offered where the school allows the wake words and this browser can listen for them.
+    const handsFree = !off && wake.available();
+    const warning = voicesKnown ? app.voiceWarning() : null;
     // What leaves the computer is shown whenever it can: by voice, to the AI helper, or both.
     let notice = off ? null : voiceMessages.privacy;
     if (aiEndpoint) notice = off ? voiceMessages.aiNotice : voiceMessages.aiNoticeWithVoice;
     if (waking.on) notice = aiEndpoint ? voiceMessages.wakeNoticeAi : voiceMessages.wakeNotice;
     if (online) notice = waking.on ? voiceMessages.onlineNoticeWake : voiceMessages.onlineNotice;
     const recordingNow = listening && state.recording;
+    const wakeState = waking.listening ? 'listening' : 'paused';
+    let wakeWords = voiceMessages.handsFreeHint;
+    let wakeClass = styles.handsFreeHint;
+    if (waking.on) {
+        wakeWords = waking.listening ? voiceMessages.wakeListening : voiceMessages.wakePaused;
+        wakeClass = waking.listening ? styles.wakeListening : styles.wakePaused;
+    }
     const describedBy = [off ? 'brailled-voice-status' : null, notice ? 'brailled-voice-privacy' : null]
         .filter(Boolean)
         .join(' ');
@@ -324,24 +349,29 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
                     <span className={styles.wakeListening}>{intl.formatMessage(voiceMessages.recording)}</span>
                 </div>
             ) : null}
-            {waking.on && !recordingNow ? (
+            {(waking.on || handsFree) && !recordingNow ? (
                 <div
                     className={styles.wake}
-                    data-voice-wake={waking.listening ? 'listening' : 'paused'}
+                    data-voice-handsfree={waking.on ? null : true}
+                    data-voice-wake={waking.on ? wakeState : null}
                 >
-                    <span className={waking.listening ? styles.wakeListening : styles.wakePaused}>
-                        {intl.formatMessage(waking.listening ?
-                            voiceMessages.wakeListening :
-                            voiceMessages.wakePaused, {assistant})}
+                    <span
+                        className={wakeClass}
+                        id="brailled-wake-state"
+                    >
+                        {intl.formatMessage(wakeWords, {assistant})}
                     </span>
+                    {/* One button for both, so that focus stays on it. */}
                     <button
+                        aria-describedby="brailled-wake-state"
                         aria-keyshortcuts={WAKE_KEY.label}
                         className={styles.settings}
                         type="button"
                         // eslint-disable-next-line react/jsx-no-bind
-                        onClick={handleStopWaking}
+                        onClick={handleWaking}
+                        onMouseDown={handleMouseDown}
                     >
-                        {intl.formatMessage(voiceMessages.wakeStop)}
+                        {intl.formatMessage(waking.on ? voiceMessages.wakeStop : voiceMessages.handsFree)}
                     </button>
                 </div>
             ) : null}
@@ -352,7 +382,24 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
                 role="group"
                 tabIndex="0"
             >
-                {off ? null : (
+                {warning ? (
+                    <p
+                        className={styles.warning}
+                        data-voice-warning
+                    >
+                        {/* A command-line switch is kept on one line, to be read and typed as one word. */}
+                        {warning.split(/(--[a-z-]+)/).map((part, index) => (index % 2 ? (
+                            <span
+                                className={styles.flag}
+                                key={part}
+                            >
+                                {part}
+                            </span>
+                        ) : part))}
+                    </p>
+                ) : null}
+                {/* In place of "nothing heard", which says less. */}
+                {off || (warning && !state.heard) ? null : (
                     <p
                         className={styles.transcript}
                         data-voice-transcript

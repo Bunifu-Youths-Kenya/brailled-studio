@@ -209,7 +209,8 @@ their own message. Commands are understood in English phrases and in the action 
 ### Wake word
 
 Demo mode: say "Hey Mboni" instead of pressing the talk key. It is **off** until the configuration allows it and
-the student turns it on, with **F4** or in Voice settings. Chrome sends everything heard while it listens to
+the student turns it on, with the voice bar's **Hands-free** button, **F4** or Voice settings. The talk key keeps
+working either way. Chrome sends everything heard while it listens to
 Google; read [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md#wake-word-demo-mode) first.
 
 ```json
@@ -314,6 +315,15 @@ Reading aloud works as before, and only when it is on. With an online provider, 
 student chooses otherwise in Voice settings, and anything holding the student's name always does. Escape, the talk
 key and a new recording stop it. It cannot be interrupted by voice alone: the wake words are not listened for while
 the editor reads.
+
+**No voice.** Where reading aloud is on and cannot read everything, the voice bar says so. **Chrome on Linux**
+offers no voice unless started with its speech dispatcher, with every Chrome window closed first:
+
+```sh
+google-chrome --enable-speech-dispatcher
+```
+
+It also needs `speech-dispatcher` and a synthesiser such as `speech-dispatcher-espeak-ng` installed.
 
 **Shipped sound.** The assistant's fixed sentences are listed in `src/speech/fixed-phrases.json` and their sound is
 in `scratch-gui/static/brailled-voice/`, named by a hash of the words, voice, model and version. It plays offline.

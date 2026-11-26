@@ -8,7 +8,6 @@ const preferenceMessages = defineMessages(Object.fromEntries(Object.entries({
     willRead: 'Replies will be read aloud.',
     willNotRead: 'Replies will not be read aloud.',
     keptQuiet: 'The editor will not read replies aloud. Your screen reader says them.',
-    noVoice: 'This computer has no built-in voice for reading aloud.',
     title: 'Voice settings',
     talkKey: 'Talk key, held while speaking',
     talkKeyHint: 'On many laptops F2 works only while Fn is held too. Alt+Shift+V needs no Fn.',

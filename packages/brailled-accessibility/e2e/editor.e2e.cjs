@@ -1609,6 +1609,19 @@ const startAiServer = async (env = {}) => {
         await pause(1500);
         check('nothing listens until it is turned on', await indicator.count() === 0 &&
             await page.evaluate(() => window.speech.requests.length) === 0);
+        const offered = bar.locator('[data-voice-handsfree]');
+        const handsFree = offered.getByRole('button', {name: 'Hands-free (F4)'});
+        check('a hands-free button is offered, saying that sound goes online', await handsFree.isVisible() &&
+            /Sends room sound online/.test(await offered.textContent()));
+        await page.screenshot({path: path.join(out, 'hands-free-off.png')});
+        await handsFree.focus();
+        await key('Enter', 900);
+        check('it starts listening, and focus stays on the button, now "Stop"', await running() === 1 &&
+            await page.evaluate(() => document.activeElement.textContent) === 'Stop (F4)');
+        await key('Enter', 900);
+        check('and stops it again', await indicator.count() === 0 && await running() === 0 &&
+            await handsFree.isVisible());
+        await page.locator('[data-brailled-outline] [tabindex="0"]').focus();
         await key('F4', 900);
         check('F4 starts listening, with a visible sign', await indicator.getAttribute('data-voice-wake') ===
             'listening' && /Listening for “Hey Mboni”/.test(await indicator.textContent()) && await running() === 1,
@@ -1894,6 +1907,35 @@ const startAiServer = async (env = {}) => {
         `${await status()} / ${await notice.textContent()}`);
     }, {init: [fakeVoice], config: {json: {voice: {enabled: true, provider: 'gemini-pair'}, ai: true,
         aiEndpoint: ai.endpoint}}});
+
+    await group('no voice to read with', async t => {
+        const {page, pause} = t;
+        const bar = page.locator('[data-brailled-zone="voice"]');
+        const warning = bar.locator('[data-voice-warning]');
+        await pause(3000);
+        check('the bar says that nothing can be read, and how to mend it', await warning.isVisible() &&
+            /nothing is read aloud.*--enable-speech-dispatcher/.test(await warning.textContent()));
+        check('no hands-free button where the school has not allowed it',
+            await bar.locator('[data-voice-handsfree]').count() === 0);
+        for (const [width, height] of [[1366, 768], [1024, 650]]) {
+            await page.setViewportSize({width, height});
+            await pause(800);
+            check(`the warning is in view at ${width} by ${height}`, await warning.evaluate(el => {
+                const [own, bar_] = [el.getBoundingClientRect(),
+                    el.closest('[data-brailled-zone="voice"]').getBoundingClientRect()];
+                return own.top >= bar_.top && own.bottom <= bar_.bottom + 0.5;
+            }));
+            await page.screenshot({path: path.join(out, `no-voice-${width}.png`)});
+        }
+        check('axe: with the warning', (await t.axe('[data-brailled-zone="voice"]')).length === 0,
+            (await t.axe('[data-brailled-zone="voice"]')).join('; '));
+    }, {init: [() => {
+        Object.defineProperty(window, 'speechSynthesis', {configurable: true,
+            get: () => ({getVoices: () => [], cancel: () => {}, speak: () => {}})});
+        if (window === window.top) {
+            localStorage.setItem('brailled.settings', JSON.stringify({screenReader: false, readAloud: true}));
+        }
+    }]});
 
     await group('online voice', async t => {
         const {page, key, pause} = t;

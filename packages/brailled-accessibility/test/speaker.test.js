@@ -300,3 +300,43 @@ describe('which voice reads', () => {
         expect(setUp().address()).toBe('/api/speak');
     });
 });
+
+describe('what is said when something cannot be read aloud', () => {
+    const warned = ({provider = 'browser', voices = false, ai = true, choose = {}, fall = false} = {}) => {
+        const configured = {voice: true,
+            ai,
+            aiEndpoint: ai ? '/api/assistant' : null,
+            speech: speechFrom({provider}),
+            assistantName: 'Mboni'};
+        const settings = createSettings(null);
+        settings.set({readAloud: true, ...choose});
+        const app = createApp({runtime: {threads: []}}, {
+            config: {get: () => configured, subscribe: () => () => {}},
+            reader: {speak: () => voices, stop: () => {}, isAvailable: () => voices},
+            settings,
+            createSpeaker: () => ({speak: () => {},
+                stop: () => {},
+                load: () => {},
+                speaking: () => false,
+                has: () => false})
+        });
+        if (fall) app.online.fallBack();
+        return app.voiceWarning();
+    };
+
+    test('with no voice on the device, that nothing is read, and how to get one', () => {
+        expect(warned()).toMatch(/nothing is read aloud.*--enable-speech-dispatcher/);
+        expect(warned({provider: 'gemini-pair', fall: true})).toMatch(/nothing is read aloud/);
+        expect(warned({provider: 'gemini-pair', ai: false})).toMatch(/nothing is read aloud/);
+    });
+
+    test('with an online voice, that only replies are read, unless it reads everything', () => {
+        expect(warned({provider: 'gemini-pair'})).toMatch(/only Mboni’s replies are read aloud/);
+        expect(warned({provider: 'gemini-pair', choose: {onlineReadbacks: true}})).toBeNull();
+    });
+
+    test('nothing, where there is a voice or reading aloud is off', () => {
+        expect(warned({voices: true})).toBeNull();
+        expect(warned({choose: {readAloud: false}})).toBeNull();
+    });
+});

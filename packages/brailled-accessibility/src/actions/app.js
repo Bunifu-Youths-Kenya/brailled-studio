@@ -162,7 +162,16 @@ const createApp = (vm, {
         },
         reading: () => !!reader.speaking?.() || speaker.speaking(),
         takeCacheHits: () => speaker.takeHits?.() ?? 0,
-        canReadAloud: () => reader.isAvailable(intl.locale),
+        // Why reading aloud, where it is wanted, cannot read everything, as a sentence, or null.
+        voiceWarning: () => {
+            const {voice, ai} = config.get();
+            const {readAloud, onlineReadbacks} = settings.get();
+            if (!voice || !readAloud || reader.isAvailable(intl.locale)) return null;
+            // The online voice reads replies without one on the device.
+            const repliesRead = ai && !speakerFailed && online.provider() !== 'browser';
+            if (!repliesRead) return app.say(voiceMessages.noVoiceAll);
+            return onlineReadbacks ? null : app.say(voiceMessages.noVoiceReplies);
+        },
         intl: () => intl,
         setIntl: next => {
             intl = next;

@@ -14,12 +14,12 @@ import dialogStyles from '../outline/dialog.css';
 const appShape = PropTypes.shape({
     announce: PropTypes.func.isRequired,
     assistantName: PropTypes.func.isRequired,
-    canReadAloud: PropTypes.func.isRequired,
     forgetStudent: PropTypes.func.isRequired,
     online: PropTypes.shape({provider: PropTypes.func.isRequired}).isRequired,
     say: PropTypes.func.isRequired,
     silence: PropTypes.func.isRequired,
     speak: PropTypes.func.isRequired,
+    voiceWarning: PropTypes.func.isRequired,
     wake: PropTypes.func.isRequired,
     settings: PropTypes.shape({
         answerScreenReader: PropTypes.func.isRequired,
@@ -37,8 +37,9 @@ const ScreenReaderQuestion = ({app}) => {
     const intl = useIntl();
     const answer = usesOne => {
         app.settings.answerScreenReader(usesOne);
-        app.announce(app.say(usesOne ? preferenceMessages.keptQuiet : preferenceMessages.willRead));
-        if (!usesOne && !app.canReadAloud()) app.announce(app.say(preferenceMessages.noVoice));
+        // Where nothing, or not everything, can be read, that is what they are told.
+        app.announce(app.voiceWarning() ??
+            app.say(usesOne ? preferenceMessages.keptQuiet : preferenceMessages.willRead));
     };
     const handleYes = () => answer(true);
     const handleNo = () => answer(false);
@@ -138,9 +139,8 @@ const VoiceSettings = ({app, onClose}) => {
     const handleReadAloud = useCallback(event => {
         const readAloud = event.target.checked;
         app.settings.set({readAloud});
-        let message = readAloud ? preferenceMessages.willRead : preferenceMessages.willNotRead;
-        if (readAloud && !app.canReadAloud()) message = preferenceMessages.noVoice;
-        const text = app.say(message);
+        const text = app.voiceWarning() ??
+            app.say(readAloud ? preferenceMessages.willRead : preferenceMessages.willNotRead);
         setNote(text);
         if (readAloud) app.speak(text);
         else app.silence();
