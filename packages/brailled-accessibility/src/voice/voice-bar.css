@@ -72,3 +72,29 @@
     font-size: 1rem;
     line-height: 1.3;
 }
+
+.side {
+    display: flex;
+    flex: 0 1 19rem;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.125rem;
+    min-width: 0;
+}
+
+.settings {
+    padding: 0.125rem 0.5rem;
+    color: #fff;
+    background: #000;
+    border: 2px solid #fff;
+    border-radius: 0.25rem;
+    font: bold 0.8125rem "Helvetica Neue", Helvetica, Arial, sans-serif;
+    cursor: pointer;
+}
+
+.privacy {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.25;
+    text-align: end;
+}

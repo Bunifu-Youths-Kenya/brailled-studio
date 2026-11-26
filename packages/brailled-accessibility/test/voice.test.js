@@ -1,7 +1,8 @@
 import {createApp} from '../src/actions/app.js';
 import parseCommand from '../src/actions/parser.js';
 import {findAction} from '../src/actions/registry.js';
-import {createVoice, MAX_LISTEN_MS, TAP_MS} from '../src/voice/controller.js';
+import {createSettings} from '../src/settings.js';
+import {createVoice, TAP_MS} from '../src/voice/controller.js';
 import {createWebSpeechProvider, speechLanguage} from '../src/voice/provider.js';
 
 // A provider driven by the test: `last()` is the newest request to listen.
@@ -21,7 +22,9 @@ const fakeProvider = (supported = true) => {
 
 const setUp = ({supported = true} = {}) => {
     const vm = {runtime: {threads: []}, editingTarget: null, start: jest.fn(), stopAll: jest.fn()};
-    const app = createApp(vm);
+    const reader = {speak: jest.fn(() => true), stop: jest.fn(), isAvailable: () => true};
+    const settings = createSettings(null);
+    const app = createApp(vm, {settings, reader});
     const heard = [];
     app.subscribe(text => heard.push(text));
     const provider = fakeProvider(supported);
@@ -42,9 +45,10 @@ const setUp = ({supported = true} = {}) => {
     };
     const status = () => {
         const {text, message, values} = voice.getState().status;
-        return text ?? app.say(message, values);
+        return text ?? app.say(message, {key: 'F2', ...values});
     };
-    return {vm, app, voice, provider, tone, heard, beforeRun, wait, say, status};
+    const spoken = () => reader.speak.mock.calls.map(([text]) => text);
+    return {vm, app, voice, provider, tone, reader, settings, spoken, heard, beforeRun, wait, say, status};
 };
 
 beforeEach(() => jest.useFakeTimers());
@@ -139,13 +143,17 @@ describe('holding to talk', () => {
         expect(voice.getState().phase).toBe('listening');
     });
 
-    test('never stays open longer than the limit', () => {
-        const {voice, provider, wait} = setUp();
-        voice.press('key');
-        provider.last().onReady();
-        wait(MAX_LISTEN_MS);
-        expect(provider.last().stop).toHaveBeenCalled();
-    });
+    test.each([[null, 15], [5, 5], [60, 60]])('with the limit set to %s, closes after %i seconds',
+        (maxSeconds, seconds) => {
+            const {voice, provider, settings, wait} = setUp();
+            if (maxSeconds) settings.set({maxSeconds});
+            voice.press('key');
+            provider.last().onReady();
+            wait((seconds * 1000) - 1);
+            expect(provider.last().stop).not.toHaveBeenCalled();
+            wait(1);
+            expect(provider.last().stop).toHaveBeenCalled();
+        });
 
     test('gives up if the service never answers', () => {
         const {voice, provider, wait, status} = setUp();
@@ -290,8 +298,23 @@ describe('when voice cannot be used', () => {
 
 describe('voice actions', () => {
     test('talking and finding the voice bar are registered actions', () => {
-        expect(findAction('voice.talk').shortcuts[0]).toMatchObject({key: 'F2', hold: true});
+        const {app, settings} = setUp();
+        const key = () => findAction('voice.talk').shortcutsFor(app)[0];
+        expect(key()).toMatchObject({key: 'F2', hold: true});
+        settings.set({talkKey: 'altShiftV'});
+        expect(key()).toMatchObject({code: 'KeyV', alt: true, shift: true, hold: true});
         expect(parseCommand('go to voice bar')).toBe('go.voice');
+        expect(parseCommand('open voice settings')).toBe('voice.settings');
+    });
+
+    test('messages name the chosen talk key', () => {
+        const {voice, provider, settings, wait, heard} = setUp();
+        settings.set({talkKey: 'altShiftV'});
+        voice.press('key');
+        provider.last().onReady();
+        voice.release('key');
+        wait();
+        expect(heard).toEqual(['Hold Alt+Shift+V down while you speak, then let go.']);
     });
 
     test('the talk key is not treated as a pressed shortcut', () => {
@@ -311,6 +334,41 @@ describe('voice actions', () => {
         app.perform('voice.talk');
         wait();
         expect(heard).toEqual(['This browser cannot turn speech into text.']);
+    });
+});
+
+describe('reading aloud', () => {
+    test('is off to begin with', () => {
+        const {say, reader} = setUp();
+        say('stop');
+        expect(reader.speak).not.toHaveBeenCalled();
+    });
+
+    test('reads replies when chosen', () => {
+        const {say, settings, spoken} = setUp();
+        settings.answerScreenReader(false);
+        say('stop');
+        expect(spoken()).toEqual(['I heard: stop. Project stopped.']);
+    });
+
+    test('reads the question about doubtful words, and its answers', () => {
+        const {say, settings, spoken} = setUp();
+        settings.set({readAloud: true});
+        say('run', 0.2);
+        expect(spoken()).toEqual([
+            'I heard: run. I am not sure. Should I go ahead? Say yes or no while holding F2, or choose a button.']);
+        say('maybe');
+        expect(spoken()[1]).toBe('I heard: maybe. Say yes or no, or choose a button.');
+    });
+
+    test('is silenced before the microphone opens, and stays silent while it is', () => {
+        const {app, voice, settings, reader, spoken, wait} = setUp();
+        settings.set({readAloud: true});
+        voice.press('key');
+        expect(reader.stop).toHaveBeenCalled();
+        app.announce('Something happened.');
+        wait(1000);
+        expect(spoken()).toEqual([]);
     });
 });
 

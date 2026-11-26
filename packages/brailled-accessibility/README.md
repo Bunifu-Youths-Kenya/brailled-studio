@@ -13,6 +13,8 @@ the editor needs around them.
 | `src/palette-area.jsx` | Search placeholder and the block category landmark |
 | `src/actions/` | The action registry, local commands, context snapshot and editor-wide live region |
 | `src/voice/` | The voice bar, the speech-to-text interface and what happens to what was heard |
+| `src/speech/` | Reading replies aloud |
+| `src/settings.js` | The student's choices, kept in the browser |
 | `src/use-kept-state.js` | State that survives the editor rebuilding on a language change |
 | `src/outline/` | The Outline view and its editing keys and dialogs |
 | `src/commands/` | The editing command format, validator and executor |
@@ -95,7 +97,8 @@ off the device.
 | `edit.insert`, `edit.insertBefore`, `edit.delete`, `edit.values`, `edit.move`, `edit.moveBefore`, `edit.moveNewScript`, `edit.cancelMove`, `edit.wrap`, `edit.wrapFollowing`, `edit.createData`, `edit.renameData` | The Outline keys above | The action's name, such as "add block" |
 | `project.run`, `project.stop` | | "run", "stop" |
 | `sprite.library` | | "open sprite library" |
-| `voice.talk`, `go.voice` | Hold F2 | "talk", "go to voice bar" |
+| `voice.talk`, `go.voice` | Hold the talk key | "talk", "go to voice bar" |
+| `voice.settings` | | "voice settings" |
 
 - **Typed commands** go in the command box, and spoken ones come from the voice bar. Both are matched against
   fixed English phrases and the action names in the user's language. The command box refuses anything else with
@@ -123,34 +126,54 @@ optional: everything it does can be done from the keyboard or by typing the comm
 
 | To talk | What happens |
 | - | - |
-| Hold **F2** | The microphone is open while the key is down. On many laptops, hold Fn as well |
+| Hold the **talk key**, F2 unless changed | The microphone is open while the key is down |
 | Hold the button (mouse, touch, or Space or Enter) | The same |
 | Tap the button, or activate it with a screen reader | Listens for one phrase. Tap again to stop sooner |
 | Say or type "talk" | The same as a tap |
 | Escape | Stops listening and does nothing |
 
-F2 was chosen because no use of it was found in the editor, the block library or the paint editor, and
-browsers and screen readers are not expected to take it on its own. It has not been tried with NVDA, JAWS,
-VoiceOver or Orca.
+**The talk key** is chosen in Voice settings:
 
-**When the microphone is open.** Only after one of the actions above, for at most 15 seconds, and never by itself.
-It also closes when the window loses focus or the page is hidden. A high tone marks it opening and a low tone
-closing. The voice bar announces nothing while it is open, so that the screen reader is not heard as speech.
+| Talk key | For |
+| - | - |
+| F2 (default) | Keyboards where F2 works on its own |
+| Alt+Shift+V | Laptops where F2 needs Fn. Letting go of any of the three keys stops listening |
+
+No use of either was found in the editor, the block library or the paint editor, and browsers and screen readers
+are not expected to take them on their own. Neither has been tried with NVDA, JAWS, VoiceOver or Orca.
+
+**When the microphone is open.** Only after one of the actions above, and never by itself. It closes after at
+most 15 seconds, or 5, 10, 30 or 60 as chosen in Voice settings; there is no unlimited choice, and the browser's
+service may stop sooner after silence. It also closes when the window loses focus or the page is hidden. A high
+tone marks it opening and a low tone closing. The voice bar announces and reads nothing while it is open, so that
+neither the screen reader nor the editor is heard as speech.
 
 **What happens to the words.**
 
 1. If the speech service is less than 70% sure, or gives no measure, a dialog asks "Should I go ahead?". "No" has
-   focus. Answer with a button, or hold F2 and say "yes" or "no". Nothing is done until the answer is yes.
+   focus. Answer with a button, or hold the talk key and say "yes" or "no". Nothing is done until the answer is
+   yes.
 2. A local command (the typed commands above) runs where focus was, even if you used the button.
 3. Anything else goes to the AI helper. There is none yet, so the answer says so. A helper registers with
    `getApp(vm).register('assistant', {handle(text, {source})})` and must only propose actions.
 
-Replies are spoken by the screen reader through the live region and shown in the status line. The editor has no
-speaking voice of its own.
+Replies are spoken by the screen reader through the live region and shown in the status line.
 
-**Privacy.** The Web Speech API is the browser's service. Chrome sends the audio to Google's servers, and other
-browsers may send it elsewhere. The voice bar says so before first use. Decide whether that is acceptable for
-your students before offering voice. Brailled adds no storing or sending of its own.
+**Reading aloud.** For students without a screen reader, the editor can read its replies and the question about
+doubtful words with a voice built into the device. It is off until chosen. On a first visit the editor asks "Do
+you use a screen reader?": "No" turns reading aloud on, "Yes" leaves it off, and Escape leaves it off and asks
+again next time. It can be changed in Voice settings. Escape also stops what is being read.
+
+- It reads what the editor announces. It does not read menus, buttons or the contents of other windows, so it
+  does not replace a screen reader.
+- Browsers do not let a page speak before the student has done something, so the first question is not read
+  aloud.
+- Only on-device voices are used. Where there is none, which can be the case on Linux, the editor says that it
+  cannot read aloud.
+
+**Privacy.** The Web Speech API is the browser's service, and Chrome sends the audio to Google's servers. The
+voice bar says so at all times. See [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md), including what a school should
+do before students use voice.
 
 **Browsers.** Speech recognition is in Chrome, Edge and Safari, and not in Firefox, where the bar says to type
 commands instead. A blocked or missing microphone, silence, no network and an unsupported language each have
@@ -160,11 +183,12 @@ their own message. Commands are understood in English phrases and in the action 
 
 `src/voice/provider.js` describes the interface: `isSupported()` and
 `listen({language, onReady, onHear, onEnd})`, which returns `{stop(), cancel()}`. Return your provider from
-`createSpeechProvider`, or pass `createProvider` to `VoiceBar`.
+`createSpeechProvider`, or pass `createProvider` to `VoiceBar`. Changing the service changes where students'
+speech goes: follow the checklist in [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md).
 
 ## Accessible names
 
-`npm run audit:names` (with the dev server running) checks 32 screens, menus and dialogs against Chrome's
+`npm run audit:names` (with the dev server running) checks 34 screens, menus and dialogs against Chrome's
 accessibility tree and fails on any new control without a name.
 
 Not fixed, because they are inside third-party libraries:

@@ -17,8 +17,23 @@ const control = (key, label = `Control+${key}`) => ({key, ctrl: true, label});
 const altShift = letter => ({code: `Key${letter}`, alt: true, shift: true, label: `Alt+Shift+${letter}`});
 
 const VIEW_TOGGLE = altShift('O');
-// Held down while speaking.
-const TALK = {key: 'F2', hold: true, label: 'hold F2'};
+// The keys to choose from for holding while speaking. `name` is the key alone.
+const TALK_KEYS = {
+    f2: {key: 'F2', hold: true, name: 'F2', label: 'hold F2'},
+    altShiftV: {...altShift('V'), hold: true, name: 'Alt+Shift+V', label: 'hold Alt+Shift+V'}
+};
+
+/**
+ * Whether letting this key up ends holding a shortcut: its own key, or one of its modifiers.
+ * @param {Shortcut} shortcut The shortcut.
+ * @param {KeyboardEvent} event The key release.
+ * @returns {boolean} Whether the shortcut is no longer held.
+ */
+const releases = (shortcut, event) => {
+    if (!shortcut.code) return event.key === shortcut.key;
+    return event.code === shortcut.code || (!!shortcut.alt && event.key === 'Alt') ||
+        (!!shortcut.shift && event.key === 'Shift');
+};
 
 /**
  * Whether a key press is this shortcut.
@@ -36,11 +51,12 @@ const matches = (shortcut, event) => {
 };
 
 export {
-    TALK,
+    TALK_KEYS,
     VIEW_TOGGLE,
     altShift,
     control,
     matches,
     plain,
+    releases,
     shift
 };

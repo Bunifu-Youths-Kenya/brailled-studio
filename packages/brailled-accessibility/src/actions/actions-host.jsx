@@ -8,6 +8,7 @@ import {getApp} from './app.js';
 import {hasOpenDialog} from './dom.js';
 import {speech} from './messages.js';
 import parseCommand from './parser.js';
+import {ScreenReaderQuestion, useSettings, VoiceSettings} from './preferences.jsx';
 import {snapshotToText} from './snapshot.js';
 
 import dialogStyles from '../outline/dialog.css';
@@ -91,13 +92,16 @@ CommandBox.propTypes = {
     onClose: PropTypes.func.isRequired
 };
 
-// The editor-wide part of the actions: the live region, the global shortcuts and the command box. It also tells
-// actions which view and tab are shown.
+// The editor-wide part of the actions: the live region, the global shortcuts, the command box and the voice
+// settings. It also tells actions which view and tab are shown.
 const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
     const intl = useIntl();
     const app = getApp(vm);
     const [notice, setNotice] = useState({text: '', serial: 0});
     const [commandBoxOpen, setCommandBoxOpen] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const settings = useSettings(app);
+    const asking = settings.screenReader === null && !settings.questionDismissed;
     const gui = useRef({});
 
     // Kept current on every render, so that actions see what is shown now.
@@ -106,7 +110,8 @@ const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
         view,
         setView: onChangeView,
         setTab: onChangeTab,
-        openCommandBox: () => setCommandBoxOpen(true)
+        openCommandBox: () => setCommandBoxOpen(true),
+        openSettings: () => setSettingsOpen(true)
     });
 
     useEffect(() => app.setIntl(intl), [app, intl]);
@@ -124,6 +129,8 @@ const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
 
     useEffect(() => {
         const handleKeyDown = event => {
+            // Escape also stops reading aloud, and keeps its other meanings.
+            if (event.key === 'Escape') app.silence();
             // Dialogs keep the keyboard to themselves.
             if (event.repeat || hasOpenDialog(document)) return;
             if (app.handleKey(event, 'global')) {
@@ -146,6 +153,8 @@ const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
         document.addEventListener('focus', handleFocus, true);
         return () => document.removeEventListener('focus', handleFocus, true);
     }, [intl]);
+
+    const closeSettings = useCallback(() => setSettingsOpen(false), []);
 
     // The command runs after the box has closed, so that focus is back where the user was.
     const pending = useRef(null);
@@ -171,6 +180,13 @@ const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
                 {/* A new element each time, so that a repeated message is announced again. */}
                 <span key={notice.serial}>{notice.text}</span>
             </div>
+            {asking ? <ScreenReaderQuestion app={app} /> : null}
+            {settingsOpen ? (
+                <VoiceSettings
+                    app={app}
+                    onClose={closeSettings}
+                />
+            ) : null}
             {commandBoxOpen ? (
                 <CommandBox
                     app={app}

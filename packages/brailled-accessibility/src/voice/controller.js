@@ -1,11 +1,10 @@
 // Voice input: when the microphone is open, what was heard, and what happens next.
 import {routeCommand} from '../actions/route.js';
+import {TALK_KEYS} from '../actions/shortcuts.js';
 import voiceMessages from './messages.js';
 
 // A shorter press of the button is a tap: listen for one phrase. Screen readers often can only tap.
 const TAP_MS = 350;
-// The microphone never stays open longer than this.
-const MAX_LISTEN_MS = 15000;
 const MAX_WAIT_MS = 8000;
 // Below this, the student is asked before anything is done.
 const CONFIDENCE_THRESHOLD = 0.7;
@@ -61,11 +60,16 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         listeners.forEach(listener => listener());
     };
 
+    // What messages may mention.
+    const keyWords = () => ({key: TALK_KEYS[app.settings.get().talkKey].name});
+
     // Show a message and say it.
     const tell = (message, changes = {}) => {
         set({...changes, status: {message}});
-        // While a question is open, its own dialog shows and says the message.
-        if (!state.pending) app.announce(app.say(message));
+        const text = app.say(message, keyWords());
+        // While a question is open, its own dialog shows the message and the screen reader says it from there.
+        if (state.pending) app.speak(text);
+        else app.announce(text);
     };
 
     const close = () => {
@@ -102,6 +106,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
     const answer = then => {
         if (!state.pending) return;
         const {text} = state.pending;
+        app.silence();
         if (state.phase !== 'idle') {
             session?.cancel();
             close();
@@ -119,12 +124,17 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         if (state.pending) {
             if (YES.includes(plain(text)) && sure) confirm();
             else if (NO.includes(plain(text))) reject();
-            else set({heard: text, status: {message: voiceMessages.sayYesOrNo, values: {text}}});
+            else {
+                set({heard: text, status: {message: voiceMessages.sayYesOrNo, values: {text}}});
+                app.speak(app.say(voiceMessages.sayYesOrNo, {text}));
+            }
             return;
         }
         // No measure of confidence counts as low: ask first.
         if (confidence === null || confidence < threshold) {
             set({heard: text, pending: {text}, status: {text: ''}});
+            app.speak(`${app.say(voiceMessages.confirmTitle, {text})} ${
+                app.say(voiceMessages.confirmHint, keyWords())}`);
             return;
         }
         set({heard: text});
@@ -148,7 +158,10 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         startedAt = Date.now();
         open = false;
         phraseEnded = false;
-        timer = setTimeout(finish, MAX_LISTEN_MS);
+        // Anything being read aloud would be heard as speech.
+        app.silence();
+        // The microphone never stays open longer than the chosen time.
+        timer = setTimeout(finish, app.settings.get().maxSeconds * 1000);
         set({phase: 'listening', mode, heard: '', status: {message: voiceMessages.starting}});
         const listening = () => ({
             message: state.mode === 'hold' ? voiceMessages.listeningHold : voiceMessages.listeningTap
@@ -250,7 +263,6 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
 
 export {
     CONFIDENCE_THRESHOLD,
-    MAX_LISTEN_MS,
     TAP_MS,
     createVoice
 };

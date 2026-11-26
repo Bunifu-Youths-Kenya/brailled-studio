@@ -106,12 +106,15 @@ const describeNode = html => html.replace(/_[A-Za-z0-9+/-]{5}(?=["\s])/g, '');
         {timeout: 150000});
     await page.waitForSelector('[data-brailled-workspace] .blocklyToolbox');
     await pause(2000);
+    const button = name => page.getByRole('button', {name, exact: true}).first();
+
+    // A new browser is asked whether a screen reader is used.
+    await screen('first question', async () => {}, () => button('Yes, I use a screen reader').click());
     const escape = () => page.keyboard.press('Escape');
     const closeModal = async () => {
         await escape();
         await page.waitForSelector('.ReactModal__Content', {state: 'detached'});
     };
-    const button = name => page.getByRole('button', {name, exact: true}).first();
 
     await screen('code tab, blocks', async () => {});
     for (const menu of ['File menu', 'Edit menu', 'Settings menu']) {
@@ -211,13 +214,15 @@ const describeNode = html => html.replace(/_[A-Za-z0-9+/-]{5}(?=["\s])/g, '');
         }, escape);
     }
 
+    await screen('voice settings', () => button('Voice settings').click(), escape);
+
     console.log(`Screens visited (${visited.length}): ${visited.join(', ')}`);
     console.log(`\nControls with no accessible name: ${unnamed.size}`);
     for (const [key, where] of unnamed) console.log(`- [${where}] ${key}`);
     const unexpected = Array.from(unnamed.keys()).filter(key => !EXPECTED.some(known => key.includes(known)));
     console.log(`\nUnexpected: ${unexpected.length}`);
     unexpected.forEach(key => console.log(`- ${key}`));
-    if (unexpected.length > 0 || visited.length < 32) process.exitCode = 1;
+    if (unexpected.length > 0 || visited.length < 34) process.exitCode = 1;
     console.log(`\nClickable elements with no role or keyboard access: ${mouseOnly.size}`);
     for (const [key, where] of mouseOnly) console.log(`- [${where}] ${key}`);
     await browser.close();

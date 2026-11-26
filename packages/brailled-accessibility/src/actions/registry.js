@@ -2,13 +2,13 @@
  * Every action the editor offers. Keys, typed commands and, later, voice and AI all go through this list.
  *
  * An action has an id, a spoken name and description, shortcuts, the place its shortcuts work (`global` or
- * `outline`), an availability check and a handler. Both take the app (see `app.js`). `available` returns true
- * or the key of a message saying why not. `run` may return a sentence to announce, or false if it did nothing
- * and the key should keep its usual meaning.
+ * `outline`), an availability check and a handler. Shortcuts that can be chosen come from `shortcutsFor`.
+ * Both functions take the app (see `app.js`). `available` returns true or the key of a message saying why not.
+ * `run` may return a sentence to announce, or false if it did nothing and the key should keep its usual meaning.
  */
 import {SCRIPTS_VIEWS} from '../views.js';
 import {descriptions, names, speech} from './messages.js';
-import {altShift, control, plain, shift, TALK, VIEW_TOGGLE} from './shortcuts.js';
+import {altShift, control, plain, shift, TALK_KEYS, VIEW_TOGGLE} from './shortcuts.js';
 import {describeAbilities, describePlace} from './snapshot.js';
 
 const always = () => true;
@@ -64,13 +64,14 @@ const ACTIONS = [
     goTo('go.voice', 'voice'),
 
     define('voice.talk', {
-        shortcuts: [TALK],
+        shortcutsFor: app => [TALK_KEYS[app.settings.get().talkKey]],
         available: app => {
             if (!app.voice()) return 'notReady';
             return app.voice().isSupported() ? true : 'voiceUnsupported';
         },
         run: app => app.voice().toggle()
     }),
+    define('voice.settings', {available: withGui, run: app => app.gui().openSettings()}),
 
     define('view.blocks', {available: withGui, run: app => app.showView(SCRIPTS_VIEWS.blocks)}),
     define('view.outline', {available: withGui, run: app => app.showView(SCRIPTS_VIEWS.outline)}),

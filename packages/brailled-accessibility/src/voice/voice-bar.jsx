@@ -4,7 +4,8 @@ import {useIntl} from 'react-intl';
 
 import {getApp} from '../actions/app.js';
 import {hasOpenDialog} from '../actions/dom.js';
-import {TALK} from '../actions/shortcuts.js';
+import {useSettings} from '../actions/preferences.jsx';
+import {matches, releases, TALK_KEYS} from '../actions/shortcuts.js';
 import Dialog from '../outline/dialog.jsx';
 import {createVoice} from './controller.js';
 import voiceMessages from './messages.js';
@@ -14,13 +15,11 @@ import createTone from './tone.js';
 import dialogStyles from '../outline/dialog.css';
 import styles from './voice-bar.css';
 
-// Hold this key to talk. No browser, screen reader or part of the editor uses it by itself.
-const TALK_KEY = TALK.key;
 const BUTTON_KEYS = [' ', 'Enter'];
 const ZONE = '[data-brailled-zone="voice"], [data-brailled-voice-dialog]';
 
 // Asks before acting on words that may have been misheard.
-const Question = ({text, status, listening, onYes, onNo}) => {
+const Question = ({text, hint, status, listening, onYes, onNo}) => {
     const intl = useIntl();
     return (
         <Dialog
@@ -32,7 +31,7 @@ const Question = ({text, status, listening, onYes, onNo}) => {
                     className={dialogStyles.count}
                     id="brailled-voice-hint"
                 >
-                    {intl.formatMessage(voiceMessages.confirmHint)}
+                    {hint}
                 </p>
                 {/* Announced, except while the microphone is open and would hear it. */}
                 <p
@@ -71,6 +70,7 @@ const Question = ({text, status, listening, onYes, onNo}) => {
 
 Question.propTypes = {
     text: PropTypes.string.isRequired,
+    hint: PropTypes.string.isRequired,
     status: PropTypes.string.isRequired,
     listening: PropTypes.bool.isRequired,
     onYes: PropTypes.func.isRequired,
@@ -98,6 +98,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
         }
     }));
     const state = useSyncExternalStore(voice.subscribe, voice.getState);
+    const talkKey = TALK_KEYS[useSettings(app).talkKey];
 
     useEffect(() => app.register('voice', voice), [app, voice]);
     useEffect(() => {
@@ -119,7 +120,8 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
                 voice.cancel();
                 return;
             }
-            if (event.key !== TALK_KEY || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+            // Read when pressed, so that a new choice applies at once.
+            if (!matches(TALK_KEYS[app.settings.get().talkKey], event)) return;
             // Dialogs keep the keyboard to themselves, apart from the voice's own question.
             if (hasOpenDialog(document) && !voice.getState().pending) return;
             event.preventDefault();
@@ -127,7 +129,10 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
             if (!event.repeat) voice.press('key');
         };
         const handleKeyUp = event => {
-            if (event.key !== TALK_KEY) return;
+            // Otherwise these keys, which include modifiers, are left alone.
+            const {phase, mode} = voice.getState();
+            if (phase !== 'listening' || mode !== 'hold') return;
+            if (!releases(TALK_KEYS[app.settings.get().talkKey], event)) return;
             event.preventDefault();
             voice.release('key');
         };
@@ -147,7 +152,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
             document.removeEventListener('visibilitychange', handleVisibility);
             window.removeEventListener('blur', handleLeave);
         };
-    }, [voice]);
+    }, [app, voice]);
 
     // A click that follows the button's own press and release has been dealt with already. A click on its own,
     // as some assistive technology sends, listens for one phrase.
@@ -187,9 +192,12 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     const handleYes = voice.confirm;
 
     const listening = state.phase === 'listening';
-    const status = state.status.text ?? intl.formatMessage(state.status.message, state.status.values);
+    const words = {key: talkKey.name, ...state.status.values};
+    const status = state.status.text ?? intl.formatMessage(state.status.message, words);
+    const hint = intl.formatMessage(voiceMessages.confirmHint, words);
     // While a question is open the bar says how to answer it.
-    const barStatus = state.pending && !status ? intl.formatMessage(voiceMessages.confirmHint) : status;
+    const barStatus = state.pending && !status ? hint : status;
+    const handleSettings = () => app.perform('voice.settings');
     return (
         <div
             aria-label={intl.formatMessage(voiceMessages.region)}
@@ -199,8 +207,9 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
             role="region"
         >
             <button
+                aria-describedby="brailled-voice-privacy"
                 aria-disabled={!voice.isSupported()}
-                aria-keyshortcuts={TALK_KEY}
+                aria-keyshortcuts={talkKey.name}
                 aria-pressed={listening}
                 className={styles.talk}
                 type="button"
@@ -251,8 +260,25 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
                     {barStatus}
                 </p>
             </div>
+            <div className={styles.side}>
+                <button
+                    className={styles.settings}
+                    type="button"
+                    // eslint-disable-next-line react/jsx-no-bind
+                    onClick={handleSettings}
+                >
+                    {intl.formatMessage(voiceMessages.settings)}
+                </button>
+                <p
+                    className={styles.privacy}
+                    id="brailled-voice-privacy"
+                >
+                    {intl.formatMessage(voiceMessages.privacy)}
+                </p>
+            </div>
             {state.pending ? (
                 <Question
+                    hint={hint}
                     listening={state.phase !== 'idle'}
                     status={status}
                     text={state.pending.text}

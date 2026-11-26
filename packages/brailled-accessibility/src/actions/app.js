@@ -2,6 +2,8 @@
 import {createIntl} from 'react-intl';
 
 import {getEditor} from '../commands/editor.js';
+import {createSettings, storageOf} from '../settings.js';
+import {createReader} from '../speech/read-aloud.js';
 import {SCRIPTS_VIEWS} from '../views.js';
 import {accessibleName, focusableWithin, roleOf, zoneElement, zoneOf} from './dom.js';
 import {roleNames, speech} from './messages.js';
@@ -49,7 +51,10 @@ const focusWhenReady = (find, done = () => {}) => {
     requestAnimationFrame(() => requestAnimationFrame(attempt));
 };
 
-const createApp = vm => {
+const createApp = (vm, {
+    settings = createSettings(storageOf(globalThis)),
+    reader = createReader(globalThis)
+} = {}) => {
     // Each part of the interface registers an object of its own under a name.
     const parts = new Map();
     const listeners = new Set();
@@ -61,6 +66,15 @@ const createApp = vm => {
     const app = {
         vm,
         editor: getEditor(vm),
+        settings,
+
+        // Read text aloud, if that is wanted and the microphone would not hear it.
+        speak: text => {
+            const listening = !!parts.get('voice') && parts.get('voice').getState().phase !== 'idle';
+            if (settings.get().readAloud && !listening) reader.speak(text, intl.locale);
+        },
+        silence: () => reader.stop(),
+        canReadAloud: () => reader.isAvailable(intl.locale),
         intl: () => intl,
         setIntl: next => {
             intl = next;
@@ -73,7 +87,7 @@ const createApp = vm => {
                 if (parts.get(name) === part) parts.delete(name);
             };
         },
-        // `{tab, view, setView, setTab, openCommandBox}`
+        // `{tab, view, setView, setTab, openCommandBox, openSettings}`
         gui: () => parts.get('gui') || null,
         outline: () => parts.get('outline') || null,
         // `{openLibrary}`
@@ -95,6 +109,7 @@ const createApp = vm => {
                 preface = null;
                 clearTimeout(prefaceTimer);
                 listeners.forEach(listener => listener(full));
+                app.speak(full);
             }, ANNOUNCE_DELAY_MS);
         },
         // Say this before the next announcement, or on its own if none follows.
@@ -146,7 +161,8 @@ const createApp = vm => {
             } else if (zone === 'stage') {
                 focusWhenReady(() => zoneElement(document, 'stage'), arrive);
             } else if (zone === 'voice') {
-                focusWhenReady(() => document.querySelector('[data-brailled-zone="voice"] button'), arrive);
+                focusWhenReady(() => document.querySelector('[data-brailled-zone="voice"] [aria-keyshortcuts]'),
+                    arrive);
             } else {
                 const find = () => document.querySelector(`[data-brailled-stage-tab="${zone}"]`);
                 find()?.click();
@@ -230,7 +246,7 @@ const createApp = vm => {
                 return {
                     id: action.id,
                     name: app.say(action.name),
-                    shortcut: (usable && action.shortcuts[0]?.label) || null,
+                    shortcut: (usable && (action.shortcutsFor?.(app) || action.shortcuts)[0]?.label) || null,
                     here
                 };
             });

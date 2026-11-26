@@ -19,6 +19,7 @@ const ACTION_TEXTS = {
     go_scripts: ['go to scripts', 'Moves to the scripts area.'],
     go_voice: ['go to voice bar', 'Moves to the microphone button.'],
     voice_talk: ['talk', 'Listens for one spoken command.'],
+    voice_settings: ['voice settings', 'Chooses the talk key, how long to listen and reading aloud.'],
     view_blocks: ['show blocks', 'Shows the scripts as blocks.'],
     view_outline: ['show outline', 'Shows the scripts as an outline.'],
     view_python: ['show Python', 'Shows the scripts as Python code.'],

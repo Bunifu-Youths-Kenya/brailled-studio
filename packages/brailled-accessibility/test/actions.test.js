@@ -1,6 +1,6 @@
 import parseCommand from '../src/actions/parser.js';
 import {ACTIONS, findAction} from '../src/actions/registry.js';
-import {matches} from '../src/actions/shortcuts.js';
+import {matches, releases, TALK_KEYS} from '../src/actions/shortcuts.js';
 import {createApp} from '../src/actions/app.js';
 
 const names = createApp({runtime: {threads: []}}).actionNames();
@@ -62,6 +62,7 @@ describe('the action registry', () => {
 
     test('no two actions share a shortcut', () => {
         const labels = ACTIONS.flatMap(action => action.shortcuts.map(shortcut => shortcut.label));
+        labels.push(...Object.values(TALK_KEYS).map(shortcut => shortcut.label));
         expect(new Set(labels).size).toBe(labels.length);
     });
 
@@ -87,6 +88,18 @@ describe('the action registry', () => {
         // Matched by the physical key: Alt changes the character on some keyboards.
         expect(matches(where, press('∑', {code: 'KeyW', altKey: true, shiftKey: true}))).toBe(true);
         expect(matches(where, press('w', {code: 'KeyW'}))).toBe(false);
+    });
+
+    test('a held shortcut ends when any of its keys is let go', () => {
+        const {f2, altShiftV} = TALK_KEYS;
+        expect(releases(f2, press('F2'))).toBe(true);
+        expect(releases(f2, press('Shift'))).toBe(false);
+        for (const up of [press('v', {code: 'KeyV'}), press('Alt'), press('Shift')]) {
+            expect(releases(altShiftV, up)).toBe(true);
+        }
+        expect(releases(altShiftV, press('Control'))).toBe(false);
+        expect(matches(altShiftV, press('V', {code: 'KeyV', altKey: true, shiftKey: true}))).toBe(true);
+        expect(matches(f2, press('F2', {altKey: true}))).toBe(false);
     });
 
     describe('using an action', () => {

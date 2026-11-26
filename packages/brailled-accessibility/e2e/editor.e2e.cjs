@@ -50,6 +50,34 @@ const noSpeech = () => {
     delete window.webkitSpeechRecognition;
 };
 
+// Answers the first question, so that it does not cover the editor.
+const answered = () => {
+    // Sandboxed frames, which have no storage, run this too.
+    if (window !== window.top) return;
+    if (!localStorage.getItem('brailled.settings')) {
+        localStorage.setItem('brailled.settings', JSON.stringify({screenReader: true}));
+    }
+};
+
+// Stands in for the voices of the device, and records what would be read aloud.
+const fakeVoice = () => {
+    window.spoken = [];
+    window.silenced = 0;
+    const synth = {
+        getVoices: () => [{name: 'Test voice', lang: 'en-US', localService: true}],
+        speak: utterance => window.spoken.push(utterance.text),
+        cancel: () => {
+            window.silenced += 1;
+        }
+    };
+    Object.defineProperty(window, 'speechSynthesis', {configurable: true, get: () => synth});
+    window.SpeechSynthesisUtterance = class {
+        constructor (text) {
+            this.text = text;
+        }
+    };
+};
+
 const results = [];
 const check = (name, ok, detail = '') => {
     results.push(ok);
@@ -60,11 +88,12 @@ const check = (name, ok, detail = '') => {
     const browser = await chromium.launch({executablePath});
     const errors = [];
     // Each group of checks starts from a fresh editor, so that one failure cannot cascade into the others.
-    const group = async (title, fn, {init} = {}) => {
+    const group = async (title, fn, {init = [], firstVisit = false} = {}) => {
         console.log(`--- ${title}`);
         const page = await browser.newPage({viewport: {width: 1366, height: 768}, acceptDownloads: true});
         page.setDefaultTimeout(15000);
-        if (init) await page.addInitScript(init);
+        if (!firstVisit) await page.addInitScript(answered);
+        for (const script of [init].flat()) await page.addInitScript(script);
         page.on('pageerror', e => errors.push(`${title}: ${e.message}`));
         page.on('console', m => {
             const text = m.text();
@@ -134,12 +163,19 @@ const check = (name, ok, detail = '') => {
                     .map(v => `${v.id}: ${v.nodes.map(n => n.html.slice(0, 120)).join(' ')}`), selector);
             }
         };
-        try {
-            await page.goto(url, {waitUntil: 'load', timeout: 200000});
+        const ready = async () => {
             await page.waitForFunction(() => window.vm && window.vm.editingTarget && window.brailled, null,
                 {timeout: 150000});
             await page.waitForSelector('[data-brailled-workspace] .blocklyToolbox');
             await pause(2000);
+        };
+        t.reload = async () => {
+            await page.reload({waitUntil: 'load', timeout: 200000});
+            await ready();
+        };
+        try {
+            await page.goto(url, {waitUntil: 'load', timeout: 200000});
+            await ready();
             await fn(t);
         } catch (e) {
             check(`${title} completed`, false, e.message.split('\n').slice(0, 4).join(' | '));
@@ -605,7 +641,7 @@ const check = (name, ok, detail = '') => {
     await group('voice input', async t => {
         const {page, key, pause} = t;
         const bar = page.locator('[data-brailled-zone="voice"]');
-        const button = bar.locator('button');
+        const button = bar.locator('button[aria-keyshortcuts]');
         const phase = () => bar.getAttribute('data-voice-phase');
         const status = () => bar.locator('[data-voice-status]').textContent();
         const transcript = () => bar.locator('[data-voice-transcript]').textContent();
@@ -633,7 +669,7 @@ const check = (name, ok, detail = '') => {
         const [, main, aside, voice] = boxes;
         check('the voice bar is across the bottom, covering nothing', voice.bottom === 768 && voice.width === 1366 &&
             main.bottom <= voice.top + 0.5 && aside.bottom <= voice.top + 0.5, `${main.bottom} ${voice.top}`);
-        check('it says how to talk, and where sound may go', /Hold F2, or this button.*online service/.test(await status()));
+        check('it says how to talk', /Hold F2, or this button, while you speak\./.test(await status()));
         check('the microphone is not opened on its own', await requests() === 0 && await phase() === 'idle');
         check('axe: voice bar', (await t.axe('[data-brailled-zone="voice"]')).length === 0,
             (await t.axe('[data-brailled-zone="voice"]')).join('; '));
@@ -810,15 +846,178 @@ const check = (name, ok, detail = '') => {
         check('spoken "run"', answer === 'I heard: run. Project started.', answer);
     }, {init: fakeSpeech});
 
+    // Settings as stored, and the question asked on a first visit.
+    const stored = page => page.evaluate(() => JSON.parse(localStorage.getItem('brailled.settings') || 'null'));
+    const question = page => page.getByRole('dialog', {name: 'Do you use a screen reader?'});
+    const typed = async (t, text) => {
+        await t.key('Alt+Shift+KeyK', 500);
+        await t.type(text);
+        await t.key('Enter', 900);
+    };
+    const spoken = page => page.evaluate(() => window.spoken.join(' '));
+
+    await group('first visit with a screen reader', async t => {
+        const {page, key} = t;
+        check('the first visit asks about a screen reader', await question(page).isVisible());
+        check('"Yes" has focus', /Yes, I use a screen reader/.test((await t.focused()).text),
+            (await t.focused()).text);
+        check('axe: first question', (await t.axe()).length === 0, (await t.axe()).join('; '));
+        await key('F2', 400);
+        check('F2 waits for the answer', await page.evaluate(() => window.speech.requests.length) === 0);
+        await key('Enter', 900);
+        check('"Yes" keeps reading aloud off', await question(page).count() === 0 &&
+            (await stored(page)).screenReader === true && (await stored(page)).readAloud === false);
+        await typed(t, 'go to menu');
+        check('nothing is read aloud', await spoken(page) === '', await spoken(page));
+        await t.reload();
+        check('it is not asked again', await question(page).count() === 0);
+    }, {init: [fakeSpeech, fakeVoice], firstVisit: true});
+
+    await group('first visit without a screen reader', async t => {
+        const {page, key, pause} = t;
+        await page.getByRole('button', {name: 'No, read replies aloud'}).click();
+        await pause(900);
+        check('"No" turns reading aloud on', (await stored(page)).readAloud === true);
+        check('and says so aloud', /Replies will be read aloud\./.test(await spoken(page)), await spoken(page));
+        await typed(t, 'go to menu');
+        check('replies are read aloud', /Menu bar\./.test(await spoken(page)), await spoken(page));
+        await page.evaluate(() => {
+            Object.assign(window, {spoken: [], silenced: 0});
+            window.speech.say = ['stop', 0.3];
+        });
+        await page.keyboard.down('F2');
+        await pause(600);
+        check('reading stops before the microphone opens', await page.evaluate(() => window.silenced > 0) &&
+            await spoken(page) === '');
+        await page.keyboard.up('F2');
+        await pause(900);
+        check('the question about doubtful words is read aloud',
+            /I am not sure\..*Say yes or no while holding F2/.test(await spoken(page)), await spoken(page));
+        const silenced = await page.evaluate(() => window.silenced);
+        await key('Escape', 700);
+        check('Escape stops reading', await page.evaluate(() => window.silenced) > silenced);
+    }, {init: [fakeSpeech, fakeVoice], firstVisit: true});
+
+    await group('first visit, question put off', async t => {
+        const {page, key} = t;
+        await key('Escape', 700);
+        check('Escape puts the question off, reading aloud stays off', await question(page).count() === 0 &&
+            (await stored(page)).screenReader === null && (await stored(page)).readAloud === false);
+        await t.reload();
+        check('it is asked again next visit', await question(page).isVisible());
+    }, {init: fakeVoice, firstVisit: true});
+
+    await group('voice settings', async t => {
+        const {page, key, pause} = t;
+        const bar = page.locator('[data-brailled-zone="voice"]');
+        const talk = bar.getByRole('button', {name: 'Hold to talk'});
+        const phase = () => bar.getAttribute('data-voice-phase');
+        const requests = () => page.evaluate(() => window.speech.requests.length);
+        const notice = /^Privacy: when you use voice.*online service\. Chrome sends it to Google\.$/;
+        const describedBy = await talk.getAttribute('aria-describedby');
+        check('the privacy notice is always shown, and describes the talk button',
+            notice.test(await page.locator(`#${describedBy}`).textContent()) &&
+            await page.locator(`#${describedBy}`).isVisible());
+        for (const width of [1366, 1024]) {
+            await page.setViewportSize({width, height: 768});
+            await pause(800);
+            const fits = await bar.evaluate(el => ({
+                inside: Array.from(el.querySelectorAll('*')).every(child => {
+                    const [own, outer] = [child.getBoundingClientRect(), el.getBoundingClientRect()];
+                    return child.closest('[role="group"]') || (own.bottom <= outer.bottom + 0.5 &&
+                        own.right <= outer.right + 0.5);
+                }),
+                words: el.querySelector('[role="group"]').getBoundingClientRect().width
+            }));
+            check(`the voice bar fits at ${width} wide`, fits.inside && fits.words > 300, JSON.stringify(fits));
+            await page.screenshot({path: path.join(out, `voice-bar-${width}.png`)});
+        }
+        await page.setViewportSize({width: 1366, height: 768});
+
+        await bar.getByRole('button', {name: 'Voice settings'}).click();
+        await pause();
+        const dialog = page.getByRole('dialog', {name: 'Voice settings'});
+        check('the settings open on the chosen talk key', await dialog.isVisible() &&
+            await dialog.getByRole('radio', {name: 'F2'}).evaluate(el => el === document.activeElement));
+        check('axe: voice settings', (await t.axe()).length === 0, (await t.axe()).join('; '));
+        check('the settings repeat the privacy notice', /Chrome sends it to Google/.test(await dialog.textContent()));
+        await key('ArrowDown', 500);
+        await dialog.getByLabel('Longest time to listen').selectOption('5');
+        await dialog.getByRole('button', {name: 'Done'}).click();
+        await pause();
+        check('the choices are stored', (await stored(page)).talkKey === 'altShiftV' &&
+            (await stored(page)).maxSeconds === 5, JSON.stringify(await stored(page)));
+        check('the bar names the new key', /Hold Alt\+Shift\+V/.test(
+            await bar.locator('[data-voice-status]').textContent()) &&
+            await talk.getAttribute('aria-keyshortcuts') === 'Alt+Shift+V');
+        await key('F2', 500);
+        check('F2 no longer listens', await requests() === 0);
+
+        const hold = async () => {
+            for (const k of ['Alt', 'Shift', 'KeyV']) await page.keyboard.down(k);
+            await pause(700);
+        };
+        const letGo = async keys => {
+            for (const k of keys) await page.keyboard.up(k);
+            await pause(900);
+        };
+        await page.evaluate(() => {
+            window.speech.say = ['go to menu', 0.95];
+        });
+        await hold();
+        check('holding Alt+Shift+V listens', await phase() === 'listening' && await requests() === 1);
+        await letGo(['KeyV', 'Shift', 'Alt']);
+        check('letting go runs the command', await phase() === 'idle' &&
+            await t.said() === 'I heard: go to menu. Menu bar.', await t.said());
+        await hold();
+        await page.keyboard.up('Shift');
+        await pause(900);
+        check('letting go of Shift first also stops', await phase() === 'idle' &&
+            await page.evaluate(() => window.speech.requests.at(-1).stopped));
+        await letGo(['KeyV', 'Alt']);
+
+        await page.evaluate(() => {
+            window.speech.say = null;
+        });
+        await hold();
+        await pause(3000);
+        check('still listening before the limit', await phase() === 'listening');
+        await pause(2200);
+        check('listening ends at the chosen limit, with the keys still held', await phase() === 'idle' &&
+            await page.evaluate(() => window.speech.requests.at(-1).stopped));
+        await letGo(['KeyV', 'Shift', 'Alt']);
+        await key('Alt+Shift+KeyH', 700);
+        check('what can I do here names the new key', /talk \(hold Alt\+Shift\+V\)/.test(await t.said()),
+            await t.said());
+
+        await t.reload();
+        check('the choices last', await talk.getAttribute('aria-keyshortcuts') === 'Alt+Shift+V');
+        await typed(t, 'voice settings');
+        await dialog.getByRole('checkbox', {name: 'Read replies aloud'}).check();
+        await pause();
+        check('turning reading aloud on is confirmed, aloud too',
+            await dialog.getByRole('status').textContent() === 'Replies will be read aloud.' &&
+            /Replies will be read aloud\./.test(await spoken(page)), await spoken(page));
+        await dialog.getByRole('checkbox', {name: 'Read replies aloud'}).uncheck();
+        await dialog.getByRole('button', {name: 'Done'}).click();
+        await pause();
+        await page.evaluate(() => {
+            window.spoken = [];
+        });
+        await typed(t, 'go to menu');
+        check('off again, nothing is read', await spoken(page) === '', await spoken(page));
+    }, {init: [fakeSpeech, fakeVoice]});
+
     await group('voice unavailable', async t => {
         const {page, key} = t;
         const bar = page.locator('[data-brailled-zone="voice"]');
         const status = () => bar.locator('[data-voice-status]').textContent();
         check('an unsupported browser is told at once', /cannot turn speech into text.*Alt\+Shift\+K/
-            .test(await status()) && await bar.locator('button').getAttribute('aria-disabled') === 'true');
+            .test(await status()) &&
+            await bar.locator('button[aria-keyshortcuts]').getAttribute('aria-disabled') === 'true');
         await key('F2', 700);
         check('pressing F2 says so aloud', /cannot turn speech into text/.test(await t.said()), await t.said());
-        await bar.locator('button').click({force: true});
+        await bar.locator('button[aria-keyshortcuts]').click({force: true});
         await t.pause(500);
         check('pressing the button listens to nothing', await bar.getAttribute('data-voice-phase') === 'idle');
         await key('Alt+Shift+KeyK', 500);

@@ -130,5 +130,11 @@ These are new files, not edits to Scratch's own.
 | 2026-11-25 | `packages/brailled-accessibility/src/voice/voice-bar.jsx` |
 | 2026-11-25 | `packages/brailled-accessibility/test/voice.test.js` |
 | 2026-11-25 | `packages/logos/Braille bot  Bio.svg` |
+| 2026-11-26 | `packages/brailled-accessibility/src/actions/preference-messages.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/actions/preferences.jsx` |
+| 2026-11-26 | `packages/brailled-accessibility/src/settings.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/speech/read-aloud.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/settings.test.js` |
+| 2026-11-26 | `PRIVACY-NOTES.md` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |
