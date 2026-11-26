@@ -20,6 +20,8 @@ the editor needs around them.
 | `src/library.js` | The sprite library by name and kind |
 | `src/catalog/` | Plain descriptions of every editable block, and of programming ideas, for the AI helper's tools |
 | `src/memory.js` | The recent conversation with the AI helper, held only while the page is open |
+| `src/introduction.js` | The assistant introducing itself |
+| `src/names.js` | The assistant's name and what counts as a name |
 | `src/settings.js` | The student's choices, kept in the browser |
 | `src/config.js` | What whoever runs the editor allows |
 | `src/use-kept-state.js` | State that survives the editor rebuilding on a language change |
@@ -93,6 +95,7 @@ off the device.
 | `help.whereAmI` | Alt+Shift+W | "where am I" |
 | `help.whatCanIDo` | Alt+Shift+H | "what can I do here" |
 | `help.commandBox` | Alt+Shift+K | |
+| `help.introduce` | | The assistant's name, "who are you", "introduce yourself" |
 | `go.menu`, `go.stage`, `go.devices`, `go.sprites`, `go.background`, `go.palette`, `go.scripts` | | "go to menu", "go to the stage", "go to block palette" and so on |
 | `view.toggle` | Alt+Shift+O | "switch view" |
 | `view.blocks`, `view.outline` | | "show blocks", "go to outline" |
@@ -207,6 +210,34 @@ their own message. Commands are understood in English phrases and in the action 
 `createSpeechProvider`, or pass `createProvider` to `VoiceBar`. Changing the service changes where students'
 speech goes: follow the checklist in [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md).
 
+## Mboni: name and introduction
+
+The assistant is called Mboni. `"assistantName"` in `static/brailled-config.json` changes it: up to 30 letters,
+with spaces, hyphens or apostrophes between them; anything else means Mboni. The name is used on the voice bar, in
+the notice, the dialogs, what is said, and by the AI helper. Saying or typing it before a command is understood
+("Mboni, where am I?"); on its own it asks who the helper is. There is no wake word: the microphone still opens
+only when asked.
+
+**Introduction.** The first time in a browser session that the talk key or button is pressed, the assistant
+introduces itself instead of listening, and the next press listens. It never speaks before the student does
+something. It is announced to screen readers, shown in the voice bar, and read aloud only if reading aloud is on.
+For example:
+
+> Hello Amina. I am Mboni, your coding helper. I can tell you where you are, find blocks, build with you, guide
+> you, explain ideas, and fix mistakes. Nothing changes unless you say yes. Hold F2 to talk to me.
+
+- What it offers is worked out from the action registry and `src/catalog/tools.json`, the AI's tools; a server
+  test keeps that list true. Without the AI helper it offers only what the editor does itself. It says "I ask you
+  before big changes" where the school allows small ones without asking.
+- It is at most 48 words, under 20 seconds read at an ordinary rate. The time was not measured with real voices.
+- **Skip:** press the talk key again, which also starts listening, or press Escape. A screen reader is silenced
+  with its own key.
+- **How much:** Voice settings offers full (the default), short or off. Asking for it ("who are you") always
+  answers, at the chosen length, or in full when off.
+- **The student's name** is optional, typed in Voice settings, kept in the browser, and never sent anywhere.
+- Where voice is off or unsupported nothing introduces it unasked: type its name in the command box.
+- "Reset for new student" forgets the name and the choice, and the next call introduces it again.
+
 ## AI helper
 
 Optional, and off by default. It needs the [Brailled AI server](../brailled-ai-server/README.md), and in
@@ -273,6 +304,7 @@ Each step has a risk that the editor works out; nothing the AI says changes it.
 | - | - | - |
 | `approval` | `"every time"`: every change is approved. `"big changes only"`: changes marked "Edit" above that "undo" can take back are made without asking | `"every time"`, also for any other value |
 | `proposalExpirySeconds` | 30 to 900. Numbers outside that become the nearest limit | 120, also for anything that is not a number |
+| `assistantName` | What the assistant is called: up to 30 letters | `"Mboni"`, also for anything that is not a name |
 | `assistantMode` | The mode the AI helper starts in: `"build"` or `"guide"`. A student can switch while the page is open | `"build"`, also for any other value |
 
 With either approval level, every change is announced with how to take it back. Where changes are made without

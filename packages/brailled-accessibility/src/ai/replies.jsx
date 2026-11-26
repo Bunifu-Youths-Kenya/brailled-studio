@@ -8,9 +8,9 @@ import aiMessages from './messages.js';
 
 import dialogStyles from '../outline/dialog.css';
 
-const Reply = ({assistant, reply, talkKey}) => {
+const Reply = ({assistant, name, reply, talkKey}) => {
     const intl = useIntl();
-    const say = (message, values) => intl.formatMessage(message, values);
+    const say = (message, values) => intl.formatMessage(message, {assistant: name, ...values});
     const handleAnswer = event => {
         event.preventDefault();
         const text = String(new FormData(event.target).get('answer'))
@@ -104,6 +104,8 @@ Reply.propTypes = {
         answer: PropTypes.func.isRequired,
         dismiss: PropTypes.func.isRequired
     }).isRequired,
+    // What the helper is called.
+    name: PropTypes.string.isRequired,
     reply: PropTypes.shape({
         type: PropTypes.oneOf(['question', 'explanation']).isRequired,
         spritesFrom: PropTypes.string,
@@ -118,13 +120,14 @@ Reply.propTypes = {
 const none = () => () => {};
 const nothing = () => null;
 
-const Replies = ({assistant, talkKey}) => {
+const Replies = ({assistant, name, talkKey}) => {
     const reply = useSyncExternalStore(
         assistant ? assistant.subscribe : none,
         assistant ? () => assistant.getState().reply : nothing);
     return reply ? (
         <Reply
             assistant={assistant}
+            name={name}
             reply={reply}
             talkKey={talkKey}
         />
@@ -136,6 +139,7 @@ Replies.propTypes = {
         getState: PropTypes.func.isRequired,
         subscribe: PropTypes.func.isRequired
     }),
+    name: PropTypes.string.isRequired,
     talkKey: PropTypes.string
 };
 

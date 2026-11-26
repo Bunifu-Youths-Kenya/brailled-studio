@@ -1,15 +1,23 @@
 // The student's choices, kept in this browser.
+import {cleanName} from './names.js';
+
 const STORAGE_KEY = 'brailled.settings';
 const TALK_KEY_IDS = ['f2', 'altShiftV'];
 // Seconds the microphone may stay open. There is no unlimited choice: it never listens continuously.
 const LISTEN_SECONDS = [5, 10, 15, 30, 60];
+
+// How much the assistant says when it introduces itself.
+const INTRODUCTIONS = ['full', 'short', 'off'];
 
 const DEFAULTS = Object.freeze({
     talkKey: 'f2',
     maxSeconds: 15,
     readAloud: false,
     // Whether a screen reader is used, or null while the question has not been answered.
-    screenReader: null
+    screenReader: null,
+    // The first name to greet the student by, or empty. It is never sent anywhere.
+    studentName: '',
+    introduction: 'full'
 });
 
 // Stored text may be old or edited by hand: keep only values the editor knows.
@@ -17,7 +25,9 @@ const clean = value => ({
     talkKey: TALK_KEY_IDS.includes(value?.talkKey) ? value.talkKey : DEFAULTS.talkKey,
     maxSeconds: LISTEN_SECONDS.includes(value?.maxSeconds) ? value.maxSeconds : DEFAULTS.maxSeconds,
     readAloud: value?.readAloud === true,
-    screenReader: typeof value?.screenReader === 'boolean' ? value.screenReader : DEFAULTS.screenReader
+    screenReader: typeof value?.screenReader === 'boolean' ? value.screenReader : DEFAULTS.screenReader,
+    studentName: cleanName(value?.studentName) ?? DEFAULTS.studentName,
+    introduction: INTRODUCTIONS.includes(value?.introduction) ? value.introduction : DEFAULTS.introduction
 });
 
 // The browser's storage, which can be switched off.
@@ -79,6 +89,7 @@ const createSettings = storage => {
 
 export {
     DEFAULTS,
+    INTRODUCTIONS,
     LISTEN_SECONDS,
     STORAGE_KEY,
     TALK_KEY_IDS,

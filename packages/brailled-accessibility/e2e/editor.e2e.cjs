@@ -52,6 +52,11 @@ const noSpeech = () => {
 };
 
 // Answers the first question, so that it does not cover the editor.
+// The assistant has introduced itself already, so that the talk key listens.
+const introduced = () => {
+    if (window === window.top) sessionStorage.setItem('brailled.introduced', 'yes');
+};
+
 const answered = () => {
     // Sandboxed frames, which have no storage, run this too.
     if (window !== window.top) return;
@@ -128,12 +133,13 @@ const startAiServer = async (env = {}) => {
     // Each group of checks starts from a fresh editor, so that one failure cannot cascade into the others.
     // `BRAILLED_E2E_ONLY` names the groups to run, by part of their title, while working on them.
     const only = process.env.BRAILLED_E2E_ONLY;
-    const group = async (title, fn, {init = [], firstVisit = false, config = null} = {}) => {
+    const group = async (title, fn, {init = [], firstVisit = false, newSession = false, config = null} = {}) => {
         if (only && !new RegExp(only).test(title)) return;
         console.log(`--- ${title}`);
         const page = await browser.newPage({viewport: {width: 1366, height: 768}, acceptDownloads: true});
         page.setDefaultTimeout(15000);
         if (!firstVisit) await page.addInitScript(answered);
+        if (!newSession) await page.addInitScript(introduced);
         for (const script of [init].flat()) await page.addInitScript(script);
         // Never the file on this computer, which may turn on a real AI helper: no check may reach one.
         await page.route('**/brailled-config.json', route => route.fulfill(config || {json: {voice: true}}));
@@ -738,7 +744,7 @@ const startAiServer = async (env = {}) => {
         const [, main, aside, voice] = boxes;
         check('the voice bar is across the bottom, covering nothing', voice.bottom === 768 && voice.width === 1366 &&
             main.bottom <= voice.top + 0.5 && aside.bottom <= voice.top + 0.5, `${main.bottom} ${voice.top}`);
-        check('it says how to talk', /Hold F2, or this button, while you speak\./.test(await status()));
+        check('it says how to talk', /Hold F2, or this button, to talk to Mboni\./.test(await status()));
         check('the microphone is not opened on its own', await requests() === 0 && await phase() === 'idle');
         check('axe: voice bar', (await t.axe('[data-brailled-zone="voice"]')).length === 0,
             (await t.axe('[data-brailled-zone="voice"]')).join('; '));
@@ -868,7 +874,7 @@ const startAiServer = async (env = {}) => {
         check('Escape answers no', await dialog.count() === 0 && await t.data() === program);
 
         answer = await say('make me a sandwich');
-        check('other words get an answer and change nothing', /not a command I know.*there is no AI helper here/
+        check('other words get an answer and change nothing', /not a command I know.*Mboni is not connected here/
             .test(answer) && await t.data() === program, answer);
 
         for (const [error, message] of [
@@ -925,6 +931,39 @@ const startAiServer = async (env = {}) => {
         await t.key('Enter', 900);
     };
     const spoken = page => page.evaluate(() => window.spoken.join(' '));
+
+    await group('introduction', async t => {
+        const {page, key, pause} = t;
+        const bar = page.locator('[data-brailled-zone="voice"]');
+        const status = () => bar.locator('[data-voice-status]').textContent();
+        const requests = () => page.evaluate(() => window.speech.requests.length);
+        await pause(1500);
+        check('nothing is said before the student calls', await spoken(page) === '' &&
+            !/I am Mboni/.test(await t.said()), await t.said());
+        await key('F2', 900);
+        check('the first press introduces Mboni instead of listening', await requests() === 0 &&
+            /^Hello\. I am Mboni, your coding helper\. I can .*Hold F2 to talk to me\.$/.test(await t.said()),
+        await t.said());
+        check('it is shown in the voice bar', await status() === await t.said(), await status());
+        await key('Escape', 400);
+        await key('F2', 700);
+        check('the next press listens', await requests() === 1);
+        await t.reload();
+        await key('F2', 900);
+        check('it is said once a session', await requests() === 1);
+        await typed(t, 'Mboni');
+        check('calling its name asks again', /I am Mboni/.test(await t.said()), await t.said());
+        await bar.getByRole('button', {name: 'Voice settings'}).click();
+        await pause();
+        const dialog = page.getByRole('dialog', {name: 'Voice settings'});
+        await dialog.getByLabel(/Your first name/).fill('Amina');
+        await dialog.getByLabel(/^Introduction/).selectOption('short');
+        check('axe: voice settings with the name', (await t.axe('dialog')).length === 0);
+        await key('Escape', 500);
+        await typed(t, 'who are you');
+        check('it greets by name, as shortly as chosen',
+            await t.said() === 'Hello Amina. I am Mboni. Hold F2 to talk to me.', await t.said());
+    }, {init: [fakeSpeech, fakeVoice], newSession: true});
 
     await group('first visit with a screen reader', async t => {
         const {page, key} = t;
@@ -1263,7 +1302,7 @@ const startAiServer = async (env = {}) => {
         // By voice.
         await say('add a wait of 2 seconds after the move block');
         check('a suggestion is shown for approval', await dialog.count() === 1 &&
-            await title() === 'The AI helper suggests a change. Approve it?', await dialog.count() && await title());
+            await title() === 'Mboni suggests a change. Approve it?', await dialog.count() && await title());
         check('in the editor\'s own words', await dialog.locator('li').textContent() ===
             'Add wait 2 seconds, after move 10 steps', await dialog.locator('li').textContent());
         check('in large type', await dialog.locator('li').evaluate(el =>
@@ -1347,7 +1386,7 @@ const startAiServer = async (env = {}) => {
             if (way === 'voice') await say('add a sprite');
             else await ask('add a sprite');
             check('the library opens without asking, with the question over it', await library.count() === 1 &&
-                await dialog.count() === 1 && await title() === 'The AI helper asks');
+                await dialog.count() === 1 && await title() === 'Mboni asks');
             check('the question can be read by screen readers', await dialog.evaluate(
                 el => !el.closest('[aria-hidden="true"]') && el.contains(document.activeElement)));
             check('three kinds are offered', (await dialog.locator('li').allTextContents()).join() ===
@@ -1398,7 +1437,7 @@ const startAiServer = async (env = {}) => {
         ai.model.reply = two;
         await ask('wait then turn');
         check('several steps are a numbered list', await title() ===
-            'The AI helper suggests 2 steps. Approve them?' && await dialog.locator('ol li').count() === 2);
+            'Mboni suggests 2 steps. Approve them?' && await dialog.locator('ol li').count() === 2);
         check('axe: several steps', (await t.axe()).length === 0, (await t.axe()).join('; '));
         await press('One step at a time');
         check('step by step asks about the first', await title() === 'Step 1 of 2. Approve it?', await title());
@@ -1507,7 +1546,7 @@ const startAiServer = async (env = {}) => {
         const mode = page.locator('[data-voice-mode]');
         await startOutline(t);
         const original = await t.items();
-        check('the bar shows the mode', await mode.textContent() === 'Build mode');
+        check('the bar shows the mode', await mode.textContent() === 'Mboni: Build mode');
 
         ai.model.lookUp = [['find_blocks', {query: 'make it talk'}], ['describe_block', {opcode: 'control_wait'}],
             ['search_library', {query: 'dragon'}], ['explain_concept', {concept: 'loop'}], ['get_program', {}]];
@@ -1525,9 +1564,9 @@ const startAiServer = async (env = {}) => {
         ai.model.lookUp = null;
 
         await say('guide me');
-        check('"guide me" switches to guide mode, and says so', await mode.textContent() === 'Guide mode' &&
+        check('"guide me" switches to guide mode, and says so', await mode.textContent() === 'Mboni: Guide mode' &&
             /Guide mode\./.test(await t.said()), await t.said());
-        check('the notice stays', /AI helper is on/.test(await page.locator('[data-voice-notice]').textContent()));
+        check('the notice stays', /Mboni \(AI\) is on/.test(await page.locator('[data-voice-notice]').textContent()));
         await page.setViewportSize({width: 1024, height: 768});
         await pause(700);
         check('the bar fits with the mode at 1024 wide', await page.locator('[data-brailled-zone="voice"]')
@@ -1555,7 +1594,7 @@ const startAiServer = async (env = {}) => {
             JSON.stringify(ai.model.asked.at(-1).conversationSoFar.slice(-3)));
         await say('build mode');
         check('a command after an explanation closes it and is done', await dialog.count() === 0 &&
-            await mode.textContent() === 'Build mode');
+            await mode.textContent() === 'Mboni: Build mode');
 
         ai.model.reply = {type: 'proposal', summary: 'Add a wait.', steps: [{command:
             {op: 'insert', block: 'control_wait', after: 'b2'}}]};
@@ -1586,7 +1625,7 @@ const startAiServer = async (env = {}) => {
         const bar = page.locator('[data-brailled-zone="voice"]');
         const notice = bar.locator('[data-voice-notice]');
         check('an on-screen notice says typed and spoken text goes online',
-            /^AI helper is on: text you type or say to it, and your program, are sent to an online service\./
+            /^Mboni \(AI\) is on: text you type or say to it, and your program, are sent to an online service\./
                 .test(await notice.textContent()) && await notice.isVisible(), await notice.textContent());
         await page.setViewportSize({width: 1024, height: 768});
         await t.pause(800);
@@ -1691,7 +1730,7 @@ const startAiServer = async (env = {}) => {
 
     await group('AI helper without voice', async t => {
         const bar = t.page.locator('[data-brailled-zone="voice"]');
-        check('the notice is shown with voice off, about typed text', /^AI helper is on: text you type for it/
+        check('the notice is shown with voice off, about typed text', /^Mboni \(AI\) is on: text you type for it/
             .test(await bar.locator('[data-voice-notice]').textContent()) &&
             await bar.getByRole('button').count() === 1);
         ai.model.reply = {type: 'question', question: 'Which one?'};
@@ -1705,7 +1744,7 @@ const startAiServer = async (env = {}) => {
     await group('AI switched off', async t => {
         const bar = t.page.locator('[data-brailled-zone="voice"]');
         check('with "ai" false there is no notice about it, whatever the address says',
-            !/AI helper/.test(await bar.textContent()));
+            !/\(AI\)/.test(await bar.textContent()));
         const before = ai.model.asked.length;
         await t.key('Alt+Shift+KeyK', 500);
         await t.type('help me with this');

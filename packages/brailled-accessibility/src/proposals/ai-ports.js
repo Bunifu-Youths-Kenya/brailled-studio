@@ -19,6 +19,7 @@ const createAiPorts = (app, submitter) => Object.freeze({
     spriteNames: (category, page) => app.library()?.names(category, page) ?? [],
     targetId: () => app.vm.editingTarget?.id ?? null,
     language: () => app.intl().locale,
+    assistantName: () => app.assistantName(),
     say: (message, values) => app.say(message, values),
     announce: text => app.announce(text),
     speak: text => app.speak(text),

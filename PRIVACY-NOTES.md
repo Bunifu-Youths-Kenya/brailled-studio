@@ -115,13 +115,19 @@ Before swapping it:
 ## Reading aloud
 
 Only voices the browser reports as on the device (`localService`) are used, so that text, which can include what a
-student wrote, is not sent to an online voice.
+student wrote or their name, is not sent to an online voice.
 
 ## Stored in the browser
 
-Under `brailled.settings` in local storage: the talk key, the longest listening time, whether to read aloud, and
-the answer to "Do you use a screen reader?". The answer can suggest that a student has a disability. It stays in
-that browser and Brailled does not send it.
+Under `brailled.settings` in local storage: the talk key, the longest listening time, whether to read aloud, how
+much the assistant says when introducing itself, the student's first name if they typed one, and the answer to "Do
+you use a screen reader?". The name is personal data, and the answer can suggest that a student has a disability.
+They stay in that browser and Brailled does not send them, to the AI helper or anywhere else. The name is only
+used to greet the student; a screen reader or the device's voice says it. If a student says or types their name
+to the helper as part of a request, that request is sent like any other.
+
+Under `brailled.introduced` in session storage, until the browser session ends: that the assistant has introduced
+itself.
 
 On a shared computer, **Reset for new student** in the settings removes them all and asks the question again.
 Without it the next person gets the same settings. Reset does not close the project, clear what the voice bar

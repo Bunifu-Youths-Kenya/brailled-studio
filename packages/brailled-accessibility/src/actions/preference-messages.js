@@ -16,9 +16,14 @@ const preferenceMessages = defineMessages(Object.fromEntries(Object.entries({
     seconds: '{seconds} seconds',
     readAloud: 'Read replies aloud',
     readAloudHint: 'Leave this off if you use a screen reader, or you will hear everything twice.',
+    studentName: 'Your first name, if you want to be greeted by it',
+    studentNameHint: 'Kept in this browser. It is not sent to the AI helper.',
+    introduction: 'Introduction, the first time you call the helper',
+    introductionChoice: '{length, select, short {Short} off {Off} other {Full}}',
     done: 'Done',
     reset: 'Reset for new student',
-    resetHint: 'Forgets the talk key, listening time, reading aloud and the screen reader answer.',
+    resetHint: 'Forgets your name, the talk key, listening time, reading aloud, the introduction choice, the ' +
+        'screen reader answer and the conversation.',
     wasReset: 'Settings reset for a new student.'
 }).map(([key, defaultMessage]) => [key, {
     id: `brailled.preferences.${key}`,

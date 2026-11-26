@@ -12,9 +12,9 @@ import styles from './proposal-dialog.css';
 // A press this soon after the question appears was meant for something else.
 const ARM_MS = 700;
 
-const Question = ({gate, proposal}) => {
+const Question = ({gate, name, proposal}) => {
     const intl = useIntl();
-    const say = (message, values) => intl.formatMessage(message, values);
+    const say = (message, values) => intl.formatMessage(message, {assistant: name, ...values});
     const {title, values, summary, steps, risk, mode, index, askingChange, note, seconds} = proposal;
     const shownAt = useRef(Date.now());
     const changeBox = useRef(null);
@@ -169,6 +169,8 @@ Question.propTypes = {
         reject: PropTypes.func.isRequired,
         stepByStep: PropTypes.func.isRequired
     }).isRequired,
+    // What the helper is called.
+    name: PropTypes.string.isRequired,
     proposal: PropTypes.shape({
         title: PropTypes.shape({id: PropTypes.string}).isRequired,
         values: PropTypes.shape({number: PropTypes.number, count: PropTypes.number}).isRequired,
@@ -186,13 +188,14 @@ Question.propTypes = {
     }).isRequired
 };
 
-const ProposalDialog = ({gate}) => {
+const ProposalDialog = ({gate, name}) => {
     const {proposal} = useSyncExternalStore(gate.subscribe, gate.getState);
     // A new question gets a dialog of its own, so that it is read from the start.
     return proposal ? (
         <Question
             gate={gate}
             key={proposal.serial}
+            name={name}
             proposal={proposal}
         />
     ) : null;
@@ -202,7 +205,8 @@ ProposalDialog.propTypes = {
     gate: PropTypes.shape({
         getState: PropTypes.func.isRequired,
         subscribe: PropTypes.func.isRequired
-    }).isRequired
+    }).isRequired,
+    name: PropTypes.string.isRequired
 };
 
 export {

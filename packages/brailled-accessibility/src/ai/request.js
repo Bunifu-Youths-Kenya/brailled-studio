@@ -74,6 +74,7 @@ const buildRequest = ({ports, transcript, previous = null, revises = null}) => {
         mode: ports.mode(),
         history: ports.history(),
         language: ports.language(),
+        assistantName: ports.assistantName(),
         context: clipAll(ports.snapshot()),
         program: lines,
         data: ports.data().slice(0, LIMITS.data)

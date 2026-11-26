@@ -3,15 +3,17 @@ import {createIntl} from 'react-intl';
 
 import {getEditor} from '../commands/editor.js';
 import {createConfig, fetchConfig} from '../config.js';
+import {createIntroduction, introductionText} from '../introduction.js';
 import {createLibrary} from '../library.js';
 import {createMemory} from '../memory.js';
+import {DEFAULT_ASSISTANT_NAME} from '../names.js';
 import {createSettings, storageOf} from '../settings.js';
 import {createReader} from '../speech/read-aloud.js';
 import {SCRIPTS_VIEWS} from '../views.js';
 import {accessibleName, focusableWithin, roleOf, zoneElement, zoneOf} from './dom.js';
 import {roleNames, speech} from './messages.js';
 import {ACTIONS, findAction} from './registry.js';
-import {matches} from './shortcuts.js';
+import {matches, TALK_KEYS} from './shortcuts.js';
 import {buildSnapshot} from './snapshot.js';
 
 const BLOCKS_TAB = 0;
@@ -54,10 +56,20 @@ const focusWhenReady = (find, done = () => {}) => {
     requestAnimationFrame(() => requestAnimationFrame(attempt));
 };
 
+// The browser's storage for one session, which can be switched off.
+const sessionOf = scope => {
+    try {
+        return scope.sessionStorage || null;
+    } catch {
+        return null;
+    }
+};
+
 const createApp = (vm, {
     config = createConfig(),
     settings = createSettings(storageOf(globalThis)),
-    reader = createReader(globalThis)
+    reader = createReader(globalThis),
+    session = sessionOf(globalThis)
 } = {}) => {
     // Each part of the interface registers an object of its own under a name.
     const parts = new Map();
@@ -72,8 +84,10 @@ const createApp = (vm, {
     let preface = null;
     let prefaceTimer = null;
 
+    const assistantName = () => config.get().assistantName || DEFAULT_ASSISTANT_NAME;
     const app = {
         vm,
+        assistantName,
         editor: getEditor(vm),
         config,
         settings,
@@ -98,6 +112,7 @@ const createApp = (vm, {
             memory.clear();
             chosenMode = null;
             modeChanged();
+            app.introduction.forget();
             settings.reset();
         },
 
@@ -112,7 +127,8 @@ const createApp = (vm, {
         setIntl: next => {
             intl = next;
         },
-        say: (message, values) => intl.formatMessage(message, values),
+        // Any message may name the assistant.
+        say: (message, values) => intl.formatMessage(message, {assistant: assistantName(), ...values}),
 
         register: (name, part) => {
             parts.set(name, part);
@@ -145,6 +161,7 @@ const createApp = (vm, {
                 const full = preface ? `${preface} ${text}` : text;
                 preface = null;
                 clearTimeout(prefaceTimer);
+                app.introduction.heard(full);
                 listeners.forEach(listener => listener(full));
                 app.speak(full);
             }, ANNOUNCE_DELAY_MS);
@@ -300,6 +317,29 @@ const createApp = (vm, {
 
         snapshot: () => buildSnapshot({app, document, intl, actions: app.availableActions()})
     };
+    // Added once the app it speaks through exists.
+    app.introduction = createIntroduction({
+        compose: ({length}) => {
+            const {voice, ai, approval} = config.get();
+            const {studentName, talkKey} = settings.get();
+            const canTalk = voice && !!parts.get('voice')?.isSupported();
+            return introductionText({
+                say: (message, values) => app.say(message, values),
+                locale: intl.locale,
+                length,
+                student: studentName,
+                ai: !!ai,
+                approval,
+                actions: ACTIONS.map(action => action.id),
+                talkKey: canTalk ? TALK_KEYS[talkKey].name : null,
+                typeKey: findAction('help.commandBox').shortcuts[0].label
+            });
+        },
+        preference: () => settings.get().introduction,
+        announce: text => app.announce(text),
+        silence: () => app.silence(),
+        session
+    });
     return app;
 };
 

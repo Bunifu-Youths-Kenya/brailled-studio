@@ -18,6 +18,7 @@ const request = (changes: Partial<AssistantRequest> = {}): AssistantRequest => (
   mode: 'build',
   history: [],
   language: 'en',
+  assistantName: 'Mboni',
   context: { sprite: { name: 'Sprite1' } },
   program: ['script 1', '  b1 event_whenflagclicked: when green flag clicked', '  b2 motion_movesteps: move 10 steps'],
   data: ['variable "score" for all sprites'],
@@ -68,6 +69,13 @@ describe('the tools', () => {
     for (const name of ['run_project', 'execute', 'approve', 'toString', '__proto__']) {
       expect(text(call(name, {}))).toMatch(/There is no tool/)
     }
+  })
+
+  it('are the ones the editor introduces the assistant by', () => {
+    const listed = JSON.parse(
+      readFileSync(new URL('../../brailled-accessibility/src/catalog/tools.json', import.meta.url), 'utf8'),
+    ) as Record<string, string[]>
+    expect(listed).toEqual({ build: names('build'), guide: names('guide') })
   })
 
   it('offer no way to propose in guide mode, and refuse it if called anyway', () => {

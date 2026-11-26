@@ -88,6 +88,7 @@ passed on:
 | `mode` | `build` or `guide` |
 | `history` | At most 12 turns of the recent conversation |
 | `language` | The editor's language |
+| `assistantName` | What the assistant is called: letters, spaces, hyphens and apostrophes, at most 30 |
 | `context` | The editor's context snapshot: view, focus, sprite, place in the outline, device and running state |
 | `program` | The selected sprite's program, one line per block, with references such as `b2` |
 | `data` | Names of variables, lists and messages |

@@ -28,7 +28,9 @@ const setUp = ({supported = true, config = configured()} = {}) => {
     const vm = {runtime: {threads: []}, editingTarget: null, start: jest.fn(), stopAll: jest.fn()};
     const reader = {speak: jest.fn(() => true), stop: jest.fn(), isAvailable: () => true};
     const settings = createSettings(null);
-    const app = createApp(vm, {config, settings, reader});
+    // Introduced already, so that the talk key listens.
+    const session = {getItem: () => 'yes', setItem: () => {}, removeItem: () => {}};
+    const app = createApp(vm, {config, settings, reader, session});
     const heard = [];
     app.subscribe(text => heard.push(text));
     const provider = fakeProvider(supported);
@@ -103,7 +105,7 @@ describe('holding to talk', () => {
         const {vm, say, heard} = setUp();
         say('draw me a house');
         expect(heard).toEqual([expect.stringMatching(
-            /^I heard: draw me a house\. That is not a command I know, and there is no AI helper here/)]);
+            /^I heard: draw me a house\. That is not a command I know, and Mboni is not connected here/)]);
         expect(vm.start).not.toHaveBeenCalled();
         expect(vm.stopAll).not.toHaveBeenCalled();
     });
@@ -438,6 +440,7 @@ describe('the configuration', () => {
             approval: 'every',
             proposalExpirySeconds: 120,
             assistantMode: 'build',
+            assistantName: 'Mboni',
             unreadable: false});
     });
 
@@ -452,6 +455,7 @@ describe('the configuration', () => {
             approval: 'every',
             proposalExpirySeconds: 120,
             assistantMode: 'build',
+            assistantName: 'Mboni',
             unreadable: true});
     });
 
@@ -530,7 +534,13 @@ describe('reset for a new student', () => {
         settings.reset();
         expect(values[STORAGE_KEY]).toBeUndefined();
         expect(settings.get()).toEqual({
-            talkKey: 'f2', maxSeconds: 15, readAloud: false, screenReader: null, questionDismissed: false
+            talkKey: 'f2',
+            maxSeconds: 15,
+            readAloud: false,
+            screenReader: null,
+            studentName: '',
+            introduction: 'full',
+            questionDismissed: false
         });
         expect(listener).toHaveBeenCalled();
         expect(createSettings(storage).get().screenReader).toBeNull();

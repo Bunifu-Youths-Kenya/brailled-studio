@@ -24,8 +24,8 @@ describe('what is sent', () => {
         const [{url, options, body}] = requests;
         expect(url).toBe('/api/assistant');
         expect(options).toMatchObject({method: 'POST', credentials: 'omit', referrerPolicy: 'no-referrer'});
-        expect(Object.keys(body).sort()).toEqual(['actions', 'blocks', 'context', 'data', 'history', 'language',
-            'mode', 'names', 'program', 'spriteCategories', 'transcript']);
+        expect(Object.keys(body).sort()).toEqual(['actions', 'assistantName', 'blocks', 'context', 'data',
+            'history', 'language', 'mode', 'names', 'program', 'spriteCategories', 'transcript']);
         expect(body.program).toContainEqual(expect.stringMatching(/^ {2}b[0-9]+ motion_movesteps: move/));
         expect(body.actions.map(action => action.id).filter(id => id.startsWith('edit.'))).toEqual([]);
         expect(options.body).not.toMatch(/<[a-z]+[ >]|data:image/);
@@ -88,9 +88,9 @@ describe('replies', () => {
         app.settings.set({readAloud: true});
         assistant.handle('what is a loop');
         await settle();
-        expect(heard).toEqual(['Asking the AI helper.']);
+        expect(heard).toEqual(['Asking Mboni.']);
         expect(assistant.getState()).toEqual({busy: false, reply: explanation});
-        expect(reader.speak.mock.calls.at(-1)[0]).toBe('The AI helper says. A loop repeats blocks.');
+        expect(reader.speak.mock.calls.at(-1)[0]).toBe('Mboni says. A loop repeats blocks.');
     });
 
     test.each([
@@ -142,7 +142,7 @@ describe('replies', () => {
         assistant.handle('hello');
         assistant.handle('hello again');
         await settle();
-        expect(heard.at(-1)).toBe('Still waiting for the AI helper.');
+        expect(heard.at(-1)).toBe('Still waiting for Mboni.');
         expect(fetch).toHaveBeenCalledTimes(1);
         await settle(TIMEOUT_MS);
         expect(heard.at(-1)).toMatch(/cannot be reached/);

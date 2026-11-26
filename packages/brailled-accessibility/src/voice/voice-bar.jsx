@@ -101,6 +101,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     const talkKey = TALK_KEYS[useSettings(app).talkKey];
     // Off until the configuration says otherwise. Then there is nothing to hear, set or send.
     const {voice: allowed, aiEndpoint} = useSyncExternalStore(app.config.subscribe, app.config.get);
+    const assistant = useSyncExternalStore(app.config.subscribe, app.assistantName);
     const off = allowed !== true;
     const aiMode = useSyncExternalStore(app.subscribeMode, app.mode);
 
@@ -122,6 +123,12 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
                 event.preventDefault();
                 event.stopPropagation();
                 voice.cancel();
+                return;
+            }
+            // Escape also stops the introduction. A dialog keeps the key for itself.
+            if (event.key === 'Escape' && !hasOpenDialog(document) && app.introduction.skip()) {
+                event.preventDefault();
+                event.stopPropagation();
                 return;
             }
             // Read when pressed, so that a new choice applies at once.
@@ -198,7 +205,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     const handleYes = voice.confirm;
 
     const listening = state.phase === 'listening';
-    const words = {key: talkKey.name, ...state.status.values};
+    const words = {assistant, key: talkKey.name, ...state.status.values};
     const status = state.status.text ?? intl.formatMessage(state.status.message, words);
     const hint = intl.formatMessage(voiceMessages.confirmHint, words);
     const heardLine = intl.formatMessage(voiceMessages.heard, {text: state.heard});
@@ -287,7 +294,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
                                 className={styles.mode}
                                 data-voice-mode={aiMode}
                             >
-                                {intl.formatMessage(voiceMessages.mode, {mode: aiMode})}
+                                {intl.formatMessage(voiceMessages.mode, {assistant, mode: aiMode})}
                             </span>
                         ) : null}
                         {off ? null : (
@@ -306,7 +313,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
                         data-voice-notice
                         id="brailled-voice-privacy"
                     >
-                        {intl.formatMessage(notice)}
+                        {intl.formatMessage(notice, {assistant})}
                     </p>
                 </div>
             ) : null}

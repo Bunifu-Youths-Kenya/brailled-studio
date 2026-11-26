@@ -14,7 +14,13 @@ const memory = (initial = {}) => {
 };
 
 const defaults = {
-    talkKey: 'f2', maxSeconds: 15, readAloud: false, screenReader: null, questionDismissed: false
+    talkKey: 'f2',
+    maxSeconds: 15,
+    readAloud: false,
+    screenReader: null,
+    studentName: '',
+    introduction: 'full',
+    questionDismissed: false
 };
 
 describe('settings', () => {

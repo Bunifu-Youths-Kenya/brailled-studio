@@ -15,14 +15,14 @@ const voiceMessages = fromTexts('brailled.voice', 'Voice input', {
     words: 'What was heard, and the reply',
     nothingHeard: 'Nothing heard yet.',
     heard: 'I heard: {text}.',
-    ready: 'Hold {key}, or this button, while you speak.',
+    ready: 'Hold {key}, or this button, to talk to {assistant}.',
     privacy: 'Privacy: when you use voice, your browser may send the sound of your speech to an online ' +
         'service. Chrome sends it to Google.',
-    aiNotice: 'AI helper is on: text you type for it, and your program, are sent to an online service.',
-    aiNoticeWithVoice: 'AI helper is on: text you type or say to it, and your program, are sent to an online ' +
+    aiNotice: '{assistant} (AI) is on: text you type for it, and your program, are sent to an online service.',
+    aiNoticeWithVoice: '{assistant} (AI) is on: text you type or say to it, and your program, are sent to an online ' +
         'service. Chrome sends speech to Google.',
     settings: 'Voice settings',
-    mode: '{mode, select, guide {Guide mode} other {Build mode}}',
+    mode: '{assistant}: {mode, select, guide {Guide mode} other {Build mode}}',
     starting: 'Opening the microphone.',
     listeningHold: 'Listening. Let go when you have finished.',
     listeningTap: 'Listening. Speak now.',

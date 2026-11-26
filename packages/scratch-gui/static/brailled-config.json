@@ -1,5 +1,6 @@
 {
     "voice": true,
+    "assistantName": "Mboni",
     "ai": false,
     "aiEndpoint": "",
     "approval": "every time",

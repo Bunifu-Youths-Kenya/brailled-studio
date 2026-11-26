@@ -1,0 +1,23 @@
+{
+    "build": [
+        "find_blocks",
+        "describe_block",
+        "get_program",
+        "get_context",
+        "search_library",
+        "explain_concept",
+        "ask_question",
+        "give_explanation",
+        "submit_proposal"
+    ],
+    "guide": [
+        "find_blocks",
+        "describe_block",
+        "get_program",
+        "get_context",
+        "search_library",
+        "explain_concept",
+        "ask_question",
+        "give_explanation"
+    ]
+}

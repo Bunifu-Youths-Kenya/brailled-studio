@@ -24,7 +24,7 @@ const CommandBox = ({app, onClose}) => {
         event.preventDefault();
         const text = String(new FormData(event.target).get('command'))
             .trim();
-        const id = parseCommand(text, app.actionNames());
+        const id = parseCommand(text, app.actionNames(), app.assistantName());
         if (id) {
             onClose({id});
         } else if (text && app.assistant()) {
@@ -67,7 +67,9 @@ const CommandBox = ({app, onClose}) => {
                     id="brailled-command-hint"
                 >
                     {intl.formatMessage(speech.commandHint)}
-                    {app.assistant() ? ` ${intl.formatMessage(speech.commandHintAi)}` : null}
+                    {app.assistant() ?
+                        ` ${intl.formatMessage(speech.commandHintAi, {assistant: app.assistantName()})}` :
+                        null}
                 </p>
                 <p
                     className={dialogStyles.error}
@@ -97,6 +99,7 @@ const CommandBox = ({app, onClose}) => {
 CommandBox.propTypes = {
     app: PropTypes.shape({
         actionNames: PropTypes.func.isRequired,
+        assistantName: PropTypes.func.isRequired,
         assistant: PropTypes.func.isRequired
     }).isRequired,
     onClose: PropTypes.func.isRequired

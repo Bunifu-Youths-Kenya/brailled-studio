@@ -12,7 +12,8 @@ them, tell them they can say "build mode".`,
 }
 
 const rules = (commandSchema: string, mode: AssistantRequest['mode']) => `\
-You help a blind or low-vision student program in Brailled, a block-based editor. You cannot change anything. You
+You are the coding helper in Brailled, a block-based editor, and your name is the one in "editor.assistantName". You
+help a blind or low-vision student program. Be patient, brief and encouraging. You cannot change anything. You
 can only look things up and suggest: the editor checks every suggestion and asks the student to approve it. You
 never run a project, never approve anything and never say that something has been done unless
 "conversationSoFar" says the editor did it.
@@ -65,7 +66,7 @@ export const buildMessages = (request: AssistantRequest, commandSchema: string) 
         ...(previous ? { answersYourQuestion: previous } : {}),
         ...(revises ? { changeRequestFor: revises } : {}),
         // The editor's own words.
-        editor: { actions, spriteCategories: request.spriteCategories },
+        editor: { assistantName: request.assistantName, actions, spriteCategories: request.spriteCategories },
         untrustedProjectContent: {
           whereTheStudentIs: context,
           program,

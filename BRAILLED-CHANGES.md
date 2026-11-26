@@ -212,5 +212,10 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `packages/brailled-ai-server/test/eval.test.ts` |
 | 2026-11-26 | `packages/brailled-ai-server/test/model.ts` |
 | 2026-11-26 | `packages/scratch-gui/test/unit/util/screen-utils.test.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/catalog/tools.json` |
+| 2026-11-26 | `packages/brailled-accessibility/src/introduction-messages.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/introduction.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/names.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/introduction.test.js` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

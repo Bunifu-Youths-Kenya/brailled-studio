@@ -294,7 +294,7 @@ describe('the approval gate', () => {
         context.gate.take({summary: 'Wait a bit.', steps: [wait]});
         await context.settle();
         expect(context.reader.speak.mock.calls.at(-1)[0]).toBe(
-            'The AI helper suggests a change. Approve it? The AI says: Wait a bit. ' +
+            'Mboni suggests a change. Approve it? Mboni says: Wait a bit. ' +
             '1. Add wait 5 seconds, after move 10 steps. ' +
             'Say yes or go ahead, say no, or say change it, and what to change. ' +
             'If there is no answer in 2 minutes, it is cancelled.');

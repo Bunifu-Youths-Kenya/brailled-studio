@@ -12,6 +12,7 @@ export interface AssistantRequest {
   mode: 'build' | 'guide'
   history: Turn[]
   language: string
+  assistantName: string
   context: Record<string, unknown>
   program: string[]
   data: string[]
@@ -82,6 +83,9 @@ const turn: Check<Turn> = (value) => {
   return said !== null && (who === 'student' || who === 'assistant' || who === 'editor') ? { who, text: said } : null
 }
 
+// Letters, with spaces, hyphens or apostrophes between them: a name, not a sentence or an instruction.
+const NAME = /^\p{L}(?:[\p{L}\p{M} '’-]{0,28}[\p{L}\p{M}])?$/u
+
 const OPTIONAL = ['previous', 'revises']
 
 const fields: Record<keyof AssistantRequest, Check<unknown>> = {
@@ -89,6 +93,7 @@ const fields: Record<keyof AssistantRequest, Check<unknown>> = {
   mode: (value) => (value === 'build' || value === 'guide' ? value : null),
   history: list(12, turn),
   language: text(35),
+  assistantName: (value) => (typeof value === 'string' && NAME.test(value) ? value : null),
   context,
   program: list(400, text(300)),
   data: list(200, text(300)),

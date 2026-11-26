@@ -54,6 +54,10 @@ const ACTIONS = [
         shortcuts: [altShift('H')],
         run: app => describeAbilities(app.snapshot(), app.intl())
     }),
+    define('help.introduce', {
+        proposable: false,
+        run: app => app.introduction.ask()
+    }),
     define('help.commandBox', {
         proposable: false,
         shortcuts: [altShift('K')],

@@ -2,12 +2,12 @@ import {defineMessages} from 'react-intl';
 
 // What the approval gate shows and says.
 const proposalMessages = defineMessages(Object.fromEntries(Object.entries({
-    title: 'The AI helper suggests a change. Approve it?',
-    titleMany: 'The AI helper suggests {count} steps. Approve them?',
+    title: '{assistant} suggests a change. Approve it?',
+    titleMany: '{assistant} suggests {count} steps. Approve them?',
     titleStep: 'Step {number} of {count}. Approve it?',
     warning: 'Warning: this is hard to undo. Nothing happens unless you say yes.',
     hardToUndo: 'hard to undo',
-    summary: 'The AI says: {summary}',
+    summary: '{assistant} says: {summary}',
     howToAnswer: 'Say yes or go ahead, say no, or say change it, and what to change.',
     howToAnswerMany: 'Say yes to do all the steps, step by step to approve each one, no, or change it, and what ' +
         'to change.',

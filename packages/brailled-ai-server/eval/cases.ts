@@ -32,6 +32,7 @@ export const loadCases = () => read<Case[]>('cases.json')
 export const requestFor = (entry: Case): AssistantRequest => {
   const projects = read<Record<string, object>>('projects.json')
   const read_ = readRequest({
+    assistantName: 'Mboni',
     ...projects[entry.project],
     transcript: entry.request,
     mode: entry.mode,

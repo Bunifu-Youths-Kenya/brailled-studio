@@ -2,6 +2,7 @@
 
 // Extra ways of saying an action, in English. Each action's own name is understood too.
 const PHRASES = {
+    'help.introduce': ['introduce yourself', 'who are you', 'what is your name', 'what\'s your name'],
     'help.whereAmI': ['where am i', 'where is this', 'location'],
     'help.whatCanIDo': ['what can i do here', 'what can i do', 'help', 'options'],
     'program.describe': ['read program', 'read the program', 'read my program', 'describe program',
@@ -56,10 +57,15 @@ const findIn = (table, phrase) => Object.keys(table).find(id => table[id].includ
  * Work out which action a command asks for.
  * @param {string} text What was typed.
  * @param {Array<{id: string, name: string}>} [actionNames] Actions with their names in the user's language.
+ * @param {string} [assistantName] What the assistant is called. Calling it asks who it is; before a command it is
+ * left out.
  * @returns {?string} The action's id, or null if the command is not understood.
  */
-const parseCommand = (text, actionNames = []) => {
-    const command = normalise(text);
+const parseCommand = (text, actionNames = [], assistantName = '') => {
+    let command = normalise(text);
+    const name = normalise(assistantName);
+    if (name && command === name) return 'help.introduce';
+    if (name && command.startsWith(`${name} `)) command = normalise(command.slice(name.length + 1));
     if (!command) return null;
     const exact = findIn(PHRASES, command) ||
         actionNames.find(action => normalise(action.name) === command)?.id;

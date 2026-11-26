@@ -47,6 +47,7 @@ const connect = (app, endpoint) => {
 
 const AssistantHost = ({app}) => {
     const {aiEndpoint, voice} = useSyncExternalStore(app.config.subscribe, app.config.get);
+    const name = useSyncExternalStore(app.config.subscribe, app.assistantName);
     const {talkKey} = useSyncExternalStore(app.settings.subscribe, app.settings.get);
     const [helper, setHelper] = useState(null);
 
@@ -64,15 +65,20 @@ const AssistantHost = ({app}) => {
         <React.Fragment>
             <Replies
                 assistant={helper.assistant}
+                name={name}
                 talkKey={voice ? TALK_KEYS[talkKey].name : null}
             />
-            <ProposalDialog gate={helper.gate} />
+            <ProposalDialog
+                gate={helper.gate}
+                name={name}
+            />
         </React.Fragment>
     ) : null;
 };
 
 AssistantHost.propTypes = {
     app: PropTypes.shape({
+        assistantName: PropTypes.func.isRequired,
         config: PropTypes.shape({get: PropTypes.func.isRequired, subscribe: PropTypes.func.isRequired}).isRequired,
         register: PropTypes.func.isRequired,
         settings: PropTypes.shape({

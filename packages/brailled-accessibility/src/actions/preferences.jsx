@@ -4,7 +4,7 @@ import React, {useCallback, useEffect, useState, useSyncExternalStore} from 'rea
 import {useIntl} from 'react-intl';
 
 import Dialog from '../outline/dialog.jsx';
-import {LISTEN_SECONDS, TALK_KEY_IDS} from '../settings.js';
+import {INTRODUCTIONS, LISTEN_SECONDS, TALK_KEY_IDS} from '../settings.js';
 import voiceMessages from '../voice/messages.js';
 import preferenceMessages from './preference-messages.js';
 import {TALK_KEYS} from './shortcuts.js';
@@ -88,6 +88,9 @@ const VoiceSettings = ({app, onClose}) => {
     const handleKey = useCallback(event => app.settings.set({talkKey: event.target.value}), [app]);
     const handleSeconds = useCallback(
         event => app.settings.set({maxSeconds: Number(event.target.value)}), [app]);
+    const handleName = useCallback(event => app.settings.set({studentName: event.target.value}), [app]);
+    const handleIntroduction = useCallback(
+        event => app.settings.set({introduction: event.target.value}), [app]);
     const handleReadAloud = useCallback(event => {
         const readAloud = event.target.checked;
         app.settings.set({readAloud});
@@ -185,6 +188,54 @@ const VoiceSettings = ({app, onClose}) => {
                 >
                     {note}
                 </p>
+            </div>
+            <div className={dialogStyles.field}>
+                <label
+                    className={dialogStyles.label}
+                    htmlFor="brailled-student-name"
+                >
+                    {intl.formatMessage(preferenceMessages.studentName)}
+                </label>
+                {/* Not controlled, so that a name can be typed with its spaces; what is not a name is not kept. */}
+                <input
+                    aria-describedby="brailled-name-hint"
+                    autoComplete="off"
+                    className={dialogStyles.input}
+                    defaultValue={settings.studentName}
+                    id="brailled-student-name"
+                    maxLength="30"
+                    type="text"
+                    onChange={handleName}
+                />
+                <p
+                    className={dialogStyles.count}
+                    id="brailled-name-hint"
+                >
+                    {intl.formatMessage(preferenceMessages.studentNameHint)}
+                </p>
+            </div>
+            <div className={dialogStyles.field}>
+                <label
+                    className={dialogStyles.label}
+                    htmlFor="brailled-introduction"
+                >
+                    {intl.formatMessage(preferenceMessages.introduction)}
+                </label>
+                <select
+                    className={dialogStyles.input}
+                    id="brailled-introduction"
+                    value={settings.introduction}
+                    onChange={handleIntroduction}
+                >
+                    {INTRODUCTIONS.map(length => (
+                        <option
+                            key={length}
+                            value={length}
+                        >
+                            {intl.formatMessage(preferenceMessages.introductionChoice, {length})}
+                        </option>
+                    ))}
+                </select>
             </div>
             <p className={dialogStyles.field}>
                 {intl.formatMessage(voiceMessages.privacy)}

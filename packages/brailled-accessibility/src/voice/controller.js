@@ -201,13 +201,18 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         return !!reason;
     };
 
+    // The first call of a session is answered with an introduction rather than by listening. Not while something
+    // waits for an answer.
+    const introduced = () => !state.pending && !app.gate()?.isOpen() && !app.assistant()?.isOpen() &&
+        app.introduction.greet();
+
     // The key or button went down.
     const press = source => {
         if (unusable()) return;
         if (state.phase === 'listening') {
             // A second tap ends listening.
             if (state.mode === 'tap') finish();
-        } else if (state.phase === 'idle') {
+        } else if (state.phase === 'idle' && !introduced()) {
             begin('hold', source);
         }
     };
@@ -233,7 +238,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
     const toggle = () => {
         if (unusable()) return;
         if (state.phase === 'listening') finish();
-        else if (state.phase === 'idle') begin('tap');
+        else if (state.phase === 'idle' && !introduced()) begin('tap');
     };
 
     // The window lost focus, so letting go of the key may never be seen.

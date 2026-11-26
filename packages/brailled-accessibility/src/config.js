@@ -2,6 +2,8 @@
  * What whoever runs the editor allows, read from `static/brailled-config.json` when the editor starts, so that
  * it can be changed without rebuilding. Anything that cannot be read is off.
  */
+import {DEFAULT_ASSISTANT_NAME, cleanName} from './names.js';
+
 const CONFIG_URL = 'static/brailled-config.json';
 
 // How long a suggestion from the AI helper waits for an answer, in seconds.
@@ -11,6 +13,7 @@ const BIG_CHANGES_ONLY = 'big changes only';
 
 // What applies until the file says otherwise.
 const SAFEST = Object.freeze({ai: false,
+    assistantName: DEFAULT_ASSISTANT_NAME,
     aiEndpoint: null,
     approval: 'every',
     proposalExpirySeconds: EXPIRY_SECONDS.usual,
@@ -54,6 +57,8 @@ const interpret = file => {
         proposalExpirySeconds: expiryFrom(file.proposalExpirySeconds),
         // How the AI helper starts: suggesting changes, or teaching the student to make them.
         assistantMode: file.assistantMode === 'guide' ? 'guide' : 'build',
+        // What the assistant is called on screen and aloud.
+        assistantName: cleanName(file.assistantName) ?? DEFAULT_ASSISTANT_NAME,
         unreadable: false
     };
 };

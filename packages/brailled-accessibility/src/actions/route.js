@@ -20,14 +20,14 @@ const routeCommand = (app, text, source) => {
     // words come this way.
     const gate = app.gate();
     if (gate?.isOpen()) {
-        if (parseCommand(text, app.actionNames()) === 'project.stop') app.perform('project.stop');
+        if (parseCommand(text, app.actionNames(), app.assistantName()) === 'project.stop') app.perform('project.stop');
         else gate.hear(text);
         return 'gate';
     }
     // While the AI helper's reply is open, what is said is about it, apart from stopping the project.
     const assistant = app.assistant();
     if (assistant?.isOpen()) {
-        const command = parseCommand(text, app.actionNames());
+        const command = parseCommand(text, app.actionNames(), app.assistantName());
         if (command === 'project.stop') {
             app.perform(command);
         } else if (command && assistant.isExplaining()) {
@@ -44,7 +44,7 @@ const routeCommand = (app, text, source) => {
         app.announce(app.say(speech.closeDialog));
         return 'blocked';
     }
-    const id = parseCommand(text, app.actionNames());
+    const id = parseCommand(text, app.actionNames(), app.assistantName());
     if (id) {
         app.perform(id);
         return 'action';

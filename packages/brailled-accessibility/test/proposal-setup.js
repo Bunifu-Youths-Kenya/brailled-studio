@@ -44,6 +44,7 @@ const setUp = ({respond = () => answer({type: 'explanation', text: 'Hello.'}), s
         approval: 'every',
         proposalExpirySeconds: 120,
         assistantMode: 'build',
+        assistantName: 'Mboni',
         ...school};
     const config = {get: () => configured, subscribe: () => () => {}};
     const settings = createSettings(null);
