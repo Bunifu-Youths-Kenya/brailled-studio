@@ -225,5 +225,9 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `packages/brailled-accessibility/test/wake.test.js` |
 | 2026-11-26 | `packages/brailled-accessibility/src/voice/speech-config.js` |
 | 2026-11-26 | `packages/brailled-accessibility/test/speech-config.test.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/voice/audio.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/voice/endpointer.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/voice/recorder.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/recording.test.js` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

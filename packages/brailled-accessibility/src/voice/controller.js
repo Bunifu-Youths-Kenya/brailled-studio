@@ -8,6 +8,8 @@ import voiceMessages from './messages.js';
 // A shorter press of the button is a tap: listen for one phrase. Screen readers often can only tap.
 const TAP_MS = 350;
 const MAX_WAIT_MS = 8000;
+// A provider that records ends by itself at its longest time: this is only in case it does not.
+const SPARE_SECONDS = 5;
 // Below this, the student is asked before anything is done.
 const CONFIDENCE_THRESHOLD = 0.7;
 
@@ -63,10 +65,13 @@ const afterRelease = (release, open) => {
  * @param {{opened: Function, closed: Function}} options.tone Sounds.
  * @param {function(): string} options.language The language to listen for.
  * @param {Function} [options.beforeRun] Called before a command is carried out.
+ * @param {Function} [options.onAudio] Given `{audio, origin}` when the provider records instead of giving words.
  * @param {number} [options.threshold] The confidence needed to act without asking.
  * @returns {object} The controller. `getState` gives `{phase, mode, heard, status, pending}`.
  */
-const createVoice = ({app, provider, tone, language, beforeRun = () => {}, threshold = CONFIDENCE_THRESHOLD}) => {
+const createVoice = ({app, provider, tone, language, beforeRun = () => {}, threshold = CONFIDENCE_THRESHOLD,
+    onAudio = () => {}}) => {
+    const records = () => !!provider.records?.();
     const listeners = new Set();
     // Why voice cannot be used, as a message, or null if it can.
     const problem = () => {
@@ -82,6 +87,8 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         mode: null,
         heard: '',
         status: null,
+        // Whether the sound is being recorded, to be sent to a service.
+        recording: false,
         // `{text, origin, unsure}` while waiting for the student to say yes or no.
         pending: null
     };
@@ -124,7 +131,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         if (state.phase === 'idle') return;
         session?.cancel();
         close();
-        tell(message, {phase: 'idle', mode: null});
+        tell(message, {phase: 'idle', mode: null, recording: false});
     };
 
     // Close the microphone and wait for the words.
@@ -132,7 +139,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         if (state.phase !== 'listening') return;
         clearTimeout(timer);
         timer = setTimeout(() => cancel(voiceMessages.failed), MAX_WAIT_MS);
-        set({phase: 'finishing', status: {message: voiceMessages.working}});
+        set({phase: 'finishing', status: {message: state.recording ? voiceMessages.sending : voiceMessages.working}});
         session?.stop();
     };
 
@@ -157,7 +164,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
             session?.cancel();
             close();
         }
-        set({pending: null, phase: 'idle', mode: null});
+        set({pending: null, phase: 'idle', mode: null, recording: false});
         setTimeout(() => then(text, origin), 50);
     };
     const confirm = () => answer(deliver);
@@ -192,9 +199,11 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
 
     const ended = outcome => {
         close();
-        set({phase: 'idle', mode: null});
+        set({phase: 'idle', mode: null, recording: false});
+        const origin = heldBy === 'wake' ? 'wake' : 'voice';
         if (outcome.error) tell(PROBLEMS[outcome.error] || voiceMessages.failed);
-        else heard(outcome.text, outcome.confidence, heldBy === 'wake' ? 'wake' : 'voice');
+        else if (outcome.audio) onAudio({audio: outcome.audio, origin});
+        else heard(outcome.text, outcome.confidence, origin);
     };
 
     const begin = (mode, source = null) => {
@@ -210,11 +219,18 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         // Anything being read aloud would be heard as speech.
         app.silence();
         // The microphone never stays open longer than the chosen time.
-        timer = setTimeout(finish, app.settings.get().maxSeconds * 1000);
-        set({phase: 'listening', mode, heard: '', status: {message: voiceMessages.starting}});
-        const listening = () => ({
-            message: state.mode === 'hold' ? voiceMessages.listeningHold : voiceMessages.listeningTap
-        });
+        const recording = records();
+        const longest = recording ?
+            app.config.get().speech.maxRecordSeconds + SPARE_SECONDS :
+            app.settings.get().maxSeconds;
+        timer = setTimeout(finish, longest * 1000);
+        set({phase: 'listening', mode, heard: '', recording, status: {message: voiceMessages.starting}});
+        const listening = () => {
+            if (recording) {
+                return {message: state.mode === 'hold' ? voiceMessages.recordingHold : voiceMessages.recordingTap};
+            }
+            return {message: state.mode === 'hold' ? voiceMessages.listeningHold : voiceMessages.listeningTap};
+        };
         const opened = () => {
             if (open) return;
             open = true;
@@ -223,6 +239,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         };
         session = afterRelease(app.wake()?.release() ?? null, () => provider.listen({
             language: language(),
+            held: () => state.mode === 'hold',
             onReady: ifCurrent(opened),
             onHear: ifCurrent(({text, final}) => {
                 opened();
@@ -268,11 +285,13 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
     const release = source => {
         if (state.phase !== 'listening' || state.mode !== 'hold' || source !== heldBy) return;
         if (Date.now() - startedAt < TAP_MS) {
-            if (source !== 'button') {
+            // A recording ends by itself, so the talk key may be tapped as well as the button.
+            if (source !== 'button' && !state.recording) {
                 cancel(voiceMessages.tooShort);
                 return;
             }
-            set({mode: 'tap', status: {message: open ? voiceMessages.listeningTap : voiceMessages.starting}});
+            const tapped = state.recording ? voiceMessages.recordingTap : voiceMessages.listeningTap;
+            set({mode: 'tap', status: {message: open ? tapped : voiceMessages.starting}});
             if (phraseEnded) finish();
         } else if (open) {
             finish();

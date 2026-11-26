@@ -661,3 +661,72 @@ describe('the browser speech provider', () => {
         expect(speechLanguage('sw', 'en-KE')).toBe('sw');
     });
 });
+
+describe('a provider that records', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    const recording = () => {
+        const provider = {...fakeProvider(), records: () => true};
+        const school = configured({speech: {maxRecordSeconds: 20}});
+        const app = createApp({runtime: {threads: []}, editingTarget: null},
+            {config: school,
+                settings: createSettings(null),
+                reader: {speak: () => true,
+                    stop: () => {},
+                    isAvailable: () => true},
+                session: {getItem: () => 'yes', setItem: () => {}, removeItem: () => {}}});
+        const onAudio = jest.fn();
+        const voice = createVoice({app,
+            provider,
+            tone: {opened: () => {}, closed: () => {}},
+            language: () => 'en',
+            onAudio});
+        app.register('voice', voice);
+        return {app, onAudio, provider, voice};
+    };
+    const audio = {data: 'sound', format: 'wav', seconds: 1};
+
+    test('hands over the sound, saying where it came from', () => {
+        const {onAudio, provider, voice} = recording();
+        voice.press('button');
+        expect(voice.getState().recording).toBe(true);
+        provider.last().onEnd({audio});
+        expect(onAudio.mock.calls).toEqual([[{audio, origin: 'voice'}]]);
+        expect(voice.getState()).toMatchObject({phase: 'idle', recording: false});
+        voice.wake({request: '', confidence: 0.9});
+        provider.last().onEnd({audio});
+        expect(onAudio.mock.calls[1]).toEqual([{audio, origin: 'wake'}]);
+    });
+
+    test('listens after a tap of the talk key, until a second press', () => {
+        const {provider, voice} = recording();
+        voice.press('key');
+        provider.last().onReady();
+        voice.release('key');
+        expect(voice.getState()).toMatchObject({phase: 'listening', mode: 'tap'});
+        expect(provider.last().held()).toBe(false);
+        voice.press('key');
+        expect(provider.last().stop).toHaveBeenCalled();
+    });
+
+    test('is told while the key is held, and stops when it is let go', () => {
+        const {provider, voice} = recording();
+        voice.press('key');
+        provider.last().onReady();
+        expect(provider.last().held()).toBe(true);
+        jest.advanceTimersByTime(TAP_MS + 100);
+        voice.release('key');
+        expect(provider.last().stop).toHaveBeenCalled();
+    });
+
+    test('is stopped if it outlasts the longest recording', () => {
+        const {provider, voice} = recording();
+        voice.press('button');
+        provider.last().onReady();
+        jest.advanceTimersByTime(24000);
+        expect(provider.last().stop).not.toHaveBeenCalled();
+        jest.advanceTimersByTime(2000);
+        expect(provider.last().stop).toHaveBeenCalled();
+    });
+});

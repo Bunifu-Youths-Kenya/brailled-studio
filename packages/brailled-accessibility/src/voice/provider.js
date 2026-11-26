@@ -4,6 +4,10 @@
  *   isSupported(): boolean
  *   listen({language, onReady, onHear, onEnd}): {stop(), cancel()}
  *
+ * A provider whose service listens to the sound itself (see `recorder.js`) also has `records(): true`, ends with
+ * `{audio: {data, format, seconds}}` in place of words, and ends by itself after a pause. Its `listen` is also
+ * given `held()`, true while the talk key is held down, when a pause ends nothing.
+ *
  * `listen` opens the microphone until `stop` or `cancel`. `onReady()` means it is open. `onHear({text, final})`
  * reports the words so far; `final` marks the end of a phrase. `onEnd` is called once, with `{text, confidence}`
  * or `{error}`, but not after `cancel`. `confidence` is from 0 to 1, or null if the service gives none. Errors

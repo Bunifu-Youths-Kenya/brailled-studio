@@ -257,6 +257,22 @@ with `"enabled": true`.
 
 No key or other secret belongs in this file: it is served to every browser.
 
+### Recording
+
+For a provider that listens to the sound itself, `src/voice/recorder.js` records the microphone only while a request
+is being taken, turns it into WAV (16 kHz, one channel, 16 bit) and hands it over. Nothing is stored.
+
+| It stops | |
+| - | - |
+| After `silenceSeconds` of quiet, once someone has spoken | Tap and wake word. Room noise is allowed for. Not while the talk key is held |
+| When the talk key is let go, or pressed again after a tap | A short tap of the key starts a recording that ends by itself |
+| At `maxRecordSeconds` | Always |
+| After 8 seconds in which nobody spoke | Nothing is sent. Not while the key is held |
+| When the student says "done" | Only with `"doneWord": true`, which runs the browser's speech recognition beside the recording, so the sound also goes to its service (Chrome: Google). Without it, a pause ends the recording |
+
+A tone marks the start and the end. Silence is judged from loudness alone and has not been tried in a real
+classroom.
+
 ### Changing the speech service
 
 `src/voice/provider.js` describes the interface: `isSupported()` and
