@@ -32,6 +32,8 @@ const describeNode = html => html.replace(/_[A-Za-z0-9+/-]{5}(?=["\s])/g, '');
     const browser = await chromium.launch({executablePath});
     const page = await browser.newPage({viewport: {width: 1366, height: 768}});
     page.setDefaultTimeout(8000);
+    // Never the file on this computer, which may turn on a real AI helper.
+    await page.route('**/brailled-config.json', route => route.fulfill({json: {voice: true}}));
     // Leaving the page is allowed, as it is reloaded below; other prompts are turned down.
     page.on('dialog', d => (d.type() === 'beforeunload' ? d.accept() : d.dismiss()));
     const cdp = await page.context().newCDPSession(page);

@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import React from 'react';
 import {defineMessages, FormattedMessage, useIntl} from 'react-intl';
 
+import logo from './brand/brailled-logo.svg';
 import styles from './menu-bar-items.css';
 
 const messages = defineMessages({
@@ -23,8 +24,17 @@ const messages = defineMessages({
     }
 });
 
-// Placeholder for the product logo.
-const BrandName = () => <span className={styles.brandName}>{'Brailled'}</span>;
+// The product logo, on white as it is drawn. Its name is what the lettering says, which is not translated.
+const BrandName = () => (
+    <span className={styles.brand}>
+        <img
+            alt="Brailled Education"
+            className={styles.brandLogo}
+            draggable={false}
+            src={logo}
+        />
+    </span>
+);
 
 const LanguageControl = ({className, icon, Selector}) => {
     const intl = useIntl();

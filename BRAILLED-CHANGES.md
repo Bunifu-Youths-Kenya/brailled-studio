@@ -36,6 +36,8 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-25 | `AGENTS.md` | Lists the `brailled-accessibility` and `brailled-ai-server` packages. | The guide asks for the layout to stay current. |
 | 2026-11-26 | `packages/scratch-gui/src/components/target-pane/target-pane.jsx` | Passes the stage tabs the sprite library, a way to close it, and the library's random placing of a new sprite. | The AI helper's approved "add a sprite". |
 | 2026-11-26 | `.gitignore` | Ignores every `.env*` file except `.env.example`. | `.env` files hold the AI server's API key. |
+| 2026-11-26 | `packages/scratch-gui/static/favicon.ico` | The Scratch icon is replaced by Brailled's braille cell, made from `packages/logos/fav.png` on a white tile. | The product must not ship the Scratch logo. |
+| 2026-11-26 | `packages/scratch-gui/webpack.config.js` | Page titles say "Brailled" instead of "Scratch". | The product must not ship the Scratch name. |
 
 ## Files added by Brailled
 
@@ -187,5 +189,7 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `packages/brailled-accessibility/test/proposals.test.js` |
 | 2026-11-26 | `packages/brailled-ai-server/test/no-network.ts` |
 | 2026-11-26 | `packages/brailled-ai-server/vitest.config.ts` |
+| 2026-11-26 | `packages/brailled-accessibility/src/brand/brailled-logo.svg` |
+| 2026-11-26 | `packages/logos/fav.png` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

@@ -6,7 +6,8 @@ the editor needs around them.
 | Source file | What it provides |
 | - | - |
 | `src/shell.jsx` | Skip links, zone ids and the focus indicator |
-| `src/menu-bar-items.jsx` | Product name, language picker, Save, Help and Examples |
+| `src/menu-bar-items.jsx` | Product logo, language picker, Save, Help and Examples |
+| `src/brand/brailled-logo.svg` | The logo from `packages/logos`, trimmed to the lettering, without its square white background |
 | `src/stage-tabs.jsx` | Devices, Sprites and Background tabs under the stage |
 | `src/devices-panel.jsx` | Devices panel (interface only; nothing connects yet) |
 | `src/scripts-views.jsx` | Blocks / Outline / Python toggle |
@@ -105,7 +106,8 @@ off the device.
 | `voice.settings` | | "voice settings" |
 
 - **Typed commands** go in the command box, and spoken ones come from the voice bar. Both are matched against
-  fixed English phrases and the action names in the user's language. Anything else goes to the
+  fixed English phrases and the action names in the user's language, ignoring a greeting such as "hey" or
+  "okay" at the start and "please" at either end. Anything else goes to the
   [AI helper](#ai-helper); without one the command box refuses it with a hint.
 - **Answers** are spoken through one live region that stays available on every tab.
 - **Next and previous** move through the outline when it is shown, and otherwise through the controls of the

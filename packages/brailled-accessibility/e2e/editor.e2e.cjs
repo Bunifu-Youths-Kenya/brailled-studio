@@ -122,7 +122,8 @@ const startAiServer = async (env = {}) => {
         page.setDefaultTimeout(15000);
         if (!firstVisit) await page.addInitScript(answered);
         for (const script of [init].flat()) await page.addInitScript(script);
-        if (config) await page.route('**/brailled-config.json', route => route.fulfill(config));
+        // Never the file on this computer, which may turn on a real AI helper: no check may reach one.
+        await page.route('**/brailled-config.json', route => route.fulfill(config || {json: {voice: true}}));
         page.on('pageerror', e => errors.push(`${title}: ${e.message}`));
         page.on('console', m => {
             const text = m.text();
@@ -217,7 +218,25 @@ const startAiServer = async (env = {}) => {
         const [aside, main] = [await rect('aside'), await rect('main')];
         check('stage column is left of the scripts area', aside.right <= main.x + 1);
         const header = await page.$eval('header', h => h.innerText);
-        check('menu bar names Brailled', /Brailled/.test(header) && /Save/.test(header));
+        check('menu bar has Save', /Save/.test(header));
+        const logo = page.locator('header').getByRole('img', {name: 'Brailled Education'});
+        for (const width of [1366, 1024]) {
+            await page.setViewportSize({width, height: 768});
+            await page.waitForTimeout(600);
+            const shown = await logo.evaluate(img => {
+                const [own, bar] = [img.getBoundingClientRect(), img.closest('header').getBoundingClientRect()];
+                const last = Array.from(img.closest('header').querySelectorAll('button'))
+                    .find(button => button.textContent === 'Examples').getBoundingClientRect();
+                return {loaded: img.complete && img.naturalWidth > 0, width: Math.round(own.width),
+                    height: Math.round(own.height), inside: own.top >= bar.top && own.bottom <= bar.bottom,
+                    ratio: img.naturalWidth / img.naturalHeight, room: last.right <= window.innerWidth};
+            });
+            check(`the logo is in the menu bar at ${width} wide, undistorted, with room for the rest`,
+                shown.loaded && shown.inside && shown.room && shown.height >= 28 &&
+                Math.abs((shown.width / shown.height) - shown.ratio) < 0.1, JSON.stringify(shown));
+            await page.screenshot({path: path.join(out, `logo-${width}.png`)});
+        }
+        await page.setViewportSize({width: 1366, height: 768});
         const marks = await page.$$eval('header,nav,main,aside,[role="navigation"]',
             els => els.map(e => e.getAttribute('aria-label')));
         check('landmarks', ['Skip to', 'Menu topbar', 'Stage and target', 'Editor', 'Block categories']
