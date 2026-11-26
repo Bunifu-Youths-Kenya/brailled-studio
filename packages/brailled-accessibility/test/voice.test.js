@@ -692,11 +692,11 @@ describe('a provider that records', () => {
         voice.press('button');
         expect(voice.getState().recording).toBe(true);
         provider.last().onEnd({audio});
-        expect(onAudio.mock.calls).toEqual([[{audio, origin: 'voice'}]]);
+        expect(onAudio.mock.calls).toEqual([[{audio, origin: 'voice', asked: {proposal: null, pending: null}}]]);
         expect(voice.getState()).toMatchObject({phase: 'idle', recording: false});
         voice.wake({request: '', confidence: 0.9});
         provider.last().onEnd({audio});
-        expect(onAudio.mock.calls[1]).toEqual([{audio, origin: 'wake'}]);
+        expect(onAudio.mock.calls[1][0]).toMatchObject({audio, origin: 'wake'});
     });
 
     test('listens after a tap of the talk key, until a second press', () => {

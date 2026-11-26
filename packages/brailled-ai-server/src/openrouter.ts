@@ -4,7 +4,16 @@ import type { Config } from './config.ts'
 const URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MAX_REPLY_TOKENS = 4000
 
-export type Failure = 'upstream_error' | 'upstream_timeout' | 'invalid_output'
+// `no_endpoint`: nobody serving the model can do what was asked under the privacy settings.
+export type Failure = 'upstream_error' | 'upstream_timeout' | 'invalid_output' | 'no_endpoint'
+
+// What the service says a call used and cost.
+export interface Usage {
+  prompt_tokens?: number
+  completion_tokens?: number
+  cost?: number
+  prompt_tokens_details?: { audio_tokens?: number }
+}
 
 export interface ToolCall {
   id: string
@@ -21,10 +30,11 @@ export interface Message {
   [key: string]: unknown
 }
 
-export type Completion = { message: Message } | { failure: Failure; detail: string }
+export type Completion = { message: Message; usage?: Usage } | { failure: Failure; detail: string }
 
 interface Response_ {
   choices?: { finish_reason?: string; error?: { code?: number }; message?: Message }[]
+  usage?: Usage
 }
 
 export const complete = async (
@@ -33,9 +43,10 @@ export const complete = async (
   tools: unknown[],
   timeoutMs: number,
   fetcher: typeof fetch,
+  model = config.model,
 ): Promise<Completion> => {
   const body = {
-    model: config.model,
+    model,
     messages,
     tools,
     tool_choice: 'auto',
@@ -57,6 +68,7 @@ export const complete = async (
       signal: AbortSignal.timeout(timeoutMs),
     })
     // Error text is not kept: it can quote what was sent.
+    if (response.status === 404) return { failure: 'no_endpoint', detail: 'status 404' }
     if (!response.ok) return { failure: 'upstream_error', detail: `status ${response.status}` }
     answer = (await response.json()) as Response_
   } catch (error) {
@@ -72,5 +84,5 @@ export const complete = async (
   if (choice.finish_reason === 'length' || choice.finish_reason === 'content_filter') {
     return { failure: 'invalid_output', detail: `ended with ${choice.finish_reason}` }
   }
-  return { message: choice.message }
+  return { message: choice.message, usage: answer.usage }
 }

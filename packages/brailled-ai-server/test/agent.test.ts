@@ -190,6 +190,7 @@ describe('the tool loop', () => {
       reply: { type: 'proposal', summary: 'Add a wait.', steps: [wait] },
       rounds: 2,
       tools: ['find_blocks', 'get_program', 'submit_proposal'],
+      usage: [],
     })
     const results = sent[1].messages.filter((message) => message.role === 'tool')
     expect(results).toHaveLength(2)

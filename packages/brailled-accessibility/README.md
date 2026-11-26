@@ -273,6 +273,31 @@ is being taken, turns it into WAV (16 kHz, one channel, 16 bit) and hands it ove
 A tone marks the start and the end. Silence is judged from loudness alone and has not been tried in a real
 classroom.
 
+### Spoken turns
+
+With `"provider": "gemini-pair"` (and the AI helper on), what is recorded goes to the server's
+[`/api/voice-turn`](../brailled-ai-server/README.md#a-spoken-turn), where one model hears it and answers with the
+same tools. It comes back as the words heard, whether the model is sure, and a reply. The editor then decides what
+the words are, as for any speech:
+
+1. A local command runs. Anything that changes the project, runs it or forgets the conversation **asks first**: the
+   words were written down by a model that had also read the project, whose text could try to put words in the
+   student's mouth.
+2. Otherwise the reply is checked and used as for a typed request; a proposal waits for approval.
+3. Doubtful words ask "Should I go ahead?"; none at all asks to hear them again.
+
+**While something waits for an answer**, only the recording is sent, with nothing of the project, and only the words
+come back. They are matched here against yes, no and "change it", in English and in `voice.answers` (Swahili unless
+changed: `ndiyo`, `ndio`, `naam`, `endelea`, `fanya hivyo`; `hapana`, `la`, `usifanye`, `acha`; `badilisha`,
+`badili`). "Sawa", like "okay", approves nothing. An answer is ignored if the question changed or expired since the
+recording began, and a recording overtaken by a newer one is dropped. The wake words never approve.
+
+A request said in the same breath as "Hey Mboni" was already heard by the browser to catch the wake words, and is
+sent as typed words; after "Hey Mboni" alone the request is recorded.
+
+**Falling back.** If no provider can keep to the privacy settings, the server cannot be reached or a limit is
+reached, the editor says so and uses the browser's speech recognition until the page is reloaded.
+
 ### Changing the speech service
 
 `src/voice/provider.js` describes the interface: `isSupported()` and

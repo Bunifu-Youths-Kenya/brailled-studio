@@ -62,6 +62,31 @@ sprites) and the model is told what is wrong so it can try again; the editor the
 - The block catalog and concepts are read from `../brailled-accessibility/src/catalog/`, and sprites from
   `../scratch-gui/src/lib/libraries/sprites.json`: keep them beside the server when deploying.
 
+## A spoken turn
+
+`POST /api/voice-turn` takes a recording, for the editor's `gemini-pair` and `openai-audio` providers.
+
+| Field | Contents |
+| - | - |
+| `audio` | `{data, format: "wav"}`: base64 of 16 kHz, one channel, 16 bit WAV, at most `AI_MAX_AUDIO_SECONDS` |
+| `pending` | Whether something waits for the student's answer |
+| `language`, `model` | The editor's language, and the model to ask, which must be in `AI_AUDIO_MODELS` |
+| `request` | The fields of `/api/assistant` without `transcript`. Left out when `pending` |
+
+The reply is `{transcript, clear, result}`: the words heard, whether the model is sure of them, and a proposal,
+question or explanation, or `null`.
+
+- The recording goes to the model through OpenRouter's **Chat Completions** endpoint as `input_audio`, with the same
+  tool loop. Tried on 2026-11-26 with `google/gemini-3.5-flash-lite` under zero data retention: Chat Completions took
+  audio with tools over several calls, and the Responses endpoint took them too. Each call in a turn sends the
+  recording again.
+- **While something waits for an answer, nothing of the project is sent** and the only tool is `report_heard`, so
+  that text in a project cannot say what the student said. The editor decides what the words mean.
+- `no_endpoint` (OpenRouter's 404) means no provider of the model can keep to the privacy settings.
+- Limits: `VOICE_REQUESTS_PER_MINUTE_PER_ADDRESS`, and a day's total that is the lower of
+  `VOICE_REQUESTS_PER_DAY` and `voice.dailyRequestCap` in the editor's configuration file, read at start.
+- Neither the recording nor the words are stored or logged.
+
 ## Evaluating a model
 
 `eval/cases.json` holds requests with what a good reply contains, for three sample projects recorded from the editor

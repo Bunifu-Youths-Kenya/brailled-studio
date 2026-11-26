@@ -2,6 +2,8 @@
  * What the editor may send. Anything else, an unknown field included, is refused, so that pictures, page content
  * and the like cannot be passed on to the model.
  */
+import { readRecording, type Recording } from './audio.ts'
+
 export interface Turn {
   who: 'student' | 'assistant' | 'editor'
   text: string
@@ -103,6 +105,39 @@ const fields: Record<keyof AssistantRequest, Check<unknown>> = {
   spriteCategories: list(30, text(40)),
   previous,
   revises,
+}
+
+export interface VoiceTurn {
+  audio: Recording
+  // Whether something waits for the student's answer. Then only the words are wanted, and nothing of the project
+  // is sent.
+  pending: boolean
+  language: string
+  model: string
+  request: AssistantRequest | null
+}
+
+// A recording and, unless something waits for an answer, what would go with typed words.
+export const readVoiceTurn = (
+  body: unknown,
+  { maxAudioSeconds, audioModels }: { maxAudioSeconds: number; audioModels: string[] },
+): { turn: VoiceTurn } | { problem: string } => {
+  if (!isObject(body)) return { problem: 'body' }
+  if (!hasOnly(body, ['audio', 'pending', 'language', 'model', 'request'])) return { problem: 'unknown field' }
+  const audio = readRecording(body.audio, maxAudioSeconds)
+  if (!audio) return { problem: 'audio' }
+  const { pending, model } = body
+  if (typeof pending !== 'boolean') return { problem: 'pending' }
+  const language = text(35)(body.language)
+  if (language === null) return { problem: 'language' }
+  if (typeof model !== 'string' || !audioModels.includes(model)) return { problem: 'model' }
+  if (pending) {
+    return body.request === undefined ? { turn: { audio, pending, language, model, request: null } } : { problem: 'request' }
+  }
+  if (!isObject(body.request) || Object.hasOwn(body.request, 'transcript')) return { problem: 'request' }
+  // The words are in the recording.
+  const read = readRequest({ ...body.request, transcript: '(spoken)' })
+  return 'problem' in read ? read : { turn: { audio, pending, language, model, request: read.request } }
 }
 
 // The request, or the name of the first thing wrong with it.

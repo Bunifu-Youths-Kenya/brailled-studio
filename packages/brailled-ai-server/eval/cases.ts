@@ -60,12 +60,15 @@ export const runCases = async (cases: Case[], config: Config, fetcher: typeof fe
       fetcher,
       now: Date.now,
     })
-    const problems =
-      'reply' in answer ? score(answer.reply, entry.expect) : [`no reply: ${answer.failure} (${answer.detail})`]
+    // A typed request always finishes with a reply.
+    const reply = 'reply' in answer ? (answer.reply ?? undefined) : undefined
+    const problems = reply
+      ? score(reply, entry.expect)
+      : [`no reply: ${'failure' in answer ? `${answer.failure} (${answer.detail})` : 'empty'}`]
     results.push({
       id: entry.id,
       problems,
-      reply: 'reply' in answer ? answer.reply : undefined,
+      reply,
       rounds: answer.rounds,
       tools: answer.tools,
     })

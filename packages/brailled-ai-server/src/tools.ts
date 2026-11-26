@@ -6,15 +6,27 @@
 import { search, type Knowledge } from './knowledge.ts'
 import type { AssistantRequest } from './request.ts'
 
+// `turn`: the request is a recording, so what was heard is part of every finishing call. `transcribe`: only what
+// was said is wanted.
+export type Voice = 'turn' | 'transcribe'
+
+export interface Heard {
+  transcript: string
+  // Whether the model is sure of the words.
+  clear: boolean
+}
+
 export interface World {
+  voice?: Voice
   request: AssistantRequest
   knowledge: Knowledge
   // The operations the editor's command schema allows.
   operations: string[]
 }
 
-// What a tool gives back: text for the model, or the finished reply for the editor.
-export type Result = { text: string } | { reply: Record<string, unknown> }
+// What a tool gives back: text for the model, or the finished reply for the editor, with what was heard if the
+// request was a recording.
+export type Result = { text: string } | { reply: Record<string, unknown> | null; heard?: Heard }
 
 type Args = Record<string, unknown>
 
@@ -87,9 +99,45 @@ const PROPOSAL = tool(
   ['summary', 'steps'],
 )
 
+const HEARD = {
+  transcript: string('The words in the recording, as spoken. Empty if none can be made out.'),
+  clear: { type: 'boolean', description: 'False if you are not sure of the words.' },
+}
+const REPORT = tool(
+  'report_heard',
+  'Give the words in the recording and do nothing else.',
+  HEARD,
+  ['transcript', 'clear'],
+)
+
+// A finishing tool that also takes what was heard.
+const withHeard = ({ type, function: made }: ReturnType<typeof tool>) => ({
+  type,
+  function: {
+    ...made,
+    parameters: {
+      ...made.parameters,
+      properties: { ...HEARD, ...made.parameters.properties },
+      required: ['transcript', 'clear', ...made.parameters.required],
+    },
+  },
+})
+
 // In guide mode the student makes the changes, so there is nothing to propose with.
-export const toolsFor = (mode: AssistantRequest['mode'], lastRound = false) =>
-  [...(lastRound ? [] : READING), QUESTION, EXPLANATION, ...(mode === 'build' ? [PROPOSAL] : [])]
+export const toolsFor = (mode: AssistantRequest['mode'], lastRound = false, voice?: Voice) => {
+  if (voice === 'transcribe') return [REPORT]
+  const finishing = [QUESTION, EXPLANATION, ...(mode === 'build' ? [PROPOSAL] : [])]
+  const reading = lastRound ? [] : READING
+  return voice ? [...reading, ...finishing.map(withHeard), REPORT] : [...reading, ...finishing]
+}
+
+const isReading = (name: string) => READING.some((entry) => entry.function.name === name)
+
+const heardIn = (args: Args, mayBeEmpty: boolean): Heard | null => {
+  const { transcript, clear } = args
+  const sound = typeof transcript === 'string' && transcript.length <= 500 && (mayBeEmpty || transcript.trim() !== '')
+  return sound && typeof clear === 'boolean' ? { transcript: transcript.trim(), clear } : null
+}
 
 // A line such as: motion_movesteps (stack) "move 10 steps" STEPS=number
 const available = (world: World) =>
@@ -262,7 +310,7 @@ export const isTool = (name: string) => Object.hasOwn(runners, name)
 
 // Run one tool call. `args` is the text the model gave. A tool that is not offered in this mode is refused.
 export const runTool = (name: string, args: string, world: World): Result => {
-  const offered = toolsFor(world.request.mode).some((entry) => entry.function.name === name)
+  const offered = toolsFor(world.request.mode, false, world.voice).some((entry) => entry.function.name === name)
   if (!offered) return retry(`There is no tool "${name}" here.`)
   let parsed: unknown
   try {
@@ -270,5 +318,12 @@ export const runTool = (name: string, args: string, world: World): Result => {
   } catch {
     return retry('The arguments are not JSON.')
   }
-  return isObject(parsed) ? runners[name](parsed, world) : retry('The arguments must be an object.')
+  if (!isObject(parsed)) return retry('The arguments must be an object.')
+  if (!world.voice || isReading(name)) return runners[name](parsed, world)
+  const heard = heardIn(parsed, name === 'report_heard')
+  if (!heard) return retry('Give "transcript", the words in the recording, and "clear", true or false.')
+  if (name === 'report_heard') return { reply: null, heard }
+  const { transcript: _, clear: __, ...rest } = parsed
+  const result = runners[name](rest, world)
+  return 'reply' in result ? { ...result, heard } : result
 }

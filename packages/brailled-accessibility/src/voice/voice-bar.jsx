@@ -12,6 +12,8 @@ import {createWakeWord} from '../wake/engine.js';
 import {createVoice} from './controller.js';
 import voiceMessages from './messages.js';
 import {createSpeechProvider, speechLanguage} from './provider.js';
+import {createVoiceProviders} from './providers.js';
+import {createRecorderProvider} from './recorder.js';
 import createTone from './tone.js';
 
 import dialogStyles from '../outline/dialog.css';
@@ -93,7 +95,11 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
 
     const [voice] = useState(() => createVoice({
         app,
-        provider: createProvider(window),
+        provider: createVoiceProviders({
+            browser: createProvider(window),
+            recorder: createRecorderProvider(window, () => app.config.get().speech),
+            online: app.online
+        }),
         tone: createTone(window),
         language: () => speechLanguage(locale.current, window.navigator.language),
         beforeRun: () => {
@@ -116,6 +122,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
     const assistant = useSyncExternalStore(app.config.subscribe, app.assistantName);
     const off = allowed !== true;
     const aiMode = useSyncExternalStore(app.subscribeMode, app.mode);
+    const online = useSyncExternalStore(app.online.subscribe, app.online.provider) !== 'browser';
 
     useEffect(() => app.register('voice', voice), [app, voice]);
     useEffect(() => {
@@ -252,6 +259,8 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
     let notice = off ? null : voiceMessages.privacy;
     if (aiEndpoint) notice = off ? voiceMessages.aiNotice : voiceMessages.aiNoticeWithVoice;
     if (waking.on) notice = aiEndpoint ? voiceMessages.wakeNoticeAi : voiceMessages.wakeNotice;
+    if (online) notice = waking.on ? voiceMessages.onlineNoticeWake : voiceMessages.onlineNotice;
+    const recordingNow = listening && state.recording;
     const describedBy = [off ? 'brailled-voice-status' : null, notice ? 'brailled-voice-privacy' : null]
         .filter(Boolean)
         .join(' ');
@@ -298,7 +307,15 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
                 </svg>
                 {intl.formatMessage(buttonText)}
             </button>
-            {waking.on ? (
+            {recordingNow ? (
+                <div
+                    className={styles.wake}
+                    data-voice-recording
+                >
+                    <span className={styles.wakeListening}>{intl.formatMessage(voiceMessages.recording)}</span>
+                </div>
+            ) : null}
+            {waking.on && !recordingNow ? (
                 <div
                     className={styles.wake}
                     data-voice-wake={waking.listening ? 'listening' : 'paused'}

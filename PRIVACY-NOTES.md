@@ -23,6 +23,7 @@ been reviewed for Brailled.
 | When | What is sent | To |
 | - | - | - |
 | Voice is on and a student talks | The sound of their speech | The browser's speech service (Chrome: Google) |
+| [Online voice](#online-voice-gemini-pair-openai-audio) is chosen and a student talks | A recording of their speech | Your AI server, OpenRouter and the model's provider |
 | The AI helper is on and a student **types or says** something that is not an editor command, or answers the helper | That text, with the program and the other items listed under [AI helper](#ai-helper) | Your AI server, OpenRouter and the model's provider |
 
 **Typed text leaves the device too**, not only speech. Editor commands, such as "where am I" or "undo", are worked
@@ -46,6 +47,30 @@ Voice and the AI helper are separate switches in `static/brailled-config.json`:
 `proposalExpirySeconds` decide [what the helper's suggestions need](#ai-helper). While it is on, the bar at the
 bottom of the editor shows "AI helper is on: text you type or say to it, and your program, are sent to an online
 service" (without "or say" where voice is off), and the command box and the helper's questions say the same.
+
+## Online voice (`gemini-pair`, `openai-audio`)
+
+Off unless the school sets `voice.provider` in `brailled-config.json` and the AI helper is on. Then, in place of the
+browser's speech recognition, **the editor records the student's voice and sends the recording** to your AI server,
+which sends it through OpenRouter to the model that hears it (`google/gemini-3.5-flash-lite` unless changed) and
+that model's provider.
+
+| Question | Answer |
+| - | - |
+| When is it recorded? | Only for a request: after the talk key, the button or the wake words, until a pause, the key is let go or pressed again, or the longest time (30 seconds unless changed). Never continuously |
+| What shows it? | A red "Recording" sign, a tone at the start and end, and the notice "When you talk, a recording of your voice goes to OpenRouter and an AI model" |
+| What else is sent? | With a request, the same as for [typed words](#ai-helper): the program, names and recent conversation. **While something waits for a yes or no, only the recording** |
+| Is a recording sent if nobody spoke? | No |
+| Is the audio stored or logged? | No: not by the editor or the server. It is held in memory until sent. What OpenRouter and the provider keep follows their terms and your settings; with zero data retention on, only providers listed as keeping nothing are used. OpenRouter says it screens all requests for child sexual abuse material and may keep what it flags |
+| If no such provider is available | The editor says so and uses the browser's speech recognition instead, **which sends speech to the browser's service (Chrome: Google) and is not covered by that setting** |
+| Who decides yes or no? | The editor, by matching the words. The model's opinion is ignored |
+
+With `"doneWord": true` the browser's speech recognition also runs while recording, to hear "done", so the sound
+goes to its service too. With the wake word on, its demo mode sends the room's sound to that service as described
+below.
+
+A recording of a child's voice is personal data, and voices can identify people. Do what is listed under
+[Notice and consent](#notice-and-consent), naming OpenRouter and the model's provider.
 
 ## Wake word (demo mode)
 

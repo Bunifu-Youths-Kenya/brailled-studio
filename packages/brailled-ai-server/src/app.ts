@@ -1,11 +1,13 @@
 // The server: one endpoint that takes the editor's request and passes back the model's reply.
 import { readFileSync } from 'node:fs'
 import express, { type ErrorRequestHandler, type Request, type RequestHandler, type Response } from 'express'
+import { base64Length } from './audio.ts'
 import type { Config } from './config.ts'
+import { readCaps, type Caps } from './editor-config.ts'
 import { runAgent } from './agent.ts'
 import { loadKnowledge } from './knowledge.ts'
 import { createRateLimiter } from './limits.ts'
-import { readRequest } from './request.ts'
+import { readRequest, readVoiceTurn, type AssistantRequest } from './request.ts'
 
 // The schema the editor's validator uses, so that the model is told the same rules.
 const SCHEMA_FILE = new URL('../../brailled-accessibility/src/commands/schema.json', import.meta.url)
@@ -14,9 +16,16 @@ export interface Options {
   fetcher?: typeof fetch
   now?: () => number
   log?: (line: string) => void
+  caps?: Caps
 }
 
-export const createApp = (config: Config, { fetcher = fetch, now = Date.now, log = console.log }: Options = {}) => {
+// The voice endpoints' requests a minute from everyone together, as a multiple of what one address may make.
+const ADDRESSES_AT_ONCE = 6
+
+export const createApp = (
+  config: Config,
+  { fetcher = fetch, now = Date.now, log = console.log, caps = readCaps() }: Options = {},
+) => {
   const commandSchema = JSON.stringify(JSON.parse(readFileSync(SCHEMA_FILE, 'utf8')))
   const knowledge = loadKnowledge()
   const limit = createRateLimiter(config, now)
@@ -57,6 +66,67 @@ export const createApp = (config: Config, { fetcher = fetch, now = Date.now, log
     response.set('Retry-After', String(wait)).status(429).json({ error: 'too_many_requests' })
   }
 
+  const voiceLimit = createRateLimiter(
+    {
+      perAddressPerMinute: config.voicePerAddressPerMinute,
+      perMinute: config.voicePerAddressPerMinute * ADDRESSES_AT_ONCE,
+      perDay: Math.min(config.voicePerDay ?? caps.requests, caps.requests),
+    },
+    now,
+  )
+  const voiceRate: RequestHandler = (request, response, next) => {
+    const wait = voiceLimit(request.ip ?? 'unknown')
+    if (wait === null) {
+      next()
+      return
+    }
+    response.set('Retry-After', String(wait)).status(429).json({ error: 'too_many_requests' })
+  }
+
+  // One turn of a spoken conversation: the model hears the recording and, unless only the words are wanted, answers.
+  const voiceTurn = async (request: Request, response: Response) => {
+    if (!request.is('application/json')) {
+      response.status(415).json({ error: 'invalid_request' })
+      return
+    }
+    if (!config.apiKey) {
+      response.status(503).json({ error: 'not_configured' })
+      return
+    }
+    const read = readVoiceTurn(request.body, config)
+    if ('problem' in read) {
+      response.status(400).json({ error: 'invalid_request', field: read.problem })
+      return
+    }
+    const { turn } = read
+    const words: AssistantRequest = turn.request ?? {
+      transcript: '(spoken)',
+      mode: 'build',
+      history: [],
+      language: turn.language,
+      context: {},
+      program: [],
+      data: [],
+      names: [],
+      blocks: [],
+      actions: [],
+      assistantName: '',
+      spriteCategories: [],
+    }
+    const started = now()
+    const spoken = { voice: turn.pending ? ('transcribe' as const) : ('turn' as const), audio: turn.audio.data, model: turn.model }
+    const answer = await runAgent(words, { config, knowledge, commandSchema, fetcher, now, spoken })
+    const took = `${now() - started} ms, ${answer.rounds} rounds, tools: ${answer.tools.join(' ') || 'none'}`
+    if ('reply' in answer && answer.heard) {
+      log(`voice-turn: replied in ${took}`)
+      response.set('Cache-Control', 'no-store').json({ ...answer.heard, result: answer.reply })
+      return
+    }
+    const failure = 'failure' in answer ? answer : { failure: 'invalid_output' as const, detail: 'nothing heard' }
+    log(`voice-turn: ${failure.failure} (${failure.detail}) after ${took}`)
+    response.status(failure.failure === 'upstream_timeout' ? 504 : 502).json({ error: failure.failure })
+  }
+
   const assist = async (request: Request, response: Response) => {
     // Only JSON, which a page on another site cannot send without asking first.
     if (!request.is('application/json')) {
@@ -93,6 +163,13 @@ export const createApp = (config: Config, { fetcher = fetch, now = Date.now, log
   // Counted before the body is read.
   app.post('/api/assistant', rate, express.json({ limit: config.maxRequestBytes }), (request, response, next) => {
     assist(request, response).catch(next)
+  })
+
+  app.use('/api/voice-turn', origins)
+  // Room for the longest recording and for what goes with it.
+  const voiceBytes = base64Length(config.maxAudioSeconds) + config.maxRequestBytes
+  app.post('/api/voice-turn', voiceRate, express.json({ limit: voiceBytes }), (request, response, next) => {
+    voiceTurn(request, response).catch(next)
   })
 
   // Bodies that are too large or are not JSON.

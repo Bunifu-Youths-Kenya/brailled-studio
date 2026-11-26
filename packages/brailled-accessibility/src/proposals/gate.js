@@ -310,7 +310,7 @@ const createGate = ({
     // What the student said or typed while being asked.
     const hear = text => {
         if (!waiting()) return;
-        const answer = parseAnswer(text);
+        const answer = parseAnswer(text, app.answerWords());
         if (answer?.type === 'approve') {
             approve();
         } else if (answer?.type === 'all') {
@@ -339,7 +339,7 @@ const createGate = ({
         },
         // Whether the student is being asked.
         isOpen: () => waiting() && !!state.proposal,
-        isAnswer: text => !!parseAnswer(text),
+        isAnswer: text => !!parseAnswer(text, app.answerWords()),
         hear,
         approve,
         stepByStep,

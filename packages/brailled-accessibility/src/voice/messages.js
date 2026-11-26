@@ -30,6 +30,19 @@ const voiceMessages = fromTexts('brailled.voice', 'Voice input', {
     recordingHold: 'Recording. Let go when you have finished.',
     recordingTap: 'Recording. Pause when you have finished, or press {key}.',
     sending: 'Sending what you said.',
+    recording: 'Recording',
+    sayAgain: 'I did not catch that. Please say it again.',
+    tooLate: 'That came too late for what was asked, or the question changed. Nothing was done.',
+    tooLong: 'That recording is too long. Say it in fewer words.',
+    couldNot: 'I couldn\'t work that out, please try again.',
+    noPrivateService: 'The online voice cannot be used without your words being kept. Using the browser’s ' +
+        'speech service from now on.',
+    onlineUnavailable: 'The online voice cannot be used. Using the browser’s speech service from now on.',
+    onlineLimit: 'The online voice has reached its limit. Using the browser’s speech service from now on.',
+    onlineNotice: 'When you talk, a recording of your voice goes to OpenRouter and an AI model. {assistant} (AI) ' +
+        'also gets your program.',
+    onlineNoticeWake: 'Demo mode: sound around you goes to your browser’s speech service (Chrome: Google). ' +
+        'Requests are recorded and sent to OpenRouter and an AI model.',
     cancelled: 'Stopped listening. Nothing was done.',
     tooShort: 'Hold {key} down while you speak, then let go.',
     notOpen: 'The microphone was not open yet. If your browser asks to use it, allow that, then try again.',

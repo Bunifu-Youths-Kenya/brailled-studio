@@ -10,6 +10,8 @@ import {DEFAULT_ASSISTANT_NAME} from '../names.js';
 import {createSettings, storageOf} from '../settings.js';
 import {createReader} from '../speech/read-aloud.js';
 import {SCRIPTS_VIEWS} from '../views.js';
+import {createOnlineVoice} from '../voice/online.js';
+import {SWAHILI} from '../proposals/answers.js';
 import {accessibleName, focusableWithin, roleOf, zoneElement, zoneOf} from './dom.js';
 import {roleNames, speech} from './messages.js';
 import {ACTIONS, findAction} from './registry.js';
@@ -107,6 +109,10 @@ const createApp = (vm, {
                 configured();
             };
         },
+        // Whose service hears and speaks.
+        online: createOnlineVoice(config),
+        // Words besides the English ones that answer a question.
+        answerWords: () => config.get().speech?.answers ?? SWAHILI,
         // Nothing of one student stays for the next.
         forgetStudent: () => {
             memory.clear();

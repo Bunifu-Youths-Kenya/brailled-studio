@@ -2,12 +2,25 @@
 import parseCommand from '../actions/parser.js';
 import {routeCommand} from '../actions/route.js';
 import {TALK_KEYS} from '../actions/shortcuts.js';
+import {parseAnswer} from '../proposals/answers.js';
 import {SAFE_ACTIONS} from '../proposals/risk.js';
 import voiceMessages from './messages.js';
 
 // A shorter press of the button is a tap: listen for one phrase. Screen readers often can only tap.
 const TAP_MS = 350;
 const MAX_WAIT_MS = 8000;
+// "done" says that the student has finished, and is no part of what they asked.
+const withoutDone = words => words.replace(/[\s,.;]+done[\s.!?]*$/i, '').replace(/^done[\s.!?]*$/i, '');
+
+// What to say when a spoken turn fails, and whether the browser's service is used from then on.
+const TURN_PROBLEMS = {
+    no_endpoint: {message: voiceMessages.noPrivateService, fallBack: true},
+    unreachable: {message: voiceMessages.onlineUnavailable, fallBack: true},
+    too_many: {message: voiceMessages.onlineLimit, fallBack: true},
+    too_big: {message: voiceMessages.tooLong},
+    invalid: {message: voiceMessages.couldNot}
+};
+
 // A provider that records ends by itself at its longest time: this is only in case it does not.
 const SPARE_SECONDS = 5;
 // Below this, the student is asked before anything is done.
@@ -65,12 +78,13 @@ const afterRelease = (release, open) => {
  * @param {{opened: Function, closed: Function}} options.tone Sounds.
  * @param {function(): string} options.language The language to listen for.
  * @param {Function} [options.beforeRun] Called before a command is carried out.
- * @param {Function} [options.onAudio] Given `{audio, origin}` when the provider records instead of giving words.
+ * @param {Function} [options.onAudio] Given `{audio, origin, asked}` when the provider records instead of giving
+ * words. Without it the AI helper's server hears the recording.
  * @param {number} [options.threshold] The confidence needed to act without asking.
  * @returns {object} The controller. `getState` gives `{phase, mode, heard, status, pending}`.
  */
 const createVoice = ({app, provider, tone, language, beforeRun = () => {}, threshold = CONFIDENCE_THRESHOLD,
-    onAudio = () => {}}) => {
+    onAudio = null}) => {
     const records = () => !!provider.records?.();
     const listeners = new Set();
     // Why voice cannot be used, as a message, or null if it can.
@@ -101,6 +115,9 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
     let open = false;
     let phraseEnded = false;
     let timer = null;
+    // Which recording is the newest, and what waited for an answer when it began.
+    let recordings = 0;
+    let asked = null;
 
     const set = changes => {
         state = {...state, ...changes};
@@ -170,15 +187,18 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
     const confirm = () => answer(deliver);
     const reject = () => answer(() => tell(voiceMessages.notDone));
 
-    const heard = (words, confidence, origin = 'voice') => {
+    // `use` carries out the reply that came with spoken words. `fromModel` marks words written down by a model
+    // that had also read the project, whose text could try to put words in the student's mouth.
+    const heard = (words, confidence, origin = 'voice', {use = null, fromModel = false} = {}) => {
         // Some services add a full stop, which would be doubled in the sentences that quote the words.
         const text = words.replace(/[\s.!?]+$/, '');
         const sure = confidence === null || confidence >= threshold;
         if (state.pending) {
             // The wake words answer no question.
             if (origin === 'wake') return;
-            if (YES.includes(plain(text)) && sure) confirm();
-            else if (NO.includes(plain(text))) reject();
+            const said = parseAnswer(text, app.answerWords())?.type;
+            if ((YES.includes(plain(text)) || said === 'approve') && sure) confirm();
+            else if (NO.includes(plain(text)) || said === 'reject') reject();
             else {
                 set({heard: text, status: {message: voiceMessages.sayYesOrNo, values: {text}}});
                 app.speak(app.say(voiceMessages.sayYesOrNo, {text}));
@@ -187,14 +207,68 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         }
         // No measure of confidence counts as low: ask first.
         const unsure = confidence === null || confidence < threshold;
-        if (unsure || (origin === 'wake' && changesThings(text))) {
+        if (unsure || ((origin === 'wake' || fromModel) && changesThings(text))) {
             set({heard: text, pending: {text, origin, unsure}, status: {text: ''}});
             const title = unsure ? voiceMessages.confirmTitle : voiceMessages.confirmChangeTitle;
             app.speak(`${app.say(title, {text})} ${app.say(voiceMessages.confirmHint, keyWords())}`);
             return;
         }
         set({heard: text});
-        deliver(text, origin);
+        // The reply is for a request, not for a command, an answer or something said while a window waits.
+        const request = use && !app.gate()?.isOpen() && !app.assistant()?.isOpen() &&
+            !parseCommand(text, app.actionNames(), app.assistantName()) &&
+            !['approve', 'all', 'reject'].includes(parseAnswer(text, app.answerWords())?.type);
+        if (request) {
+            beforeRun();
+            app.preface(app.say(voiceMessages.heard, {text}));
+            use();
+        } else {
+            deliver(text, origin);
+        }
+    };
+
+    // What waits for an answer now, so that an answer to something else can be told.
+    const waiting = () => ({
+        proposal: app.gate()?.isOpen() ? app.gate().getState().proposal.serial : null,
+        pending: state.pending
+    });
+
+    // Have a recording heard, then treat the words as the editor treats any: the model decides nothing.
+    const hearRecording = async ({audio, origin, asked: before}) => {
+        recordings += 1;
+        const number = recordings;
+        const assistant = app.assistant();
+        const answering = before.proposal !== null || !!before.pending;
+        set({status: {message: voiceMessages.working}});
+        app.announce(app.say(voiceMessages.working));
+        const {speech} = app.config.get();
+        const spoken = assistant ?
+            await assistant.hear({
+                audio: {data: audio.data, format: audio.format},
+                pending: answering,
+                model: app.online.provider() === 'openai-audio' ? speech.compareModel : speech.listenModel
+            }) :
+            {error: 'unreachable'};
+        // The student has spoken again since.
+        if (number !== recordings || spoken.error === 'stale') return;
+        if (spoken.error) {
+            const {message, fallBack} = TURN_PROBLEMS[spoken.error] || TURN_PROBLEMS.unreachable;
+            if (fallBack) app.online.fallBack();
+            tell(message);
+            return;
+        }
+        const words = withoutDone(spoken.transcript).trim();
+        const now = waiting();
+        if (now.proposal !== before.proposal || now.pending !== before.pending) {
+            tell(voiceMessages.tooLate);
+            return;
+        }
+        // Where an answer is waited for, doubtful words are not guessed at.
+        if (!words || (now.proposal !== null && !spoken.clear)) {
+            tell(voiceMessages.sayAgain);
+            return;
+        }
+        heard(words, spoken.clear ? 1 : 0, origin, {use: spoken.use, fromModel: !answering});
     };
 
     const ended = outcome => {
@@ -202,7 +276,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         set({phase: 'idle', mode: null, recording: false});
         const origin = heldBy === 'wake' ? 'wake' : 'voice';
         if (outcome.error) tell(PROBLEMS[outcome.error] || voiceMessages.failed);
-        else if (outcome.audio) onAudio({audio: outcome.audio, origin});
+        else if (outcome.audio) (onAudio || hearRecording)({audio: outcome.audio, origin, asked});
         else heard(outcome.text, outcome.confidence, origin);
     };
 
@@ -220,6 +294,11 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         app.silence();
         // The microphone never stays open longer than the chosen time.
         const recording = records();
+        if (recording) {
+            // Anything still being heard is overtaken by this.
+            recordings += 1;
+            asked = waiting();
+        }
         const longest = recording ?
             app.config.get().speech.maxRecordSeconds + SPARE_SECONDS :
             app.settings.get().maxSeconds;
@@ -254,7 +333,14 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
     const unusable = () => {
         const reason = problem();
         if (reason) tell(reason);
-        return !!reason;
+        if (reason) return true;
+        // The chosen service cannot work here: say so, and use the browser's from the next press.
+        const {online} = app;
+        if (online.chosen() === 'browser' || online.hasFallenBack()) return false;
+        if (app.config.get().ai && (!provider.canRecord || provider.canRecord())) return false;
+        online.fallBack();
+        tell(voiceMessages.onlineUnavailable);
+        return true;
     };
 
     // The first call of a session is answered with an introduction rather than by listening. Not while something

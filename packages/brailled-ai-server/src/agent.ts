@@ -4,14 +4,25 @@
  */
 import type { Config } from './config.ts'
 import type { Knowledge } from './knowledge.ts'
-import { complete, type Failure, type Message } from './openrouter.ts'
-import { buildMessages } from './prompt.ts'
+import { complete, type Failure, type Message, type Usage } from './openrouter.ts'
+import { buildMessages, buildSpokenMessages, buildTranscribeMessages } from './prompt.ts'
 import type { AssistantRequest } from './request.ts'
-import { isTool, runTool, toolsFor, type World } from './tools.ts'
+import { isTool, runTool, toolsFor, type Heard, type Voice, type World } from './tools.ts'
 
-export type Answer = ({ reply: Record<string, unknown> } | { failure: Failure; detail: string }) & {
+type Outcome = { reply: Record<string, unknown> | null; heard?: Heard } | { failure: Failure; detail: string }
+
+export type Answer = Outcome & {
   rounds: number
   tools: string[]
+  // What each call to the model used.
+  usage: Usage[]
+}
+
+// A request that is a recording: what to do with it, and the model that hears it.
+export interface Spoken {
+  voice: Voice
+  audio: string
+  model: string
 }
 
 // Calls beyond this in one round are refused, so that one reply cannot ask for endless work.
@@ -24,37 +35,43 @@ export interface Dependencies {
   commandSchema: string
   fetcher: typeof fetch
   now: () => number
+  spoken?: Spoken
 }
 
 export const runAgent = async (request: AssistantRequest, dependencies: Dependencies): Promise<Answer> => {
-  const { config, knowledge, commandSchema, fetcher, now } = dependencies
+  const { config, knowledge, commandSchema, fetcher, now, spoken } = dependencies
   const operations = (JSON.parse(commandSchema) as { oneOf: { $ref: string }[] }).oneOf.map(
     (option) => option.$ref.split('/').at(-1) ?? '',
   )
-  const world: World = { request, knowledge, operations }
-  const messages: Message[] = buildMessages(request, commandSchema)
+  const world: World = { request, knowledge, operations, voice: spoken?.voice }
+  const opening = (): Message[] => {
+    if (!spoken) return buildMessages(request, commandSchema)
+    return spoken.voice === 'transcribe'
+      ? buildTranscribeMessages(request.language, spoken.audio)
+      : buildSpokenMessages(request, commandSchema, spoken.audio)
+  }
+  const messages = opening()
   const deadline = now() + config.turnTimeoutMs
   const used: string[] = []
+  const usage: Usage[] = []
   let nudged = false
 
   for (let round = 1; round <= config.maxRounds; round++) {
-    const done = (result: { reply: Record<string, unknown> } | { failure: Failure; detail: string }): Answer => ({
-      ...result,
-      rounds: round,
-      tools: used,
-    })
+    const done = (result: Outcome): Answer => ({ ...result, rounds: round, tools: used, usage })
     const left = deadline - now()
     if (left <= 0) return done({ failure: 'upstream_timeout', detail: 'out of time' })
 
     const answer = await complete(
       config,
       messages,
-      toolsFor(request.mode, round === config.maxRounds),
+      toolsFor(request.mode, round === config.maxRounds, spoken?.voice),
       Math.min(left, config.upstreamTimeoutMs),
       fetcher,
+      spoken?.model,
     )
     if ('failure' in answer) return done(answer)
     const { message } = answer
+    if (answer.usage) usage.push(answer.usage)
     // Sent back exactly as received: some models need what came with their tool calls.
     messages.push(message)
 
@@ -62,7 +79,7 @@ export const runAgent = async (request: AssistantRequest, dependencies: Dependen
     if (calls.length === 0) {
       if (nudged) return done({ failure: 'invalid_output', detail: 'no tool call' })
       nudged = true
-      messages.push({ role: 'user', content: NUDGE })
+      messages.push({ role: 'user', content: spoken?.voice === 'transcribe' ? 'Call report_heard.' : NUDGE })
       continue
     }
     for (const [index, call] of calls.entries()) {
@@ -77,5 +94,11 @@ export const runAgent = async (request: AssistantRequest, dependencies: Dependen
       messages.push({ role: 'tool', tool_call_id: call.id, content: result.text })
     }
   }
-  return { failure: 'invalid_output', detail: 'no reply within the rounds allowed', rounds: config.maxRounds, tools: used }
+  return {
+    failure: 'invalid_output',
+    detail: 'no reply within the rounds allowed',
+    rounds: config.maxRounds,
+    tools: used,
+    usage,
+  }
 }

@@ -16,6 +16,7 @@ const appShape = PropTypes.shape({
     assistantName: PropTypes.func.isRequired,
     canReadAloud: PropTypes.func.isRequired,
     forgetStudent: PropTypes.func.isRequired,
+    online: PropTypes.shape({provider: PropTypes.func.isRequired}).isRequired,
     say: PropTypes.func.isRequired,
     silence: PropTypes.func.isRequired,
     speak: PropTypes.func.isRequired,
@@ -285,7 +286,9 @@ const VoiceSettings = ({app, onClose}) => {
                 />
             ) : null}
             <p className={dialogStyles.field}>
-                {intl.formatMessage(voiceMessages.privacy)}
+                {intl.formatMessage(app.online.provider() === 'browser' ?
+                    voiceMessages.privacy :
+                    voiceMessages.onlineNotice, {assistant: app.assistantName()})}
             </p>
             <button
                 className={dialogStyles.button}

@@ -99,17 +99,53 @@ const check = (name, ok, detail = '') => {
 
 // The real AI server, with a stand-in for the model it would ask. `model.reply` is the reply the model finishes
 // with, as the editor expects it, or text it just says. `model.lookUp` lists tools it calls first.
+// What the browser's stand-in microphone plays each time it is opened: a moment of quiet, a second and a half of
+// changing tones, as speech is loud and uneven, and then quiet.
+const writeMicrophone = file => {
+    const rate = 48000;
+    const samples = Int16Array.from({length: rate * 20}, (_, i) => {
+        const seconds = i / rate;
+        if (seconds < 0.7 || seconds > 2.2) return 0;
+        const pitch = [220, 520, 330, 760, 410][Math.floor(seconds * 12) % 5];
+        return Math.round(9000 * Math.sin(2 * Math.PI * pitch * seconds) * (0.6 + (0.4 * Math.sin(40 * seconds))));
+    });
+    const head = Buffer.alloc(44);
+    head.write('RIFF', 0);
+    head.writeUInt32LE(36 + samples.byteLength, 4);
+    head.write('WAVEfmt ', 8);
+    [[16, 16], [20, 1], [22, 1], [32, 2], [34, 16]].forEach(([at, value]) =>
+        (at === 16 ? head.writeUInt32LE(value, at) : head.writeUInt16LE(value, at)));
+    head.writeUInt32LE(rate, 24);
+    head.writeUInt32LE(rate * 2, 28);
+    head.write('data', 36);
+    head.writeUInt32LE(samples.byteLength, 40);
+    fs.writeFileSync(file, Buffer.concat([head, Buffer.from(samples.buffer)]));
+    return file;
+};
+
 const startAiServer = async (env = {}) => {
     const from = file => import(pathToFileURL(path.join(repo, 'packages/brailled-ai-server/src', file)).href);
     const [{createApp}, {readConfig}] = await Promise.all([from('app.ts'), from('config.ts')]);
-    const model = {reply: null, lookUp: null, asked: [], results: []};
+    // `spoken` queues what the model does with each recording: the call it makes, or a status for a failure.
+    const model = {reply: null, lookUp: null, asked: [], results: [], spoken: [], recordings: []};
     const tools = {proposal: 'submit_proposal', question: 'ask_question', explanation: 'give_explanation'};
     const respond = message => Promise.resolve(Response.json(
         {choices: [{finish_reason: message.tool_calls ? 'tool_calls' : 'stop', message}]}));
     const calls = made => ({role: 'assistant', content: null, tool_calls: made.map(([name, args], i) => (
         {id: `call_${i}`, type: 'function', function: {name, arguments: JSON.stringify(args)}}))});
     const fetcher = (_, options) => {
-        const {messages} = JSON.parse(options.body);
+        const {messages, tools: offered} = JSON.parse(options.body);
+        if (Array.isArray(messages[1].content)) {
+            const [text, sound] = messages[1].content;
+            const next = model.spoken.shift();
+            model.recordings.push({
+                bytes: Buffer.from(sound.input_audio.data, 'base64').length,
+                text: `${messages[0].content} ${text.text}`,
+                tools: offered.map(tool => tool.function.name)
+            });
+            if (typeof next === 'number') return Promise.resolve(new Response('', {status: next}));
+            return respond(calls([next]));
+        }
         const user = JSON.parse(messages[1].content);
         // The first call of a turn.
         if (messages.length === 2) {
@@ -135,7 +171,10 @@ const startAiServer = async (env = {}) => {
 };
 
 (async () => {
-    const browser = await chromium.launch({executablePath});
+    // Recording is real, from a sound file in place of a microphone.
+    const microphone = writeMicrophone(path.join(out, 'microphone.wav'));
+    const browser = await chromium.launch({executablePath, args: ['--use-fake-device-for-media-stream',
+        '--use-fake-ui-for-media-stream', `--use-file-for-fake-audio-capture=${microphone}%noloop`]});
     const errors = [];
     // Each group of checks starts from a fresh editor, so that one failure cannot cascade into the others.
     // `BRAILLED_E2E_ONLY` names the groups to run, by part of their title, while working on them.
@@ -1789,6 +1828,65 @@ const startAiServer = async (env = {}) => {
 
     const limited = await startAiServer({REQUESTS_PER_MINUTE_PER_ADDRESS: '1'});
     limited.model.reply = {type: 'explanation', text: 'Hello.'};
+    await group('spoken turn', async t => {
+        const {page, key, pause} = t;
+        const bar = page.locator('[data-brailled-zone="voice"]');
+        const notice = bar.locator('[data-voice-notice]');
+        const recording = bar.locator('[data-voice-recording]');
+        const dialog = page.locator('dialog');
+        const status = () => bar.locator('[data-voice-status]').textContent();
+        // Wait for the recording to end by itself, then for the reply.
+        const finished = async () => {
+            await recording.waitFor({state: 'detached', timeout: 20000});
+            await pause(1500);
+        };
+        await startOutline(t);
+        const original = await t.items();
+        check('the notice says a recording goes online', /a recording of your voice goes to OpenRouter/
+            .test(await notice.textContent()), await notice.textContent());
+
+        ai.model.spoken = [['submit_proposal', {transcript: 'add a wait', clear: true, summary: 'Add a wait.',
+            steps: [{command: {op: 'insert', block: 'control_wait', after: 'b2'}}]}]];
+        await t.goTo('move 10 steps');
+        const began = Date.now();
+        await bar.getByRole('button', {name: /Hold to talk|Listening/}).click();
+        await recording.waitFor({timeout: 5000});
+        await page.screenshot({path: path.join(out, 'voice-recording.png')});
+        check('a visible sign shows while it records', /Recording/.test(await recording.textContent()) &&
+            /Recording\. Pause when you have finished/.test(await status()), await status());
+        await finished();
+        const [first] = ai.model.recordings;
+        const seconds = first ? (first.bytes - 44) / 32000 : 0;
+        check('the recording ends by itself after a pause, and arrives as 16 kHz WAV', seconds > 2.5 && seconds < 8 &&
+            Date.now() - began < 15000, `${seconds.toFixed(1)} seconds`);
+        check('what was heard is shown', await bar.locator('[data-voice-transcript]').textContent() ===
+            'I heard: add a wait.', await bar.locator('[data-voice-transcript]').textContent());
+        check('the suggestion waits for approval', await dialog.count() === 1 &&
+            (await t.items()).join() === original.join());
+
+        ai.model.spoken = [['report_heard', {transcript: 'ndiyo', clear: true}]];
+        await key('F2', 400);
+        await recording.waitFor({timeout: 5000});
+        await finished();
+        const second = ai.model.recordings.at(-1);
+        check('while it waits only the words are asked for, without the project',
+            second.tools.join() === 'report_heard' && !/move 10 steps|Sprite1/.test(second.text), second.text);
+        check('a yes heard by the model is matched by the editor, and approves',
+            await dialog.count() === 0 && (await t.items()).length === original.length + 1 &&
+            (await t.items()).filter(item => item.includes('wait 1 second')).length === 2,
+        (await t.items()).join(' | '));
+
+        ai.model.spoken = [404];
+        await key('F2', 400);
+        await recording.waitFor({timeout: 5000});
+        await finished();
+        check('with no provider that keeps nothing, it says so and uses the browser',
+            /without your words being kept/.test(await status()) &&
+            /^Mboni \(AI\) is on/.test(await notice.textContent()),
+        `${await status()} / ${await notice.textContent()}`);
+    }, {init: [fakeVoice], config: {json: {voice: {enabled: true, provider: 'gemini-pair'}, ai: true,
+        aiEndpoint: ai.endpoint}}});
+
     await group('AI helper limits', async t => {
         await typed(t, 'hello there');
         await t.pause(900);

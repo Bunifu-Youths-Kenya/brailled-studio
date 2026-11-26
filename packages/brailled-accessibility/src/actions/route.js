@@ -57,7 +57,7 @@ const routeCommand = (app, text, source) => {
         return 'action';
     }
     // A yes or no that comes too late is about a suggestion that has gone; it is not a request.
-    if (assistant && ['approve', 'all', 'reject'].includes(parseAnswer(text)?.type)) {
+    if (assistant && ['approve', 'all', 'reject'].includes(parseAnswer(text, app.answerWords())?.type)) {
         app.announce(app.say(proposalMessages.nothingWaiting));
         return 'unknown';
     }

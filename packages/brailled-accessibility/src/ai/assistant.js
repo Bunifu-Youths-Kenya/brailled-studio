@@ -14,6 +14,19 @@ const CLOSE_WORDS = ['close', 'cancel', 'dismiss', 'never mind', 'nevermind'];
 // Ways of saying a number from a list, in English.
 const NUMBERS = ['one', 'two', 'three', 'four', 'five'];
 
+// The server's address for spoken turns, beside the one for typed requests.
+const voiceAddress = endpoint => (/\/assistant(?=$|\?)/.test(endpoint) ?
+    endpoint.replace(/\/assistant(?=$|\?)/, '/voice-turn') :
+    `${endpoint.replace(/\/+$/, '')}/voice-turn`);
+
+// Why a spoken turn failed, as a word the voice controller knows.
+const spokenProblem = (status, error) => {
+    if (error === 'no_endpoint') return 'no_endpoint';
+    if (error === 'invalid_output' || status === 400) return 'invalid';
+    if (status === 413) return 'too_big';
+    return status === 429 ? 'too_many' : 'unreachable';
+};
+
 const PROBLEMS = {
     400: aiMessages.failed,
     413: aiMessages.tooBig,
@@ -43,6 +56,7 @@ const createAssistant = ({ports, endpoint, fetch}) => {
     const listeners = new Set();
     let state = {busy: false, reply: null};
     let request = null;
+    let listening = null;
     let disposed = false;
 
     const set = changes => {
@@ -74,7 +88,7 @@ const createAssistant = ({ports, endpoint, fetch}) => {
     };
 
     // Use a reply, checked against what was sent. Returns why it cannot be used, or null.
-    const use = async (raw, sent) => {
+    const useReply = async (raw, sent) => {
         const reply = parseReply(raw);
         if (!reply) return 'the reply has the wrong form';
         if (reply.type === 'explanation') {
@@ -152,7 +166,7 @@ const createAssistant = ({ports, endpoint, fetch}) => {
             }
             await ports.whenQuiet();
             if (disposed) return;
-            const problem = await use(body?.reply, sent);
+            const problem = await useReply(body?.reply, sent);
             if (problem) fail(aiMessages.failed, problem);
         } catch (error) {
             // Whatever went wrong, the helper can be asked again.
@@ -162,6 +176,64 @@ const createAssistant = ({ports, endpoint, fetch}) => {
         } finally {
             clearTimeout(timer);
             if (request === controller) request = null;
+        }
+    };
+
+    /**
+     * Have a recording heard. The reply is used only if the caller asks for it, after deciding what the words
+     * mean.
+     * @param {object} turn The turn.
+     * @param {{data: string, format: string}} turn.audio The recording.
+     * @param {boolean} turn.pending Whether something waits for an answer: then only the words are asked for.
+     * @param {string} turn.model The model to ask.
+     * @returns {Promise<object>} `{transcript, clear, use}` or `{error}`. `use` is null when there is no reply.
+     */
+    const hear = async ({audio, pending, model}) => {
+        // Only the newest recording matters.
+        listening?.abort();
+        const controller = new AbortController();
+        listening = controller;
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        try {
+            const transcribe = pending || !ports.targetId();
+            const sent = transcribe ? null : buildRequest({ports, transcript: ''});
+            const {transcript: _, ...context} = sent?.body ?? {};
+            const response = await fetch(voiceAddress(endpoint), {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    audio,
+                    pending: transcribe,
+                    language: ports.language(),
+                    model,
+                    ...(sent ? {request: context} : {})
+                }),
+                credentials: 'omit',
+                referrerPolicy: 'no-referrer',
+                signal: controller.signal
+            });
+            const body = await response.json().catch(() => null);
+            if (disposed || listening !== controller) return {error: 'stale'};
+            if (!response.ok) return {error: spokenProblem(response.status, body?.error)};
+            const {transcript, clear, result} = body ?? {};
+            if (typeof transcript !== 'string' || transcript.length > 500 || typeof clear !== 'boolean') {
+                return {error: 'invalid'};
+            }
+            const use = async () => {
+                ports.remember('student', transcript);
+                await ports.whenQuiet();
+                if (disposed) return;
+                const problem = await useReply(result, sent);
+                if (problem) fail(aiMessages.failed, problem);
+            };
+            return {transcript, clear, use: sent && result ? use : null};
+        } catch (error) {
+            if (disposed || listening !== controller) return {error: 'stale'};
+            // eslint-disable-next-line no-console
+            console.warn(`assistant: ${error.message}`);
+            return {error: 'unreachable'};
+        } finally {
+            clearTimeout(timer);
         }
     };
 
@@ -212,10 +284,12 @@ const createAssistant = ({ports, endpoint, fetch}) => {
         // Whether the reply on screen asks for nothing.
         isExplaining: () => state.reply?.type === 'explanation',
         answer,
+        hear,
         dismiss,
         dispose: () => {
             disposed = true;
             request?.abort();
+            listening?.abort();
         }
     };
 };

@@ -2,11 +2,25 @@
  * The school's choice of who turns speech into text and replies into speech, from `voice` in the configuration
  * file. Anything not understood means the usual value, and the usual provider is the browser's own.
  */
+import {SWAHILI} from '../proposals/answers.js';
+
 const PROVIDERS = Object.freeze(['browser', 'gemini-pair', 'openai-audio']);
 
 // A model as OpenRouter names it, and a voice's name. The server decides which models it will use.
 const MODEL = /^[a-z0-9-]+\/[a-z0-9.:_-]{1,80}$/i;
 const VOICE_NAME = /^[A-Za-z0-9_-]{1,40}$/;
+
+const ANSWER = /^[\p{L}\p{M}' ]{1,40}$/u;
+const MOST_ANSWERS = 30;
+
+// The ways of answering besides English, as the file lists them, or Swahili ones.
+const answersFrom = value => Object.freeze(Object.fromEntries(Object.entries(SWAHILI).map(([key, usual]) => {
+    const given = value?.[key];
+    if (!Array.isArray(given)) return [key, usual];
+    return [key, Object.freeze(given.filter(item => typeof item === 'string' && ANSWER.test(item.trim()))
+        .slice(0, MOST_ANSWERS)
+        .map(item => item.trim().toLowerCase()))];
+})));
 
 // What each number may be: anything outside is brought to the nearest end.
 const RANGES = Object.freeze({
@@ -26,6 +40,8 @@ const SPEECH_DEFAULTS = Object.freeze({
     compareModel: 'openai/gpt-audio-mini',
     // Whether saying "done" ends a recording, which needs the browser's speech recognition to run beside it.
     doneWord: false,
+    // Words besides the English ones that say yes, no or "change it", matched in the editor.
+    answers: SWAHILI,
     ...Object.fromEntries(Object.entries(RANGES).map(([key, range]) => [key, range.usual]))
 });
 
@@ -47,6 +63,7 @@ const speechFrom = value => {
         compareModel: model('compareModel'),
         ttsVoice: matching(given.ttsVoice, VOICE_NAME, SPEECH_DEFAULTS.ttsVoice),
         doneWord: given.doneWord === true,
+        answers: answersFrom(given.answers),
         ...Object.fromEntries(Object.entries(RANGES).map(([key, range]) => [key, numberIn(given[key], range)]))
     });
 };
