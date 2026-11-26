@@ -103,7 +103,7 @@ describe('asking the model', () => {
     expect(sent).toMatchObject({
       model: 'test/model',
       tool_choice: 'auto',
-      provider: { require_parameters: true, data_collection: 'deny', zdr: true },
+      provider: { require_parameters: true, data_collection: 'deny', zdr: true, sort: 'latency' },
     })
     expect(sent.tools.map((tool) => tool.function.name)).toContain('submit_proposal')
     expect(sent.messages.map((message) => message.role)).toEqual(['system', 'user'])
@@ -113,7 +113,12 @@ describe('asking the model', () => {
       mode: 'build',
       language: 'en',
       conversationSoFar: [],
-      editor: { assistantName: 'Mboni', actions: request().actions, spriteCategories: request().spriteCategories },
+      editor: {
+        assistantName: 'Mboni',
+        actions: request().actions,
+        spriteCategories: request().spriteCategories,
+        blocks: request().blocks,
+      },
       untrustedProjectContent: {
         whereTheStudentIs: request().context,
         program: request().program,
@@ -121,6 +126,13 @@ describe('asking the model', () => {
         names: request().names,
       },
     })
+  })
+
+  it('tries the quickest providers first, unless told otherwise', () => {
+    expect(readConfig({}).providerSort).toBe('latency')
+    expect(readConfig({ OPENROUTER_PROVIDER_SORT: 'off' }).providerSort).toBeNull()
+    expect(readConfig({ OPENROUTER_PROVIDER_SORT: 'price' }).providerSort).toBe('price')
+    expect(() => readConfig({ OPENROUTER_PROVIDER_SORT: 'fast' })).toThrow('OPENROUTER_PROVIDER_SORT')
   })
 
   // Only providers that accept every parameter sent are used, so each one narrows the choice. Some that keep no
@@ -184,7 +196,7 @@ describe('asking the model', () => {
       { fetcher },
     )
     await post()
-    expect(sentBy(fetcher).provider).toEqual({ require_parameters: true, data_collection: 'allow' })
+    expect(sentBy(fetcher).provider).toEqual({ require_parameters: true, data_collection: 'allow', sort: 'latency' })
   })
 
   it.each([

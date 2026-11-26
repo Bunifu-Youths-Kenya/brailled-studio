@@ -34,6 +34,14 @@ export interface Totals {
 
 export type Logged = Entry & { time: string; day: Totals }
 
+// Voices priced by the character: US dollars a million, as OpenRouter listed them on 2026-11-26.
+const PER_CHARACTER: Partial<Record<string, number>> = {
+  'speechify/simba-3.5': 11.25,
+  'microsoft/mai-voice-2.1-flash': 15,
+  'hexgrad/kokoro-82m': 0.99,
+  'canopylabs/orpheus-3b-0.1-ft': 7,
+}
+
 // Prices in US dollars a million tokens, as OpenRouter listed them on 2026-11-26, and sound's tokens a second.
 const PRICES: Record<string, { input: number; output: number; audioTokensASecond: number }> = {
   'google/gemini-3.8-flash-lite-tts': { input: 0.5, output: 6, audioTokensASecond: 25 },
@@ -44,6 +52,8 @@ const UNLISTED = { input: 0.6, output: 6, audioTokensASecond: 50 }
 
 // What reading some words aloud costs, for the speech service reports nothing.
 export const speechCost = (model: string, characters: number, seconds: number) => {
+  const each = PER_CHARACTER[model]
+  if (each !== undefined) return (characters * each) / 1e6
   const price = PRICES[model] ?? UNLISTED
   // About four characters make a token.
   return ((characters / 4) * price.input + seconds * price.audioTokensASecond * price.output) / 1e6

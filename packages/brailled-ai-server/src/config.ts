@@ -6,6 +6,8 @@ export interface Config {
   model: string
   denyDataCollection: boolean
   zeroDataRetention: boolean
+  // Which providers of a model are preferred, or null for the service's own choice.
+  providerSort: 'latency' | 'throughput' | 'price' | null
   port: number
   allowedOrigins: string[]
   trustedProxies: number
@@ -32,7 +34,16 @@ export interface Config {
 }
 
 const COST_LOG = fileURLToPath(new URL('../logs/cost.jsonl', import.meta.url))
-const AUDIO_MODELS = 'google/gemini-3.5-flash-lite,google/gemini-3.8-flash-lite-tts,openai/gpt-audio-mini'
+const AUDIO_MODELS = [
+  'google/gemini-3.5-flash-lite',
+  'google/gemini-3.8-flash-lite-tts',
+  'openai/gpt-audio-mini',
+  // Low-cost voices for reading replies.
+  'speechify/simba-3.5',
+  'microsoft/mai-voice-2.1-flash',
+  'hexgrad/kokoro-82m',
+  'canopylabs/orpheus-3b-0.1-ft',
+].join(',')
 
 type Env = Record<string, string | undefined>
 
@@ -60,6 +71,15 @@ const amount = (env: Env, name: string, fallback: number): number => {
   return value
 }
 
+const SORTS = ['latency', 'throughput', 'price'] as const
+
+const sortFrom = (given: string): Config['providerSort'] => {
+  if (given === 'off') return null
+  const sort = SORTS.find((item) => item === given)
+  if (!sort) throw new Error(`OPENROUTER_PROVIDER_SORT must be ${SORTS.join(', ')} or off, not "${given}"`)
+  return sort
+}
+
 // A variable left empty counts as unset.
 const text = (env: Env, name: string): string => env[name]?.trim() ?? ''
 
@@ -76,6 +96,7 @@ export const readConfig = (env: Env): Config => ({
   model: text(env, 'OPENROUTER_MODEL'),
   denyDataCollection: unlessFalse(env, 'OPENROUTER_DENY_DATA_COLLECTION'),
   zeroDataRetention: unlessFalse(env, 'OPENROUTER_ZERO_DATA_RETENTION'),
+  providerSort: sortFrom(text(env, 'OPENROUTER_PROVIDER_SORT') || 'latency'),
   port: count(env, 'PORT', 8787, 0),
   allowedOrigins: list(env.ALLOWED_ORIGINS ?? 'http://localhost:8601'),
   trustedProxies: count(env, 'TRUSTED_PROXIES', 0, 0),

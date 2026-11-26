@@ -85,7 +85,7 @@ describe('a spoken turn', () => {
     })
     expect(response.headers.get('cache-control')).toBe('no-store')
     expect(sent[0].model).toBe('google/gemini-3.5-flash-lite')
-    expect(sent[0].provider).toEqual({ require_parameters: true, data_collection: 'deny', zdr: true })
+    expect(sent[0].provider).toEqual({ require_parameters: true, data_collection: 'deny', zdr: true, sort: 'latency' })
     expect(sent[0].messages[1].content).toEqual([
       { type: 'text', text: expect.any(String) as string },
       { type: 'input_audio', input_audio: { data: wav().data, format: 'wav' } },

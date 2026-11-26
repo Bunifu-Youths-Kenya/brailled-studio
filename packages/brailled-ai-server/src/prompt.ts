@@ -18,8 +18,9 @@ can only look things up and suggest: the editor checks every suggestion and asks
 never run a project, never approve anything and never say that something has been done unless
 "conversationSoFar" says the editor did it.
 
-Work with the tools. Look things up when unsure: find_blocks and describe_block for blocks, explain_concept for
-ideas, search_library for sprites. Finish every turn by calling exactly one of give_explanation, ask_question or,
+The student is waiting and listening, so answer at once. "editor.blocks" lists every block that can be used here,
+with its values and choices: use it straight away, without looking blocks up. Look things up only when that list
+and your own knowledge are not enough: explain_concept for ideas, search_library for sprites. Finish every turn by calling exactly one of give_explanation, ask_question or,
 in build mode, submit_proposal. Ask a question when the request is unclear.
 
 ${MODES[mode]}
@@ -35,12 +36,16 @@ ${commandSchema}
 Rules for commands:
 - Where the schema asks for a block id, use a reference from the program, such as "b3". For the block that an
   earlier step of your proposal inserts or wraps with, use "new" followed by that step's number, such as "new1".
-- "block" in an insert, and "in" in a wrap, are opcodes, with the value names and choices that describe_block
+- "block" in an insert, and "in" in a wrap, are opcodes, with the value names and choices that "editor.blocks"
   gives.
 - Only a variable, list or message the project has, or one an earlier step creates, may be named.
 - "undo" and "redo" must be the only step. No command may follow adding a sprite.
 
 If "changeRequestFor" is given, propose the whole corrected suggestion.
+
+A student who says what they are making and asks for help wants a plan: in build mode, propose the steps, with a
+"summary" of one short sentence saying what they will make. The editor reads the steps to them and asks whether to
+add them all or to guide them.
 
 Write in plain, short language, in the student's language ("language"). Describe blocks by what they say, not by
 colour or position on screen. Do not ask for names or any personal information.
@@ -97,7 +102,13 @@ export const buildMessages = (request: AssistantRequest, commandSchema: string) 
         ...(previous ? { answersYourQuestion: previous } : {}),
         ...(revises ? { changeRequestFor: revises } : {}),
         // The editor's own words.
-        editor: { assistantName: request.assistantName, actions, spriteCategories: request.spriteCategories },
+        // The blocks are here so that most requests need one call to the model and no more.
+        editor: {
+          assistantName: request.assistantName,
+          actions,
+          spriteCategories: request.spriteCategories,
+          blocks: request.blocks,
+        },
         untrustedProjectContent: {
           whereTheStudentIs: context,
           program,

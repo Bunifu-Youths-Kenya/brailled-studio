@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, type Options } from '../src/app.ts'
 import { readConfig } from '../src/config.ts'
+import { speechCost } from '../src/cost.ts'
 import { USUAL_CAPS } from '../src/editor-config.ts'
 import { listen } from '../src/listen.ts'
 
@@ -31,6 +32,16 @@ const start = async (answer: () => Response = sound, env: Record<string, string>
 }
 
 describe('reading words aloud', () => {
+  it.each([
+    ['speechify/simba-3.5', 'beatrice_32'],
+    ['microsoft/mai-voice-2.1-flash', 'en-GB-Emily:MAI-Voice-2.1-Flash'],
+    ['hexgrad/kokoro-82m', 'af_heart'],
+  ])('takes the low-cost voice %s by default', async (model, voice) => {
+    const { post } = await start()
+    expect((await post({ text: 'Done.', model, voice })).status).toBe(200)
+    expect(speechCost(model, 1000, 60)).toBeLessThan(0.02)
+  })
+
   it('asks for PCM speech under the privacy settings, and passes the sound on', async () => {
     const { post, fetcher, lines } = await start()
     const response = await post()

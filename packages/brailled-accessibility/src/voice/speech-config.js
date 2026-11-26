@@ -8,7 +8,7 @@ const PROVIDERS = Object.freeze(['browser', 'gemini-pair', 'openai-audio']);
 
 // A model as OpenRouter names it, and a voice's name. The server decides which models it will use.
 const MODEL = /^[a-z0-9-]+\/[a-z0-9.:_-]{1,80}$/i;
-const VOICE_NAME = /^[A-Za-z0-9_-]{1,40}$/;
+const VOICE_NAME = /^[A-Za-z0-9_.:-]{1,60}$/;
 
 const ANSWER = /^[\p{L}\p{M}' ]{1,40}$/u;
 const MOST_ANSWERS = 30;

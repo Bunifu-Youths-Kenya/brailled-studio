@@ -90,7 +90,9 @@ question or explanation, or `null`.
 ## Speech
 
 `POST /api/speak` takes `{text, model, voice}`, with optional `provider` and `cacheHits` for the record of costs:
-at most 600 characters, a model in `AI_AUDIO_MODELS`, and a voice name. It asks OpenRouter's speech endpoint for
+at most 600 characters, a model in `AI_AUDIO_MODELS` (by default the Gemini and OpenAI audio models above, and the
+voices `speechify/simba-3.5`, `microsoft/mai-voice-2.1-flash`, `hexgrad/kokoro-82m` and
+`canopylabs/orpheus-3b-0.1-ft`), and a voice name. It asks OpenRouter's speech endpoint for
 PCM under the privacy settings and passes the sound on as it arrives: 16 bit, one channel, 24 kHz. A model named
 `openai/gpt-audio…` is asked through Chat Completions to say the words, and its stream of events is turned into the
 same sound. The [daily caps](#costs) apply. Nothing is cached, and neither the words nor the sound is logged.
@@ -163,9 +165,11 @@ passed on:
 The model gets `actions` and `spriteCategories` as the editor's own words, `history` as a record, and `context`,
 `program`, `data` and `names` under `untrustedProjectContent`, which its instructions tell it never to obey.
 
+**Speed.** The usable blocks are given to the model with the request, so that most requests take one call, and
+providers are tried quickest first (`OPENROUTER_PROVIDER_SORT`).
+
 The server adds the edit-command schema (`../brailled-accessibility/src/commands/schema.json`, so keep that file
-beside it when deploying), its instructions and its tools. The block list is given to the model only through the
-tools.
+beside it when deploying), its instructions and its tools. 
 
 The answer is `{"reply": ...}` with the model's JSON object, a proposal, question or explanation. The editor
 checks the whole of it. Errors are `{"error": ...}`:

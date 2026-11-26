@@ -9,7 +9,8 @@ const URL = 'https://openrouter.ai/api/v1/audio/speech'
 const CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions'
 // The longest piece read at once. The editor sends a sentence at a time.
 export const MOST_CHARACTERS = 600
-const VOICE = /^[A-Za-z0-9_-]{1,40}$/
+// Such as `Kore`, `beatrice_32` or `en-GB-Emily:MAI-Voice-2.1-Flash`.
+const VOICE = /^[A-Za-z0-9_.:-]{1,60}$/
 
 export interface SpeechRequest {
   text: string

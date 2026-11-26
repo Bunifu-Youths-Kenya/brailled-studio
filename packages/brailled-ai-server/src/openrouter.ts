@@ -57,6 +57,8 @@ export const complete = async (
       require_parameters: true,
       data_collection: config.denyDataCollection ? 'deny' : 'allow',
       ...(config.zeroDataRetention ? { zdr: true } : {}),
+      // Among those, the preferred ones first: the student is waiting.
+      ...(config.providerSort ? { sort: config.providerSort } : {}),
     },
   }
   let answer: Response_
