@@ -40,6 +40,7 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-26 | `packages/scratch-gui/webpack.config.js` | Page titles say "Brailled" instead of "Scratch". | The product must not ship the Scratch name. |
 | 2026-11-26 | `packages/scratch-gui/src/lib/titled-hoc.jsx` | A new project is named "Brailled Project", under a message id of its own. | The product must not ship the Scratch name; Scratch's translations of the old id would bring it back. |
 | 2026-11-26 | `packages/scratch-gui/test/integration/menu-bar.test.js`, `project-state.test.js` | Expect the new default project name. | Same. |
+| 2026-11-26 | `packages/scratch-gui/src/lib/layout-constants.js`, `screen-utils.js`, `src/components/gui/gui.jsx` | In a window 740 pixels high or less, the large stage is drawn at 70%. | With the voice bar below the editor, the sprites were pushed off short screens. |
 
 ## Files added by Brailled
 
@@ -210,5 +211,6 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `packages/brailled-ai-server/test/agent.test.ts` |
 | 2026-11-26 | `packages/brailled-ai-server/test/eval.test.ts` |
 | 2026-11-26 | `packages/brailled-ai-server/test/model.ts` |
+| 2026-11-26 | `packages/scratch-gui/test/unit/util/screen-utils.test.js` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

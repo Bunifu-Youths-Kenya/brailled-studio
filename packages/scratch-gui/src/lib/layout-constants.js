@@ -32,6 +32,11 @@ const STAGE_DISPLAY_SIZES = keyMirror({
     largeConstrained: null,
 
     /**
+     * Large stage with short browser
+     */
+    largeShort: null,
+
+    /**
      * Small stage (ignores browser width)
      */
     small: null
@@ -43,12 +48,15 @@ const BLOCKS_DEFAULT_SCALE = 0.675;
 const STAGE_DISPLAY_SCALES = {};
 STAGE_DISPLAY_SCALES[STAGE_DISPLAY_SIZES.large] = 1; // large mode, wide browser (standard)
 STAGE_DISPLAY_SCALES[STAGE_DISPLAY_SIZES.largeConstrained] = 0.85; // large mode but narrow browser
+STAGE_DISPLAY_SCALES[STAGE_DISPLAY_SIZES.largeShort] = 0.7; // large mode but short browser
 STAGE_DISPLAY_SCALES[STAGE_DISPLAY_SIZES.small] = 0.5; // small mode, regardless of browser size
 
 export default {
     standardStageWidth: 480,
     standardStageHeight: 360,
     fullSizeMinWidth: 1096,
+    // At this height or less, a larger stage with the voice bar under it would push the sprites off the screen.
+    shortMaxHeight: 740,
     fullSizePaintMinWidth: 1250
 };
 

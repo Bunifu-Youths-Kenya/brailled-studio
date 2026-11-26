@@ -201,8 +201,11 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     const words = {key: talkKey.name, ...state.status.values};
     const status = state.status.text ?? intl.formatMessage(state.status.message, words);
     const hint = intl.formatMessage(voiceMessages.confirmHint, words);
-    // While a question is open the bar says how to answer it.
-    const barStatus = state.pending && !status ? hint : status;
+    const heardLine = intl.formatMessage(voiceMessages.heard, {text: state.heard});
+    // While a question is open the bar says how to answer it. A reply is spoken after what was heard, which the bar
+    // already shows above it.
+    let barStatus = state.pending && !status ? hint : status;
+    if (state.heard && barStatus.startsWith(`${heardLine} `)) barStatus = barStatus.slice(heardLine.length + 1);
     const handleSettings = () => app.perform('voice.settings');
     // What leaves the computer is shown whenever it can: by voice, to the AI helper, or both.
     let notice = off ? null : voiceMessages.privacy;
@@ -265,9 +268,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
                         className={styles.transcript}
                         data-voice-transcript
                     >
-                        {state.heard ?
-                            intl.formatMessage(voiceMessages.heard, {text: state.heard}) :
-                            intl.formatMessage(voiceMessages.nothingHeard)}
+                        {state.heard ? heardLine : intl.formatMessage(voiceMessages.nothingHeard)}
                     </p>
                 )}
                 <p

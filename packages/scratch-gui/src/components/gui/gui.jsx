@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 import React, {useEffect, useCallback} from 'react';
 import {defineMessages, FormattedMessage, useIntl} from 'react-intl';
 import {connect} from 'react-redux';
-import MediaQuery from 'react-responsive';
+import MediaQuery, {useMediaQuery} from 'react-responsive';
 import {Tab, Tabs, TabList, TabPanel} from 'react-tabs';
 import tabStyles from 'react-tabs/style/react-tabs.css';
 import VM from '@scratch/scratch-vm';
@@ -260,6 +260,8 @@ const GUIComponent = props => {
         tabSelected: classNames(tabStyles.reactTabsTabSelected, styles.isSelected)
     };
 
+    const isShort = useMediaQuery({maxHeight: layout.shortMaxHeight});
+
     const onCloseDebugModal = useCallback(() => {
         if (onDebugModalClose) {
             onDebugModalClose();
@@ -272,7 +274,7 @@ const GUIComponent = props => {
     }
 
     return (<MediaQuery minWidth={layout.fullSizeMinWidth}>{isFullSize => {
-        const stageSize = resolveStageSize(stageSizeMode, isFullSize);
+        const stageSize = resolveStageSize(stageSizeMode, isFullSize, isShort);
         const boxStyles = classNames(styles.bodyWrapper, {
             [styles.bodyWrapperWithoutMenuBar]: menuBarHidden
         });

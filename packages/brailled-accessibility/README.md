@@ -152,6 +152,10 @@ optional: everything it does can be done from the keyboard or by typing the comm
 No use of either was found in the editor, the block library or the paint editor, and browsers and screen readers
 are not expected to take them on their own. Neither has been tried with NVDA, JAWS, VoiceOver or Orca.
 
+**Room for the editor.** The bar sits below the editor and shares the window's height with it. In a window 740
+pixels high or less, the bar is shorter, with smaller type, and the large stage is drawn at 70% so that the sprites
+stay on screen. Taller windows are unchanged.
+
 **When the microphone is open.** Only after one of the actions above, and never by itself. It closes after at
 most 15 seconds, or 5, 10, 30 or 60 as chosen in Voice settings; there is no unlimited choice, and the browser's
 service may stop sooner after silence. It also closes when the window loses focus or the page is hidden. A high

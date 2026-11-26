@@ -759,7 +759,8 @@ const startAiServer = async (env = {}) => {
             /^I heard: Where am I\. You are in the scripts area, on move 10 steps/.test(await t.said()), await t.said());
         check('what was heard is shown large', await transcript() === 'I heard: Where am I.' &&
             await bar.locator('[data-voice-transcript]').evaluate(el => parseFloat(getComputedStyle(el).fontSize) >= 24));
-        check('the reply is shown', await status() === await t.said());
+        check('the reply is shown, without repeating what was heard',
+            await status() === (await t.said()).replace('I heard: Where am I. ', ''), await status());
 
         await say('next');
         check('spoken "next" moves in the outline', await onItem() === 'wait 1 second', await onItem());
@@ -1000,6 +1001,39 @@ const startAiServer = async (env = {}) => {
             }));
             check(`the voice bar fits at ${width} wide`, fits.inside && fits.words > 300, JSON.stringify(fits));
             await page.screenshot({path: path.join(out, `voice-bar-${width}.png`)});
+        }
+        // A 768 high laptop screen leaves about this much once the browser has taken its share.
+        for (const height of [768, 650]) {
+            await page.setViewportSize({width: 1366, height});
+            await pause(800);
+            const covered = await page.evaluate(() => {
+                const top = document.querySelector('[data-brailled-zone="voice"]').getBoundingClientRect().top;
+                const wanted = {
+                    'the sprite\'s name': document.querySelector('input[class*="input_input-form"]'),
+                    'the sprite': document.querySelector('[class*="sprite-selector-item_sprite-selector-item"]'),
+                    'the button that adds a sprite':
+                        document.querySelector('[class*="sprite-selector_add-button"] button')
+                };
+                const found = Object.entries(wanted)
+                    .filter(([, el]) => !el || el.getBoundingClientRect().bottom > top)
+                    .map(([name, el]) => `${name} ${el ? Math.round(el.getBoundingClientRect().bottom) : 'missing'}`);
+                const info = document.querySelector('[class*="sprite-info_sprite-info"]');
+                const add = wanted['the button that adds a sprite'];
+                if (add.getBoundingClientRect().top < info.getBoundingClientRect().bottom - 1) {
+                    found.push('the add button lies over the sprite\'s details');
+                }
+                return found.concat(`bar top ${Math.round(top)}`);
+            });
+            check(`the voice bar covers nothing of the sprites at ${height} high`, covered.length === 1,
+                covered.join(', '));
+            await page.screenshot({path: path.join(out, `voice-bar-height-${height}.png`)});
+        }
+        for (const width of [1366, 1024]) {
+            await page.setViewportSize({width, height: 650});
+            await pause(800);
+            check(`the bar still fits when the screen is short, ${width} wide`, await bar.evaluate(el => Array.from(
+                el.querySelectorAll('*')).every(child => child.closest('[role="group"]') ||
+                child.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 0.5)));
         }
         await page.setViewportSize({width: 1366, height: 768});
 
@@ -1562,6 +1596,12 @@ const startAiServer = async (env = {}) => {
                 child.getBoundingClientRect().bottom <= space + 0.5);
         }));
         await page.screenshot({path: path.join(out, 'ai-voice-bar-1024.png')});
+        await page.setViewportSize({width: 1024, height: 650});
+        await t.pause(800);
+        check('the longer notice fits a short screen too', await bar.evaluate(el => Array.from(
+            el.querySelectorAll('*')).every(child => child.closest('[role="group"]') ||
+            child.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 0.5)));
+        await page.screenshot({path: path.join(out, 'ai-voice-bar-short.png')});
         await page.setViewportSize({width: 1366, height: 768});
         await startOutline(t);
         await key('Alt+Shift+KeyK', 500);

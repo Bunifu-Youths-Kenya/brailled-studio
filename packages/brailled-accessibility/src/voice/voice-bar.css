@@ -124,3 +124,42 @@
     line-height: 1.25;
     text-align: end;
 }
+
+/* On a short screen the bar gives up height to the editor. The height matches shortMaxHeight in scratch-gui. */
+@media (max-height: 740px) {
+    .bar {
+        height: 4rem;
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+
+    .talk {
+        min-height: 2.75rem;
+    }
+
+    .transcript {
+        font-size: 1.25rem;
+    }
+
+    .status {
+        font-size: 0.9375rem;
+    }
+
+    /* Wider, so that the notice takes two lines. */
+    .side {
+        flex-basis: 30rem;
+        gap: 0;
+    }
+
+    .settings {
+        padding-top: 0;
+        padding-bottom: 0;
+        font-size: 0.75rem;
+    }
+
+    .privacy,
+    .ai-notice {
+        font-size: 0.75rem;
+        line-height: 1.2;
+    }
+}
