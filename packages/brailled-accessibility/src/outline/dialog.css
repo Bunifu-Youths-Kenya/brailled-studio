@@ -1,15 +1,16 @@
-/* Fixed black, white and yellow, matching the outline. */
+/* In the colours of `theme.css`, matching the outline. */
 .dialog {
     box-sizing: border-box;
     width: min(32rem, 92vw);
     max-height: 85vh;
     overflow: auto;
     padding: 1rem;
-    color: #1a1a1a;
-    background: #fff;
-    border: 3px solid #1a1a1a;
+    color: var(--brailled-text);
+    background: var(--brailled-canvas);
+    border: 3px solid var(--brailled-line);
     border-radius: 0.5rem;
     font: 1rem "Helvetica Neue", Helvetica, Arial, sans-serif;
+    accent-color: var(--brailled-selected);
 }
 
 /* Above the voice bar, at the side, over the editor without blocking it. */
@@ -23,16 +24,17 @@
     max-height: 60vh;
     overflow: auto;
     padding: 1rem;
-    color: #1a1a1a;
-    background: #fff;
-    border: 3px solid #1a1a1a;
+    color: var(--brailled-text);
+    background: var(--brailled-canvas);
+    border: 3px solid var(--brailled-line);
     border-radius: 0.5rem;
-    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.35);
+    box-shadow: var(--brailled-shadow);
     font: 1rem "Helvetica Neue", Helvetica, Arial, sans-serif;
+    accent-color: var(--brailled-selected);
 }
 
 .dialog::backdrop {
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--brailled-backdrop);
 }
 
 .title {
@@ -50,9 +52,9 @@
     box-sizing: border-box;
     width: 100%;
     padding: 0.5rem;
-    color: #1a1a1a;
-    background: #fff;
-    border: 2px solid #1a1a1a;
+    color: var(--brailled-text);
+    background: var(--brailled-canvas);
+    border: 2px solid var(--brailled-line);
     border-radius: 0.25rem;
     font: inherit;
 }
@@ -75,7 +77,7 @@
 .error {
     margin: 0.25rem 0;
     font-weight: bold;
-    color: #a30000;
+    color: var(--brailled-danger-text);
 }
 
 .list {
@@ -84,7 +86,7 @@
     margin: 0 0 0.75rem;
     padding: 0;
     list-style: none;
-    border: 2px solid #1a1a1a;
+    border: 2px solid var(--brailled-line);
     border-radius: 0.25rem;
 }
 
@@ -97,8 +99,8 @@
 }
 
 .option[aria-selected="true"] {
-    color: #ffd500;
-    background: #1a1a1a;
+    color: var(--brailled-on-selected);
+    background: var(--brailled-selected);
 }
 
 .category {
@@ -108,9 +110,9 @@
 .button {
     margin-inline-end: 0.5rem;
     padding: 0.375rem 0.75rem;
-    color: #1a1a1a;
-    background: #fff;
-    border: 2px solid #1a1a1a;
+    color: var(--brailled-text);
+    background: var(--brailled-canvas);
+    border: 2px solid var(--brailled-line);
     border-radius: 0.25rem;
     font: inherit;
     font-weight: bold;

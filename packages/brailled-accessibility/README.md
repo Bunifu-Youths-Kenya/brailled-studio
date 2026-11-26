@@ -558,6 +558,22 @@ move 10 steps".
 
 These flows depend on the model following its instructions. Tests supply the model's replies.
 
+## Colours
+
+`src/theme.css` holds every colour Brailled uses, as `--brailled-*` properties on the page, so that dialogs have
+them too. `useColorMode` (called in `gui.jsx`) puts the editor's colour mode on the page, and the colours follow it:
+
+| Colour mode | Panels | Menu bar and voice bar | Student's place |
+| - | - | - | - |
+| Original | Dark purple text on white | White on deep purple, yellow accents | Yellow on deep purple |
+| High Contrast (also chosen by the computer's "more contrast" setting) | Black on white | White on black, yellow accents | Yellow on black |
+| Dark (ready for when Scratch turns it on) | Light text on dark purple | White on deep purple | Dark on yellow |
+
+Every text colour is at least 7:1 against what it sits on (WCAG AAA) and every border and focus ring at least 3:1.
+`test/theme.test.js` checks this for each mode, so a new colour must be added to all three and pass it. The menu
+bar, the Blocks/Outline switch and the stage tabs use the same deep purple. The rest of Scratch's own interface
+keeps its colours.
+
 ## Accessible names
 
 `npm run audit:names` (with the dev server running) checks 34 screens, menus and dialogs against Chrome's

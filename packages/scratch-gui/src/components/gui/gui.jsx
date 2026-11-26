@@ -34,6 +34,7 @@ import {
     VoiceBar,
     shellBodyClassName,
     shellClassName,
+    useColorMode,
     useKeptState
 } from '../../../../brailled-accessibility/src/index.js';
 
@@ -231,6 +232,7 @@ const GUIComponent = props => {
     }
 
     const [scriptsView, setScriptsView] = useKeptState(vm, 'scriptsView', SCRIPTS_VIEWS.blocks);
+    useColorMode(colorMode);
 
     useEffect(() => {
         if (props.platform) {

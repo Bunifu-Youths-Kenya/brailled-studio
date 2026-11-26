@@ -41,6 +41,8 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-26 | `packages/scratch-gui/src/lib/titled-hoc.jsx` | A new project is named "Brailled Project", under a message id of its own. | The product must not ship the Scratch name; Scratch's translations of the old id would bring it back. |
 | 2026-11-26 | `packages/scratch-gui/test/integration/menu-bar.test.js`, `project-state.test.js` | Expect the new default project name. | Same. |
 | 2026-11-26 | `packages/scratch-gui/src/lib/layout-constants.js`, `screen-utils.js`, `src/components/gui/gui.jsx` | In a window 740 pixels high or less, the large stage is drawn at 70%. | With the voice bar below the editor, the sprites were pushed off short screens. |
+| 2026-11-26 | `packages/scratch-gui/src/components/gui/gui.jsx` | Passes the colour mode to `useColorMode` from `brailled-accessibility`. | Brailled's panels follow the colour mode. |
+| 2026-11-26 | `packages/scratch-gui/src/components/menu-bar/menu-bar.css` | The menu bar takes `--brailled-brand`: a deep purple with white text at 12:1, black in High Contrast. | The old purple gave white text 4.7:1, too little for low-vision students. |
 
 ## Files added by Brailled
 
@@ -252,5 +254,8 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `packages/brailled-ai-server/test/wav.ts` |
 | 2026-11-26 | `packages/brailled-accessibility/src/proposals/guide.js` |
 | 2026-11-26 | `packages/brailled-accessibility/test/conversation.test.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/theme.css` |
+| 2026-11-26 | `packages/brailled-accessibility/src/theme.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/theme.test.js` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

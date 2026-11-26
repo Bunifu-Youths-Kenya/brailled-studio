@@ -9,5 +9,6 @@ export {default as BrailledActions} from './actions/actions-host.jsx';
 export {getApp} from './actions/app.js';
 export {default as VoiceBar} from './voice/voice-bar.jsx';
 export {default as useKeptState} from './use-kept-state.js';
+export {default as useColorMode} from './theme.js';
 export {createEditor, getEditor} from './commands/editor.js';
 export {default as commandSchema} from './commands/schema.json';

@@ -4,14 +4,14 @@
     It applies to the whole page, because popovers and dialogs are rendered outside the editor's own elements.
 */
 :global(body) *:focus-visible {
-    outline: 3px solid #1a1a1a !important;
+    outline: 3px solid var(--brailled-focus-inner) !important;
     outline-offset: 0;
-    box-shadow: 0 0 0 5px #ffd500 !important;
+    box-shadow: 0 0 0 5px var(--brailled-focus-outer) !important;
 }
 
-/* The menu bar is purple and touches the window edge. */
+/* The menu bar is the brand colour and touches the window edge. */
 .shell header *:focus-visible {
-    outline-color: #ffd500 !important;
+    outline-color: var(--brailled-accent) !important;
     outline-offset: -3px;
     box-shadow: none !important;
 }
@@ -31,7 +31,7 @@
     display: flex;
     gap: 0.5rem;
     padding: 0.25rem;
-    background: #fff;
+    background: var(--brailled-canvas);
     font: bold 0.875rem "Helvetica Neue", Helvetica, Arial, sans-serif;
     transform: translateY(-200%);
 }
@@ -42,7 +42,7 @@
 
 .skip-links a {
     padding: 0.5rem;
-    color: #1a1a1a;
+    color: var(--brailled-text);
 }
 
 /* The editor is a column: menu bar, then the editor itself, then the voice bar. */

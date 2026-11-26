@@ -1,12 +1,12 @@
 /* A thick yellow outline with a dark glow, seen on light and dark blocks alike. */
 :global([data-brailled-workspace] g[data-brailled-changed] > .blocklyPath) {
-    stroke: #ffd500 !important;
+    stroke: var(--brailled-accent) !important;
     stroke-width: 6px !important;
     filter: drop-shadow(0 0 4px #000) drop-shadow(0 0 2px #000);
 }
 
 :global([data-brailled-outline] [data-brailled-changed] > span) {
-    background: #ffd500;
-    color: #1a1a1a;
-    box-shadow: 0 0 0 3px #1a1a1a;
+    background: var(--brailled-accent);
+    color: var(--brailled-on-accent);
+    box-shadow: 0 0 0 3px var(--brailled-line);
 }

@@ -1,4 +1,4 @@
-/* Fixed black, white and yellow, for strong contrast in every colour mode. */
+/* In the colours of `theme.css`, strong in every colour mode. */
 .outline {
     position: absolute;
     top: 0;
@@ -7,9 +7,9 @@
     left: 0;
     overflow: auto;
     padding: 1rem;
-    color: #1a1a1a;
-    background: #fff;
-    border: 1px solid #1a1a1a;
+    color: var(--brailled-text);
+    background: var(--brailled-canvas);
+    border: 1px solid var(--brailled-line);
     border-radius: 0.5rem;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
@@ -41,7 +41,7 @@
 .group {
     margin-inline-start: 0.7rem;
     padding-inline-start: 0.75rem;
-    border-inline-start: 2px solid #767676;
+    border-inline-start: 2px solid var(--brailled-text-soft);
 }
 
 .row {
@@ -75,7 +75,7 @@
 
 /* Marks the user's place while focus is elsewhere. */
 .item[tabindex="0"] > .row {
-    border-color: #1a1a1a;
+    border-color: var(--brailled-line);
 }
 
 /* The item contains its children, so the focus indicator goes on its own row only. */
@@ -86,10 +86,10 @@
 }
 
 .item:focus > .row {
-    color: #ffd500;
-    background: #1a1a1a;
-    border-color: #ffd500;
-    outline: 3px solid #1a1a1a;
+    color: var(--brailled-on-selected);
+    background: var(--brailled-selected);
+    border-color: var(--brailled-on-selected);
+    outline: 3px solid var(--brailled-text);
 }
 
 .moving {

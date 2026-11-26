@@ -21,17 +21,17 @@
     flex: 1;
     padding: 0.5rem;
     text-align: center;
-    color: $text-primary;
+    color: var(--brailled-text);
     background: $ui-tertiary;
-    border: 1px solid $ui-black-transparent;
+    border: 1px solid var(--brailled-text-soft);
     border-radius: 0.5rem 0.5rem 0 0;
     cursor: pointer;
     user-select: none;
 }
 
 .selected-tab {
-    color: $ui-white;
-    background: $looks-secondary-dark;
+    color: var(--brailled-on-brand);
+    background: var(--brailled-brand);
 }
 
 .panel {

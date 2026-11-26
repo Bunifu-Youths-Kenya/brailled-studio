@@ -27,7 +27,8 @@
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: $menu-bar-standard-font-size;
     font-weight: bold;
-    background-color: $looks-secondary;
+    /* Brailled's own purple, dark enough for white text at 12:1, and black in high contrast. */
+    background-color: var(--brailled-brand, $looks-secondary);
     color: $ui-white;
 }
 

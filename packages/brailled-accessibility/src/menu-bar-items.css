@@ -18,7 +18,7 @@
 }
 
 .language:focus-within {
-    outline: 3px solid #ffd500;
+    outline: 3px solid var(--brailled-accent);
     outline-offset: -3px;
 }
 

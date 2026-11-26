@@ -15,14 +15,14 @@
 
 .warning {
     padding: 0.5rem;
-    color: #fff;
-    background: #a30000;
+    color: var(--brailled-on-danger);
+    background: var(--brailled-danger);
     border-radius: 0.25rem;
     font-weight: bold;
 }
 
 .risk {
-    color: #a30000;
+    color: var(--brailled-danger-text);
 }
 
 .now,

@@ -1,0 +1,72 @@
+/*
+    Brailled's colours, one set for each of the editor's colour modes. Every text colour is at least 7:1 against
+    the colour it sits on (WCAG AAA), and every border and focus ring at least 3:1, for low-vision students.
+    They are set on the page itself, because dialogs are placed outside the editor's own elements.
+*/
+:global(:root) {
+    /* Panels: the Outline, dialogs and the question beside the editor. */
+    --brailled-canvas: #fff;
+    --brailled-text: #1c1033;
+    --brailled-text-soft: #5e4f80;
+    --brailled-line: #3b1f86;
+
+    /* The menu bar and the voice bar. */
+    --brailled-brand: #3b1f86;
+    --brailled-on-brand: #fff;
+
+    /* What the eye must find: the talk button, notices, highlights. */
+    --brailled-accent: #ffd500;
+    --brailled-on-accent: #1c1033;
+
+    /* Where the student is, in a list. */
+    --brailled-selected: #3b1f86;
+    --brailled-on-selected: #ffd500;
+
+    /* Recording, warnings and errors. */
+    --brailled-danger: #a30000;
+    --brailled-on-danger: #fff;
+    --brailled-danger-text: #a30000;
+
+    /* A dark ring inside a yellow one, seen on light and dark alike. */
+    --brailled-focus-inner: #1c1033;
+    --brailled-focus-outer: #ffd500;
+
+    --brailled-backdrop: rgba(28, 16, 51, 0.7);
+    --brailled-shadow: 0 0.25rem 1rem rgba(28, 16, 51, 0.35);
+}
+
+:global(:root[data-brailled-color-mode="dark"]) {
+    --brailled-canvas: #17112a;
+    --brailled-text: #f5f0ff;
+    --brailled-text-soft: #d9d0f2;
+    --brailled-line: #c9b8ff;
+    --brailled-brand: #2a1868;
+    --brailled-on-brand: #fff;
+    --brailled-on-accent: #17112a;
+    --brailled-selected: #ffd500;
+    --brailled-on-selected: #17112a;
+    --brailled-danger-text: #ff9e97;
+    --brailled-focus-inner: #ffd500;
+    --brailled-focus-outer: #17112a;
+    --brailled-backdrop: rgba(0, 0, 0, 0.75);
+    --brailled-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.6);
+}
+
+/* The strongest contrast there is: black, white and yellow. */
+:global(:root[data-brailled-color-mode="high-contrast"]) {
+    --brailled-text: #000;
+    --brailled-text-soft: #000;
+    --brailled-line: #000;
+    --brailled-brand: #000;
+    --brailled-on-accent: #000;
+    --brailled-selected: #000;
+    --brailled-focus-inner: #000;
+    --brailled-backdrop: rgba(0, 0, 0, 0.75);
+    --brailled-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.5);
+}
+
+/* Text chosen with the mouse is marked in the same colours as the student's place. */
+:global(::selection) {
+    color: var(--brailled-on-selected);
+    background: var(--brailled-selected);
+}
