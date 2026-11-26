@@ -3,6 +3,7 @@
  * it can be changed without rebuilding. Anything that cannot be read is off.
  */
 import {DEFAULT_ASSISTANT_NAME, cleanName} from './names.js';
+import {speechFrom, voiceIsOn} from './voice/speech-config.js';
 
 const CONFIG_URL = 'static/brailled-config.json';
 
@@ -38,6 +39,7 @@ const wakeFrom = (value, assistant) => {
 const SAFEST = Object.freeze({ai: false,
     assistantName: DEFAULT_ASSISTANT_NAME,
     wakeWord: wakeFrom(null, DEFAULT_ASSISTANT_NAME),
+    speech: speechFrom(null),
     aiEndpoint: null,
     approval: 'every',
     proposalExpirySeconds: EXPIRY_SECONDS.usual,
@@ -75,7 +77,8 @@ const interpret = file => {
     const aiEndpoint = file.ai === true ? endpointFrom(file.aiEndpoint) : null;
     const assistantName = cleanName(file.assistantName) ?? DEFAULT_ASSISTANT_NAME;
     return {
-        voice: file.voice === true,
+        voice: voiceIsOn(file.voice),
+        speech: speechFrom(file.voice),
         ai: !!aiEndpoint,
         aiEndpoint,
         approval: file.approval === BIG_CHANGES_ONLY ? 'big' : 'every',

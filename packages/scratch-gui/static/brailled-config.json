@@ -1,5 +1,17 @@
 {
-    "voice": true,
+    "voice": {
+        "enabled": true,
+        "provider": "browser",
+        "listenModel": "google/gemini-3.5-flash-lite",
+        "ttsModel": "google/gemini-3.8-flash-lite-tts",
+        "ttsVoice": "Kore",
+        "speed": 1,
+        "maxRecordSeconds": 30,
+        "silenceSeconds": 2,
+        "doneWord": false,
+        "dailyRequestCap": 300,
+        "dailyCharacterCap": 50000
+    },
     "assistantName": "Mboni",
     "wakeWord": {
         "enabled": false,

@@ -442,6 +442,7 @@ describe('the configuration', () => {
             assistantMode: 'build',
             assistantName: 'Mboni',
             wakeWord: expect.objectContaining({enabled: false}),
+            speech: expect.objectContaining({provider: 'browser'}),
             unreadable: false});
     });
 
@@ -458,6 +459,7 @@ describe('the configuration', () => {
             assistantMode: 'build',
             assistantName: 'Mboni',
             wakeWord: expect.objectContaining({enabled: false}),
+            speech: expect.objectContaining({provider: 'browser'}),
             unreadable: true});
     });
 

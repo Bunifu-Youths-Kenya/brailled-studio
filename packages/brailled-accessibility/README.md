@@ -238,6 +238,25 @@ Google; read [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md#wake-word-demo-mode) firs
   recognition each time the browser ends it, waiting longer after quick failures and giving up after six.
   `"on-device"` is a stub that says it cannot be used.
 
+### Voice settings
+
+`"voice": true` is voice with the browser's own speech recognition. An object chooses more; it turns voice on only
+with `"enabled": true`.
+
+| Key | Values | Default |
+| - | - | - |
+| `provider` | `"browser"`, `"gemini-pair"`, `"openai-audio"` | `"browser"` |
+| `listenModel` | The model that hears and answers, as OpenRouter names it | `google/gemini-3.5-flash-lite` |
+| `ttsModel`, `ttsVoice` | The model and voice that read replies | `google/gemini-3.8-flash-lite-tts`, `Kore` |
+| `compareModel` | The model of `openai-audio` | `openai/gpt-audio-mini` |
+| `speed` | 0.5 to 2, applied when audio is played | 1 |
+| `maxRecordSeconds` | 5 to 60 | 30 |
+| `silenceSeconds` | 1 to 4: how long a pause ends a recording | 2 |
+| `doneWord` | Whether saying "done" ends a recording | `false` |
+| `dailyRequestCap`, `dailyCharacterCap` | Voice requests, and characters read, a day | 300, 50000 |
+
+No key or other secret belongs in this file: it is served to every browser.
+
 ### Changing the speech service
 
 `src/voice/provider.js` describes the interface: `isSupported()` and
@@ -339,6 +358,7 @@ Each step has a risk that the editor works out; nothing the AI says changes it.
 | - | - | - |
 | `approval` | `"every time"`: every change is approved. `"big changes only"`: changes marked "Edit" above that "undo" can take back are made without asking | `"every time"`, also for any other value |
 | `proposalExpirySeconds` | 30 to 900. Numbers outside that become the nearest limit | 120, also for anything that is not a number |
+| `voice` | `true`, `false`, or the [voice settings](#voice-settings) | Off |
 | `wakeWord` | `enabled`, `engine` (`"demo"` or `"on-device"`), `greetings`, `variants` | Off |
 | `assistantName` | What the assistant is called: up to 30 letters | `"Mboni"`, also for anything that is not a name |
 | `assistantMode` | The mode the AI helper starts in: `"build"` or `"guide"`. A student can switch while the page is open | `"build"`, also for any other value |
