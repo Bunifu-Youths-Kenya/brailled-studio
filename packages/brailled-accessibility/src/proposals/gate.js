@@ -103,7 +103,7 @@ const createGate = ({
             fingerprint: fingerprintOf(app)
         });
         show();
-        app.speak(wordsOf(state.proposal));
+        app.speak(wordsOf(state.proposal), {reply: true});
     };
 
     const stopClock = () => {

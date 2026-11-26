@@ -162,6 +162,15 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
                 event.stopPropagation();
                 return;
             }
+            // Escape stops reading aloud. A dialog still closes with it.
+            if (event.key === 'Escape' && app.reading()) {
+                app.silence();
+                if (!hasOpenDialog(document)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                }
+            }
             // One key starts and stops listening for the wake words, dialogs or not.
             if (matches(WAKE_KEY, event) && (wake.getState().on || wake.available())) {
                 event.preventDefault();

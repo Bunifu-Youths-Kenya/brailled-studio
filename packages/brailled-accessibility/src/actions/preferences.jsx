@@ -130,6 +130,8 @@ const VoiceSettings = ({app, onClose}) => {
     const handleKey = useCallback(event => app.settings.set({talkKey: event.target.value}), [app]);
     const handleSeconds = useCallback(
         event => app.settings.set({maxSeconds: Number(event.target.value)}), [app]);
+    const handleReadbacks = useCallback(
+        event => app.settings.set({onlineReadbacks: event.target.checked}), [app]);
     const handleName = useCallback(event => app.settings.set({studentName: event.target.value}), [app]);
     const handleIntroduction = useCallback(
         event => app.settings.set({introduction: event.target.value}), [app]);
@@ -231,6 +233,25 @@ const VoiceSettings = ({app, onClose}) => {
                     {note}
                 </p>
             </div>
+            {app.online.provider() === 'browser' ? null : (
+                <div className={dialogStyles.field}>
+                    <label className={dialogStyles.row}>
+                        <input
+                            aria-describedby="brailled-readbacks-hint"
+                            checked={settings.onlineReadbacks}
+                            type="checkbox"
+                            onChange={handleReadbacks}
+                        />
+                        {intl.formatMessage(preferenceMessages.onlineReadbacks)}
+                    </label>
+                    <p
+                        className={dialogStyles.count}
+                        id="brailled-readbacks-hint"
+                    >
+                        {intl.formatMessage(preferenceMessages.onlineReadbacksHint)}
+                    </p>
+                </div>
+            )}
             <div className={dialogStyles.field}>
                 <label
                     className={dialogStyles.label}

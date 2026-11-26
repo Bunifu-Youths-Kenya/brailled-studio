@@ -127,13 +127,21 @@ const startAiServer = async (env = {}) => {
     const from = file => import(pathToFileURL(path.join(repo, 'packages/brailled-ai-server/src', file)).href);
     const [{createApp}, {readConfig}] = await Promise.all([from('app.ts'), from('config.ts')]);
     // `spoken` queues what the model does with each recording: the call it makes, or a status for a failure.
-    const model = {reply: null, lookUp: null, asked: [], results: [], spoken: [], recordings: []};
+    // `voiced` lists the words the speech service was asked to read; `mute` is a status it answers with instead.
+    const model = {reply: null, lookUp: null, asked: [], results: [], spoken: [], recordings: [], voiced: [],
+        mute: null};
     const tools = {proposal: 'submit_proposal', question: 'ask_question', explanation: 'give_explanation'};
     const respond = message => Promise.resolve(Response.json(
         {choices: [{finish_reason: message.tool_calls ? 'tool_calls' : 'stop', message}]}));
     const calls = made => ({role: 'assistant', content: null, tool_calls: made.map(([name, args], i) => (
         {id: `call_${i}`, type: 'function', function: {name, arguments: JSON.stringify(args)}}))});
-    const fetcher = (_, options) => {
+    const fetcher = (address, options) => {
+        if (address.endsWith('/audio/speech')) {
+            model.voiced.push(JSON.parse(options.body).input);
+            if (model.mute) return Promise.resolve(new Response('', {status: model.mute}));
+            // A quarter of a second of quiet sound.
+            return Promise.resolve(new Response(new Uint8Array(12000)));
+        }
         const {messages, tools: offered} = JSON.parse(options.body);
         if (Array.isArray(messages[1].content)) {
             const [text, sound] = messages[1].content;
@@ -1842,7 +1850,7 @@ const startAiServer = async (env = {}) => {
         };
         await startOutline(t);
         const original = await t.items();
-        check('the notice says a recording goes online', /a recording of your voice goes to OpenRouter/
+        check('the notice says a recording goes online', /^Your recorded voice .* go through OpenRouter/
             .test(await notice.textContent()), await notice.textContent());
 
         ai.model.spoken = [['submit_proposal', {transcript: 'add a wait', clear: true, summary: 'Add a wait.',
@@ -1886,6 +1894,54 @@ const startAiServer = async (env = {}) => {
         `${await status()} / ${await notice.textContent()}`);
     }, {init: [fakeVoice], config: {json: {voice: {enabled: true, provider: 'gemini-pair'}, ai: true,
         aiEndpoint: ai.endpoint}}});
+
+    await group('online voice', async t => {
+        const {page, key, pause} = t;
+        const bar = page.locator('[data-brailled-zone="voice"]');
+        const played = [];
+        page.on('request', request => {
+            if (request.url().includes('/brailled-voice/')) played.push(request.url().split('/').at(-1));
+        });
+        const device = () => page.evaluate(() => window.spoken.join(' '));
+        ai.model.voiced = [];
+        ai.model.mute = null;
+        await pause(1000);
+        await key('F2', 5000);
+        check('the introduction plays from the sound that ships with the editor',
+            played.filter(file => file.endsWith('.wav')).length >= 4 &&
+            ai.model.voiced.length === 0, `${played.join(' ')} / ${ai.model.voiced.join(' ')}`);
+        check('and the device voice stays quiet', await device() === '', await device());
+
+        ai.model.reply = {type: 'explanation', text: 'A loop repeats blocks. It saves work.'};
+        await typed(t, 'what is a loop');
+        await pause(4000);
+        check('a reply is read by the online voice, a sentence at a time',
+            ai.model.voiced.includes('A loop repeats blocks.') && ai.model.voiced.includes('It saves work.'),
+            ai.model.voiced.join(' | '));
+        await key('Escape', 700);
+
+        const before = ai.model.voiced.length;
+        await typed(t, 'where am I');
+        await pause(1500);
+        check('a read-back stays on the device', ai.model.voiced.length === before &&
+            /The project is stopped/.test(await device()), `${ai.model.voiced.slice(before).join(' ')} / ${await device()}`);
+
+        ai.model.mute = 500;
+        ai.model.reply = {type: 'explanation', text: 'A variable holds a value.'};
+        await typed(t, 'what is a variable');
+        await pause(3000);
+        check('when speech fails, the device voice reads and says so', /The online voice cannot be reached/
+            .test(await device()) && /A variable holds a value\./.test(await device()), await device());
+        check('and it is shown', /cannot be reached\. Using the device’s voice/.test(
+            await bar.locator('[data-voice-status]').textContent()),
+        await bar.locator('[data-voice-status]').textContent());
+        ai.model.mute = null;
+    }, {init: [fakeVoice, () => {
+        if (window === window.top) {
+            localStorage.setItem('brailled.settings', JSON.stringify({screenReader: false, readAloud: true}));
+        }
+    }], newSession: true, config: {json: {voice: {enabled: true, provider: 'gemini-pair'},
+        ai: true, aiEndpoint: ai.endpoint}}});
 
     await group('AI helper limits', async t => {
         await typed(t, 'hello there');

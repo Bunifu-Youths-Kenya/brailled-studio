@@ -20,6 +20,7 @@ const defaults = {
     screenReader: null,
     studentName: '',
     introduction: 'full',
+    onlineReadbacks: false,
     questionDismissed: false
 };
 

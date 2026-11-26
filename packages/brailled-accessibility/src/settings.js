@@ -17,7 +17,9 @@ const DEFAULTS = Object.freeze({
     screenReader: null,
     // The first name to greet the student by, or empty. It is never sent anywhere.
     studentName: '',
-    introduction: 'full'
+    introduction: 'full',
+    // Whether an online voice, where there is one, also reads what edits and commands did.
+    onlineReadbacks: false
 });
 
 // Stored text may be old or edited by hand: keep only values the editor knows.
@@ -27,7 +29,8 @@ const clean = value => ({
     readAloud: value?.readAloud === true,
     screenReader: typeof value?.screenReader === 'boolean' ? value.screenReader : DEFAULTS.screenReader,
     studentName: cleanName(value?.studentName) ?? DEFAULTS.studentName,
-    introduction: INTRODUCTIONS.includes(value?.introduction) ? value.introduction : DEFAULTS.introduction
+    introduction: INTRODUCTIONS.includes(value?.introduction) ? value.introduction : DEFAULTS.introduction,
+    onlineReadbacks: value?.onlineReadbacks === true
 });
 
 // The browser's storage, which can be switched off.

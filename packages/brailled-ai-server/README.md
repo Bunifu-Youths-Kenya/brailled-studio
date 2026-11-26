@@ -87,6 +87,14 @@ question or explanation, or `null`.
   `VOICE_REQUESTS_PER_DAY` and `voice.dailyRequestCap` in the editor's configuration file, read at start.
 - Neither the recording nor the words are stored or logged.
 
+## Speech
+
+`POST /api/speak` takes `{text, model, voice}`: at most 600 characters, a model in `AI_AUDIO_MODELS`, and a voice
+name. It asks OpenRouter's speech endpoint for PCM under the privacy settings and passes the sound on as it arrives:
+16 bit, one channel, 24 kHz. Nothing is cached or logged but the number of characters and the time. The day's
+characters are the lower of `VOICE_CHARACTERS_PER_DAY` and `voice.dailyCharacterCap` in the editor's configuration
+file.
+
 ## Evaluating a model
 
 `eval/cases.json` holds requests with what a good reply contains, for three sample projects recorded from the editor

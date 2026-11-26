@@ -1,0 +1,252 @@
+{
+ "voice": "Kore",
+ "model": "google/gemini-3.8-flash-lite-tts",
+ "version": 1,
+ "phrases": [
+  {
+   "key": "ed72eba8cfcfcbdf",
+   "file": "ed72eba8cfcfcbdf.wav",
+   "text": "Approve it?"
+  },
+  {
+   "key": "7573a4a5d77de8b6",
+   "file": "7573a4a5d77de8b6.wav",
+   "text": "Ask again if you want it."
+  },
+  {
+   "key": "3730fdd4fd7e1f84",
+   "file": "3730fdd4fd7e1f84.wav",
+   "text": "Asking Mboni."
+  },
+  {
+   "key": "2af9c394fa5d2b97",
+   "file": "2af9c394fa5d2b97.wav",
+   "text": "Asking for that change."
+  },
+  {
+   "key": "09bd6251e76cfb02",
+   "file": "09bd6251e76cfb02.wav",
+   "text": "Closed."
+  },
+  {
+   "key": "9386d23d9cddb258",
+   "file": "9386d23d9cddb258.wav",
+   "text": "Done"
+  },
+  {
+   "key": "9389d8a32fcd42b4",
+   "file": "9389d8a32fcd42b4.wav",
+   "text": "Everything else still works."
+  },
+  {
+   "key": "cb4d8266bfb9fcea",
+   "file": "cb4d8266bfb9fcea.wav",
+   "text": "Hello."
+  },
+  {
+   "key": "6940466bf4250bd7",
+   "file": "6940466bf4250bd7.wav",
+   "text": "Hold F2 to talk to me."
+  },
+  {
+   "key": "3caeb359a74389ab",
+   "file": "3caeb359a74389ab.wav",
+   "text": "I am Mboni, your coding helper."
+  },
+  {
+   "key": "00c081abdaa7ecac",
+   "file": "00c081abdaa7ecac.wav",
+   "text": "I am Mboni."
+  },
+  {
+   "key": "6c736bfa94e25b27",
+   "file": "6c736bfa94e25b27.wav",
+   "text": "I ask you before big changes."
+  },
+  {
+   "key": "72374f38747275f0",
+   "file": "72374f38747275f0.wav",
+   "text": "I can tell you where you are, find blocks, build with you, guide you, explain ideas, and fix mistakes."
+  },
+  {
+   "key": "f9ede64b1ca0f564",
+   "file": "f9ede64b1ca0f564.wav",
+   "text": "I couldn't work that out, please try again."
+  },
+  {
+   "key": "02bfce0554320c31",
+   "file": "02bfce0554320c31.wav",
+   "text": "I did not catch that."
+  },
+  {
+   "key": "5619a10091bd5b8e",
+   "file": "5619a10091bd5b8e.wav",
+   "text": "If there is no answer in 2 minutes, it is cancelled."
+  },
+  {
+   "key": "cfc4eadc893b6453",
+   "file": "cfc4eadc893b6453.wav",
+   "text": "Mboni cannot be reached."
+  },
+  {
+   "key": "5dacbdd5118bbaa1",
+   "file": "5dacbdd5118bbaa1.wav",
+   "text": "Mboni has had too many requests."
+  },
+  {
+   "key": "b6bab712f0254db5",
+   "file": "b6bab712f0254db5.wav",
+   "text": "Mboni suggests a change."
+  },
+  {
+   "key": "918db000f54344e1",
+   "file": "918db000f54344e1.wav",
+   "text": "Nothing changes unless you say yes."
+  },
+  {
+   "key": "3dffe4791f1c8db5",
+   "file": "3dffe4791f1c8db5.wav",
+   "text": "Nothing happens unless you say yes."
+  },
+  {
+   "key": "65b2eb185ae64ccb",
+   "file": "65b2eb185ae64ccb.wav",
+   "text": "Nothing more was changed."
+  },
+  {
+   "key": "31f069b62b5c5d7e",
+   "file": "31f069b62b5c5d7e.wav",
+   "text": "Nothing was changed."
+  },
+  {
+   "key": "b39d2da155f6f132",
+   "file": "b39d2da155f6f132.wav",
+   "text": "Nothing was done."
+  },
+  {
+   "key": "1be09f6b0b9f28d8",
+   "file": "1be09f6b0b9f28d8.wav",
+   "text": "Please say it again."
+  },
+  {
+   "key": "ef256239356d5644",
+   "file": "ef256239356d5644.wav",
+   "text": "Rejected."
+  },
+  {
+   "key": "f192354545ed8f62",
+   "file": "f192354545ed8f62.wav",
+   "text": "Say a name or a number from the list, or say more."
+  },
+  {
+   "key": "66d3e22e240e6e7f",
+   "file": "66d3e22e240e6e7f.wav",
+   "text": "Say it in fewer words."
+  },
+  {
+   "key": "a6c5ec5db9be0ee1",
+   "file": "a6c5ec5db9be0ee1.wav",
+   "text": "Say or type what to change."
+  },
+  {
+   "key": "e9ac3fe5763ebe47",
+   "file": "e9ac3fe5763ebe47.wav",
+   "text": "Say yes or go ahead, say no, or say change it, and what to change."
+  },
+  {
+   "key": "34c96fc4590e2cbd",
+   "file": "34c96fc4590e2cbd.wav",
+   "text": "Say yes or no while holding F2, or choose a button."
+  },
+  {
+   "key": "9bd48f6b898ca9ac",
+   "file": "9bd48f6b898ca9ac.wav",
+   "text": "Say yes to do all the steps, step by step to approve each one, no, or change it, and what to change."
+  },
+  {
+   "key": "64bd7fe38b6eb51f",
+   "file": "64bd7fe38b6eb51f.wav",
+   "text": "Still waiting for Mboni."
+  },
+  {
+   "key": "0f58c8bc4c09f52e",
+   "file": "0f58c8bc4c09f52e.wav",
+   "text": "Stopped listening."
+  },
+  {
+   "key": "97742e76a285fc0d",
+   "file": "97742e76a285fc0d.wav",
+   "text": "That came too late for what was asked, or the question changed."
+  },
+  {
+   "key": "43146b660e0d0170",
+   "file": "43146b660e0d0170.wav",
+   "text": "That recording is too long."
+  },
+  {
+   "key": "43a7f54b30eb13d8",
+   "file": "43a7f54b30eb13d8.wav",
+   "text": "The online voice cannot be reached."
+  },
+  {
+   "key": "c9e2b64041c02a9c",
+   "file": "c9e2b64041c02a9c.wav",
+   "text": "The online voice cannot be used without your words being kept."
+  },
+  {
+   "key": "395628db007514e9",
+   "file": "395628db007514e9.wav",
+   "text": "The online voice cannot be used."
+  },
+  {
+   "key": "3c3188de5436bc5f",
+   "file": "3c3188de5436bc5f.wav",
+   "text": "The online voice has reached its limit."
+  },
+  {
+   "key": "221d8db75f34e76d",
+   "file": "221d8db75f34e76d.wav",
+   "text": "The program or your place changed, so the suggestion was cancelled."
+  },
+  {
+   "key": "17e3294464dfb0ba",
+   "file": "17e3294464dfb0ba.wav",
+   "text": "The suggestion expired."
+  },
+  {
+   "key": "5af9786455187dc6",
+   "file": "5af9786455187dc6.wav",
+   "text": "There is no suggestion waiting for an answer."
+  },
+  {
+   "key": "5021383474bf1cff",
+   "file": "5021383474bf1cff.wav",
+   "text": "Using the browser’s speech service from now on."
+  },
+  {
+   "key": "df3ebdb96bcfaff7",
+   "file": "df3ebdb96bcfaff7.wav",
+   "text": "Using the device’s voice."
+  },
+  {
+   "key": "12de6cb00b983158",
+   "file": "12de6cb00b983158.wav",
+   "text": "Wait a minute and try again."
+  },
+  {
+   "key": "68b7c605ba83157a",
+   "file": "68b7c605ba83157a.wav",
+   "text": "Warning:"
+  },
+  {
+   "key": "5f3efd2c1c6f05dd",
+   "file": "5f3efd2c1c6f05dd.wav",
+   "text": "Working out what you said."
+  },
+  {
+   "key": "36bc087349e8d7ea",
+   "file": "36bc087349e8d7ea.wav",
+   "text": "this is hard to undo."
+  }
+ ]
+}

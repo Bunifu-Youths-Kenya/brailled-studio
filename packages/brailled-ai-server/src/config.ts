@@ -21,6 +21,9 @@ export interface Config {
   voicePerAddressPerMinute: number
   // Voice requests a day, if set here. The editor's configuration file may allow fewer.
   voicePerDay: number | null
+  speakPerAddressPerMinute: number
+  // Characters read aloud a day, if set here. The editor's configuration file may allow fewer.
+  charactersPerDay: number | null
 }
 
 const AUDIO_MODELS = 'google/gemini-3.5-flash-lite,google/gemini-3.8-flash-lite-tts,openai/gpt-audio-mini'
@@ -46,6 +49,8 @@ const unlessFalse = (env: Env, name: string): boolean => env[name]?.trim().toLow
 // A variable left empty counts as unset.
 const text = (env: Env, name: string): string => env[name]?.trim() ?? ''
 
+const optional = (env: Env, name: string): number | null => (text(env, name) ? count(env, name, 0, 0) : null)
+
 const list = (value: string): string[] =>
   value
     .split(',')
@@ -70,5 +75,7 @@ export const readConfig = (env: Env): Config => ({
   audioModels: list(text(env, 'AI_AUDIO_MODELS') || AUDIO_MODELS),
   maxAudioSeconds: count(env, 'AI_MAX_AUDIO_SECONDS', 60),
   voicePerAddressPerMinute: count(env, 'VOICE_REQUESTS_PER_MINUTE_PER_ADDRESS', 20),
-  voicePerDay: text(env, 'VOICE_REQUESTS_PER_DAY') ? count(env, 'VOICE_REQUESTS_PER_DAY', 0, 0) : null,
+  voicePerDay: optional(env, 'VOICE_REQUESTS_PER_DAY'),
+  speakPerAddressPerMinute: count(env, 'SPEAK_REQUESTS_PER_MINUTE_PER_ADDRESS', 90),
+  charactersPerDay: optional(env, 'VOICE_CHARACTERS_PER_DAY'),
 })

@@ -33,9 +33,9 @@ const resample = (samples, from, to = RATE) => {
     });
 };
 
-// A WAV file of one channel of 16 bit samples, from samples between -1 and 1.
-const encodeWav = (samples, rate = RATE) => {
-    const bytes = new Uint8Array(HEADER_BYTES + (samples.length * 2));
+// A WAV file around 16 bit samples of one channel, given as bytes.
+const encodePcmWav = (pcm, rate) => {
+    const bytes = new Uint8Array(HEADER_BYTES + pcm.length);
     const view = new DataView(bytes.buffer);
     const word = (at, text) => Array.from(text).forEach((letter, i) => view.setUint8(at + i, letter.charCodeAt(0)));
     word(0, 'RIFF');
@@ -51,10 +51,18 @@ const encodeWav = (samples, rate = RATE) => {
     view.setUint16(32, 2, true);
     view.setUint16(34, 16, true);
     word(36, 'data');
-    view.setUint32(40, samples.length * 2, true);
-    samples.forEach((sample, i) => view.setInt16(HEADER_BYTES + (i * 2),
-        Math.round(Math.max(-1, Math.min(1, sample)) * MOST_16_BIT), true));
+    view.setUint32(40, pcm.length, true);
+    bytes.set(pcm, HEADER_BYTES);
     return bytes;
+};
+
+// A WAV file of one channel of 16 bit samples, from samples between -1 and 1.
+const encodeWav = (samples, rate = RATE) => {
+    const pcm = new Uint8Array(samples.length * 2);
+    const view = new DataView(pcm.buffer);
+    samples.forEach((sample, i) => view.setInt16(i * 2,
+        Math.round(Math.max(-1, Math.min(1, sample)) * MOST_16_BIT), true));
+    return encodePcmWav(pcm, rate);
 };
 
 const toBase64 = bytes => {
@@ -78,6 +86,7 @@ const toRecording = buffer => {
 export {
     HEADER_BYTES,
     RATE,
+    encodePcmWav,
     encodeWav,
     resample,
     toBase64,

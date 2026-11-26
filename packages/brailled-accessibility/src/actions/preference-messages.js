@@ -23,6 +23,8 @@ const preferenceMessages = defineMessages(Object.fromEntries(Object.entries({
     wake: 'Listen for “Hey {assistant}” without pressing a key (demo mode)',
     wakeHint: 'While this is on, the sound around you goes to your browser’s speech service (Chrome: Google). ' +
         'F4 turns it on and off, and it is off again after the page is reloaded.',
+    onlineReadbacks: 'Use the online voice for read-backs too',
+    onlineReadbacksHint: 'Sends what is read, which can include your program, to the online voice.',
     done: 'Done',
     reset: 'Reset for new student',
     resetHint: 'Forgets your name, the talk key, listening time, reading aloud, the introduction choice, the ' +

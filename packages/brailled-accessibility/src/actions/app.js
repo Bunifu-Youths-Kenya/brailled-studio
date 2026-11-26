@@ -8,8 +8,10 @@ import {createLibrary} from '../library.js';
 import {createMemory} from '../memory.js';
 import {DEFAULT_ASSISTANT_NAME} from '../names.js';
 import {createSettings, storageOf} from '../settings.js';
+import {createOnlineSpeaker} from '../speech/online-speaker.js';
 import {createReader} from '../speech/read-aloud.js';
 import {SCRIPTS_VIEWS} from '../views.js';
+import voiceMessages from '../voice/messages.js';
 import {createOnlineVoice} from '../voice/online.js';
 import {SWAHILI} from '../proposals/answers.js';
 import {accessibleName, focusableWithin, roleOf, zoneElement, zoneOf} from './dom.js';
@@ -71,7 +73,8 @@ const createApp = (vm, {
     config = createConfig(),
     settings = createSettings(storageOf(globalThis)),
     reader = createReader(globalThis),
-    session = sessionOf(globalThis)
+    session = sessionOf(globalThis),
+    createSpeaker = createOnlineSpeaker
 } = {}) => {
     // Each part of the interface registers an object of its own under a name.
     const parts = new Map();
@@ -87,6 +90,22 @@ const createApp = (vm, {
     let prefaceTimer = null;
 
     const assistantName = () => config.get().assistantName || DEFAULT_ASSISTANT_NAME;
+    // Whose service hears and speaks.
+    const online = createOnlineVoice(config);
+    // Once the online voice has failed to speak, the device's own is used until the page is reloaded.
+    let speakerFailed = false;
+    // Added once the app it reports to exists.
+    let speaker = null;
+
+    // Whether to read with the online voice. Never what holds the student's name, which is not to be sent.
+    const readsOnline = (text, reply) => {
+        if (online.chosen() === 'browser' || !config.get().ai || speakerFailed) return false;
+        const {studentName, onlineReadbacks} = settings.get();
+        if (studentName && text.toLowerCase().includes(studentName.toLowerCase())) return false;
+        // Sound that ships with the editor is sent nowhere.
+        return speaker.has(text) || (online.provider() !== 'browser' && (reply || onlineReadbacks));
+    };
+
     const app = {
         vm,
         assistantName,
@@ -109,8 +128,7 @@ const createApp = (vm, {
                 configured();
             };
         },
-        // Whose service hears and speaks.
-        online: createOnlineVoice(config),
+        online,
         // Words besides the English ones that answer a question.
         answerWords: () => config.get().speech?.answers ?? SWAHILI,
         // Nothing of one student stays for the next.
@@ -124,12 +142,24 @@ const createApp = (vm, {
         },
 
         // Read text aloud, if that is wanted and the microphone would not hear it.
-        speak: text => {
+        // `reply` marks what the assistant says, which the online voice reads where one is chosen. Everything
+        // else, such as what an edit did, stays on the device unless the student chooses otherwise.
+        speak: (text, {reply = false} = {}) => {
             const listening = !!parts.get('voice') && parts.get('voice').getState().phase !== 'idle';
-            if (config.get().voice && settings.get().readAloud && !listening) reader.speak(text, intl.locale);
+            if (!config.get().voice || !settings.get().readAloud || listening) return;
+            if (readsOnline(text, reply)) {
+                reader.stop();
+                speaker.speak(text, {online: online.provider() !== 'browser'});
+            } else {
+                speaker.stop();
+                reader.speak(text, intl.locale);
+            }
         },
-        silence: () => reader.stop(),
-        reading: () => !!reader.speaking?.(),
+        silence: () => {
+            reader.stop();
+            speaker.stop();
+        },
+        reading: () => !!reader.speaking?.() || speaker.speaking(),
         canReadAloud: () => reader.isAvailable(intl.locale),
         intl: () => intl,
         setIntl: next => {
@@ -328,6 +358,20 @@ const createApp = (vm, {
 
         snapshot: () => buildSnapshot({app, document, intl, actions: app.availableActions()})
     };
+    speaker = createSpeaker({
+        scope: globalThis,
+        address: () => config.get().aiEndpoint?.replace(/(?:\/assistant)?\/?(?=$|\?)/, '/speak') ?? null,
+        settings: () => config.get().speech,
+        onFail: rest => {
+            speakerFailed = true;
+            app.announce(`${app.say(voiceMessages.speakerFailed)} ${rest}`);
+        }
+    });
+    // The kept sound is needed as soon as an online voice may be used.
+    const loadPhrases = () => {
+        if (online.chosen() !== 'browser') speaker.load();
+    };
+    config.subscribe(loadPhrases);
     // Added once the app it speaks through exists.
     app.introduction = createIntroduction({
         compose: ({length}) => {

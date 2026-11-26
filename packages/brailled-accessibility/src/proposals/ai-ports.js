@@ -22,7 +22,7 @@ const createAiPorts = (app, submitter) => Object.freeze({
     assistantName: () => app.assistantName(),
     say: (message, values) => app.say(message, values),
     announce: text => app.announce(text),
-    speak: text => app.speak(text),
+    speak: text => app.speak(text, {reply: true}),
     silence: () => app.silence(),
     // Resolves when the microphone is closed, so that a reply is not heard as speech.
     whenQuiet: () => new Promise(resolve => {

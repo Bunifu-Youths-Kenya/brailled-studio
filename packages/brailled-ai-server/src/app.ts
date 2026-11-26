@@ -1,6 +1,8 @@
 // The server: one endpoint that takes the editor's request and passes back the model's reply.
 import { readFileSync } from 'node:fs'
+import { Readable } from 'node:stream'
 import express, { type ErrorRequestHandler, type Request, type RequestHandler, type Response } from 'express'
+import { createAllowance } from './allowance.ts'
 import { base64Length } from './audio.ts'
 import type { Config } from './config.ts'
 import { readCaps, type Caps } from './editor-config.ts'
@@ -8,6 +10,7 @@ import { runAgent } from './agent.ts'
 import { loadKnowledge } from './knowledge.ts'
 import { createRateLimiter } from './limits.ts'
 import { readRequest, readVoiceTurn, type AssistantRequest } from './request.ts'
+import { readSpeechRequest, synthesise } from './speech.ts'
 
 // The schema the editor's validator uses, so that the model is told the same rules.
 const SCHEMA_FILE = new URL('../../brailled-accessibility/src/commands/schema.json', import.meta.url)
@@ -127,6 +130,60 @@ export const createApp = (
     response.status(failure.failure === 'upstream_timeout' ? 504 : 502).json({ error: failure.failure })
   }
 
+  const characters = createAllowance(Math.min(config.charactersPerDay ?? caps.characters, caps.characters), now)
+  const speakLimit = createRateLimiter(
+    {
+      perAddressPerMinute: config.speakPerAddressPerMinute,
+      perMinute: config.speakPerAddressPerMinute * ADDRESSES_AT_ONCE,
+      // The characters bound the day.
+      perDay: Number.MAX_SAFE_INTEGER,
+    },
+    now,
+  )
+  const speakRate: RequestHandler = (request, response, next) => {
+    const wait = speakLimit(request.ip ?? 'unknown')
+    if (wait === null) {
+      next()
+      return
+    }
+    response.set('Retry-After', String(wait)).status(429).json({ error: 'too_many_requests' })
+  }
+
+  // Words to speech, passed on as it arrives.
+  const speak = async (request: Request, response: Response) => {
+    if (!request.is('application/json')) {
+      response.status(415).json({ error: 'invalid_request' })
+      return
+    }
+    if (!config.apiKey) {
+      response.status(503).json({ error: 'not_configured' })
+      return
+    }
+    const read = readSpeechRequest(request.body, config)
+    if ('problem' in read) {
+      response.status(400).json({ error: 'invalid_request', field: read.problem })
+      return
+    }
+    const { speech } = read
+    if (!characters.take(speech.text.length)) {
+      response.status(429).json({ error: 'daily_limit' })
+      return
+    }
+    const started = now()
+    const spoken = await synthesise(config, speech, fetcher)
+    if ('failure' in spoken) {
+      log(`speak: ${spoken.failure} (${spoken.detail}) after ${now() - started} ms`)
+      response.status(spoken.failure === 'upstream_timeout' ? 504 : 502).json({ error: spoken.failure })
+      return
+    }
+    log(`speak: ${speech.text.length} characters, sound after ${now() - started} ms`)
+    response.set({ 'Content-Type': 'audio/pcm;rate=24000;channels=1', 'Cache-Control': 'no-store' })
+    const sound = Readable.fromWeb(spoken.sound.body as Parameters<typeof Readable.fromWeb>[0])
+    // Cut short, the sound is of no use: close, so that the editor knows.
+    sound.on('error', () => response.destroy())
+    sound.pipe(response)
+  }
+
   const assist = async (request: Request, response: Response) => {
     // Only JSON, which a page on another site cannot send without asking first.
     if (!request.is('application/json')) {
@@ -170,6 +227,11 @@ export const createApp = (
   const voiceBytes = base64Length(config.maxAudioSeconds) + config.maxRequestBytes
   app.post('/api/voice-turn', voiceRate, express.json({ limit: voiceBytes }), (request, response, next) => {
     voiceTurn(request, response).catch(next)
+  })
+
+  app.use('/api/speak', origins)
+  app.post('/api/speak', speakRate, express.json({ limit: config.maxRequestBytes }), (request, response, next) => {
+    speak(request, response).catch(next)
   })
 
   // Bodies that are too large or are not JSON.

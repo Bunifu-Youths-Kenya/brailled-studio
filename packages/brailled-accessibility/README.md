@@ -298,6 +298,28 @@ sent as typed words; after "Hey Mboni" alone the request is recorded.
 **Falling back.** If no provider can keep to the privacy settings, the server cannot be reached or a limit is
 reached, the editor says so and uses the browser's speech recognition until the page is reloaded.
 
+### Speaking
+
+Reading aloud works as before, and only when it is on. With an online provider, `src/speech/online-speaker.js` reads
+**the assistant's replies and suggestions** a sentence at a time, asking for the next while one plays, at
+`voice.speed` without changing the pitch. Read-backs of edits and commands stay with the device's voice unless the
+student chooses otherwise in Voice settings, and anything holding the student's name always does. Escape, the talk
+key and a new recording stop it. It cannot be interrupted by voice alone: the wake words are not listened for while
+the editor reads.
+
+**Shipped sound.** The assistant's fixed sentences are listed in `src/speech/fixed-phrases.json` and their sound is
+in `scratch-gui/static/brailled-voice/`, named by a hash of the words, voice, model and version. It plays offline.
+After changing what the assistant says, or the voice:
+
+```sh
+UPDATE_PHRASES=1 npx jest test/phrases                       # list the sentences again
+npm run voice:phrases --prefix ../brailled-ai-server         # make the missing sound: calls the service, costs credit
+```
+
+The usual name (Mboni) and talk key (F2) are in the shipped sentences. With others, those sentences are asked for
+like any reply, or read by the device where they are not replies. If speech fails, the device's voice takes over for
+the rest of the visit and says so.
+
 ### Changing the speech service
 
 `src/voice/provider.js` describes the interface: `isSupported()` and

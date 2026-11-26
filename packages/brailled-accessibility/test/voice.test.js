@@ -544,6 +544,7 @@ describe('reset for a new student', () => {
             screenReader: null,
             studentName: '',
             introduction: 'full',
+            onlineReadbacks: false,
             questionDismissed: false
         });
         expect(listener).toHaveBeenCalled();

@@ -13,7 +13,8 @@
     "lint": "eslint",
     "start": "node --env-file-if-exists=.env src/index.ts",
     "test": "vitest run",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "voice:phrases": "node --env-file-if-exists=.env scripts/voice-phrases.ts"
   },
   "dependencies": {
     "express": "4.22.3"

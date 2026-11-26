@@ -23,6 +23,7 @@ been reviewed for Brailled.
 | When | What is sent | To |
 | - | - | - |
 | Voice is on and a student talks | The sound of their speech | The browser's speech service (Chrome: Google) |
+| [Online voice](#online-voice-gemini-pair-openai-audio) is chosen, reading aloud is on and the assistant replies | The words of the reply, to be [read](#reading-aloud) | Your AI server, OpenRouter and the model's provider |
 | [Online voice](#online-voice-gemini-pair-openai-audio) is chosen and a student talks | A recording of their speech | Your AI server, OpenRouter and the model's provider |
 | The AI helper is on and a student **types or says** something that is not an editor command, or answers the helper | That text, with the program and the other items listed under [AI helper](#ai-helper) | Your AI server, OpenRouter and the model's provider |
 
@@ -164,6 +165,20 @@ Before swapping it:
 - [ ] Update the notice (`privacy` in `src/voice/messages.js`), this file and the consent given to families.
 
 ## Reading aloud
+
+With an [online voice](#online-voice-gemini-pair-openai-audio) chosen and reading aloud on:
+
+| What is read | By | Sent |
+| - | - | - |
+| The assistant's fixed sentences (introduction, confirmations, standard questions) | Sound made once and shipped with the editor | Nothing. Works offline |
+| What the assistant replies and suggests | The online voice, a sentence at a time | The sentence, through your AI server and OpenRouter to the speech model's provider |
+| What edits and commands did, which can quote the program | The device's voice, unless the student ticks "Use the online voice for read-backs too" | Nothing unless ticked |
+| Anything holding the student's first name | The device's voice, always | Nothing |
+| Anything, after the online voice has failed | The device's voice, saying so | Nothing |
+
+The server keeps no sound and no text. With reading aloud off, nothing is read or sent for speech.
+
+Otherwise:
 
 Only voices the browser reports as on the device (`localService`) are used, so that text, which can include what a
 student wrote or their name, is not sent to an online voice.

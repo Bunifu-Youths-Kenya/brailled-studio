@@ -39,8 +39,9 @@ const voiceMessages = fromTexts('brailled.voice', 'Voice input', {
         'speech service from now on.',
     onlineUnavailable: 'The online voice cannot be used. Using the browser’s speech service from now on.',
     onlineLimit: 'The online voice has reached its limit. Using the browser’s speech service from now on.',
-    onlineNotice: 'When you talk, a recording of your voice goes to OpenRouter and an AI model. {assistant} (AI) ' +
-        'also gets your program.',
+    speakerFailed: 'The online voice cannot be reached. Using the device’s voice.',
+    onlineNotice: 'Your recorded voice and {assistant}’s replies go through OpenRouter to AI services, with your ' +
+        'program.',
     onlineNoticeWake: 'Demo mode: sound around you goes to your browser’s speech service (Chrome: Google). ' +
         'Requests are recorded and sent to OpenRouter and an AI model.',
     cancelled: 'Stopped listening. Nothing was done.',

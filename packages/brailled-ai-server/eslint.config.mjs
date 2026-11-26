@@ -5,7 +5,7 @@ import globals from 'globals'
 export default eslintConfigScratch.defineConfig(
   eslintConfigScratch.recommended,
   {
-    files: ['{src,test,eval}/**/*.ts', 'vitest.config.ts'],
+    files: ['{src,test,eval,scripts}/**/*.ts', 'vitest.config.ts'],
     languageOptions: {
       globals: globals.node,
       parserOptions: {
