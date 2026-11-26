@@ -5,8 +5,10 @@ import {useIntl} from 'react-intl';
 import {getApp} from '../actions/app.js';
 import {hasOpenDialog} from '../actions/dom.js';
 import {useSettings} from '../actions/preferences.jsx';
-import {matches, releases, TALK_KEYS} from '../actions/shortcuts.js';
+import {matches, releases, TALK_KEYS, WAKE_KEY} from '../actions/shortcuts.js';
 import Dialog from '../outline/dialog.jsx';
+import {createWakeControl} from '../wake/control.js';
+import {createWakeWord} from '../wake/engine.js';
 import {createVoice} from './controller.js';
 import voiceMessages from './messages.js';
 import {createSpeechProvider, speechLanguage} from './provider.js';
@@ -19,11 +21,12 @@ const BUTTON_KEYS = [' ', 'Enter'];
 const ZONE = '[data-brailled-zone="voice"], [data-brailled-voice-dialog]';
 
 // Asks before acting on words that may have been misheard.
-const Question = ({text, hint, status, listening, onYes, onNo}) => {
+const Question = ({text, unsure, hint, status, listening, onYes, onNo}) => {
     const intl = useIntl();
     return (
         <Dialog
-            title={intl.formatMessage(voiceMessages.confirmTitle, {text})}
+            title={intl.formatMessage(
+                unsure ? voiceMessages.confirmTitle : voiceMessages.confirmChangeTitle, {text})}
             onCancel={onNo}
         >
             <div data-brailled-voice-dialog>
@@ -70,6 +73,8 @@ const Question = ({text, hint, status, listening, onYes, onNo}) => {
 
 Question.propTypes = {
     text: PropTypes.string.isRequired,
+    // Whether it is asked because the words may have been misheard.
+    unsure: PropTypes.bool.isRequired,
     hint: PropTypes.string.isRequired,
     status: PropTypes.string.isRequired,
     listening: PropTypes.bool.isRequired,
@@ -78,7 +83,7 @@ Question.propTypes = {
 };
 
 // The microphone button, what was heard, and what happened. The microphone opens only when asked.
-const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
+const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = createWakeWord}) => {
     const intl = useIntl();
     const app = getApp(vm);
     const locale = useRef(intl.locale);
@@ -98,6 +103,13 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
         }
     }));
     const state = useSyncExternalStore(voice.subscribe, voice.getState);
+    const [wake] = useState(() => createWakeControl({
+        app,
+        engineFor: engine => createEngine(engine, window),
+        language: () => speechLanguage(locale.current, window.navigator.language),
+        document
+    }));
+    const waking = useSyncExternalStore(wake.subscribe, wake.getState);
     const talkKey = TALK_KEYS[useSettings(app).talkKey];
     // Off until the configuration says otherwise. Then there is nothing to hear, set or send.
     const {voice: allowed, aiEndpoint} = useSyncExternalStore(app.config.subscribe, app.config.get);
@@ -106,6 +118,18 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     const aiMode = useSyncExternalStore(app.subscribeMode, app.mode);
 
     useEffect(() => app.register('voice', voice), [app, voice]);
+    useEffect(() => {
+        const leave = app.register('wake', wake);
+        // At once, so that the microphone is let go as soon as anything else needs it.
+        const unfollow = [voice.subscribe(wake.sync), app.config.subscribe(wake.sync)];
+        document.addEventListener('visibilitychange', wake.sync);
+        return () => {
+            document.removeEventListener('visibilitychange', wake.sync);
+            unfollow.forEach(stop => stop());
+            leave();
+            wake.dispose();
+        };
+    }, [app, voice, wake]);
     useEffect(() => {
         const disconnect = voice.connect();
         return () => {
@@ -129,6 +153,15 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
             if (event.key === 'Escape' && !hasOpenDialog(document) && app.introduction.skip()) {
                 event.preventDefault();
                 event.stopPropagation();
+                return;
+            }
+            // One key starts and stops listening for the wake words, dialogs or not.
+            if (matches(WAKE_KEY, event) && (wake.getState().on || wake.available())) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (event.repeat) return;
+                if (wake.getState().on) wake.stop();
+                else wake.start();
                 return;
             }
             // Read when pressed, so that a new choice applies at once.
@@ -165,7 +198,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
             document.removeEventListener('visibilitychange', handleVisibility);
             window.removeEventListener('blur', handleLeave);
         };
-    }, [app, voice]);
+    }, [app, voice, wake]);
 
     // A click that follows the button's own press and release has been dealt with already. A click on its own,
     // as some assistive technology sends, listens for one phrase.
@@ -214,9 +247,11 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     let barStatus = state.pending && !status ? hint : status;
     if (state.heard && barStatus.startsWith(`${heardLine} `)) barStatus = barStatus.slice(heardLine.length + 1);
     const handleSettings = () => app.perform('voice.settings');
+    const handleStopWaking = () => wake.stop();
     // What leaves the computer is shown whenever it can: by voice, to the AI helper, or both.
     let notice = off ? null : voiceMessages.privacy;
     if (aiEndpoint) notice = off ? voiceMessages.aiNotice : voiceMessages.aiNoticeWithVoice;
+    if (waking.on) notice = aiEndpoint ? voiceMessages.wakeNoticeAi : voiceMessages.wakeNotice;
     const describedBy = [off ? 'brailled-voice-status' : null, notice ? 'brailled-voice-privacy' : null]
         .filter(Boolean)
         .join(' ');
@@ -263,6 +298,27 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
                 </svg>
                 {intl.formatMessage(buttonText)}
             </button>
+            {waking.on ? (
+                <div
+                    className={styles.wake}
+                    data-voice-wake={waking.listening ? 'listening' : 'paused'}
+                >
+                    <span className={waking.listening ? styles.wakeListening : styles.wakePaused}>
+                        {intl.formatMessage(waking.listening ?
+                            voiceMessages.wakeListening :
+                            voiceMessages.wakePaused, {assistant})}
+                    </span>
+                    <button
+                        aria-keyshortcuts={WAKE_KEY.label}
+                        className={styles.settings}
+                        type="button"
+                        // eslint-disable-next-line react/jsx-no-bind
+                        onClick={handleStopWaking}
+                    >
+                        {intl.formatMessage(voiceMessages.wakeStop)}
+                    </button>
+                </div>
+            ) : null}
             {/* Focusable so that a long reply can be scrolled with the keyboard. Said by the live region. */}
             <div
                 aria-label={intl.formatMessage(voiceMessages.words)}
@@ -323,6 +379,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
                     listening={state.phase !== 'idle'}
                     status={status}
                     text={state.pending.text}
+                    unsure={state.pending.unsure}
                     onNo={handleNo}
                     onYes={handleYes}
                 />
@@ -333,6 +390,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
 
 VoiceBar.propTypes = {
     vm: PropTypes.shape({on: PropTypes.func}).isRequired,
+    createEngine: PropTypes.func,
     createProvider: PropTypes.func
 };
 

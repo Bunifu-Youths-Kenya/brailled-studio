@@ -222,7 +222,7 @@ describe('doubtful words', () => {
     test.each([['low', 0.3], ['unmeasured', null]])('%s confidence asks first', (_, confidence) => {
         const {vm, voice, say} = setUp();
         say('run', confidence);
-        expect(voice.getState().pending).toEqual({text: 'run'});
+        expect(voice.getState().pending).toMatchObject({text: 'run'});
         expect(vm.start).not.toHaveBeenCalled();
         expect(vm.stopAll).not.toHaveBeenCalled();
     });
@@ -262,7 +262,7 @@ describe('doubtful words', () => {
         say('stop', 0.3);
         say('yes', 0.2);
         say('run');
-        expect(voice.getState().pending).toEqual({text: 'stop'});
+        expect(voice.getState().pending).toMatchObject({text: 'stop'});
         expect(status()).toBe('I heard: run. Say yes or no, or choose a button.');
         expect(vm.stopAll).not.toHaveBeenCalled();
         expect(vm.start).not.toHaveBeenCalled();
@@ -441,6 +441,7 @@ describe('the configuration', () => {
             proposalExpirySeconds: 120,
             assistantMode: 'build',
             assistantName: 'Mboni',
+            wakeWord: expect.objectContaining({enabled: false}),
             unreadable: false});
     });
 
@@ -456,6 +457,7 @@ describe('the configuration', () => {
             proposalExpirySeconds: 120,
             assistantMode: 'build',
             assistantName: 'Mboni',
+            wakeWord: expect.objectContaining({enabled: false}),
             unreadable: true});
     });
 

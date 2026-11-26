@@ -20,6 +20,9 @@ const preferenceMessages = defineMessages(Object.fromEntries(Object.entries({
     studentNameHint: 'Kept in this browser. It is not sent to the AI helper.',
     introduction: 'Introduction, the first time you call the helper',
     introductionChoice: '{length, select, short {Short} off {Off} other {Full}}',
+    wake: 'Listen for “Hey {assistant}” without pressing a key (demo mode)',
+    wakeHint: 'While this is on, the sound around you goes to your browser’s speech service (Chrome: Google). ' +
+        'F4 turns it on and off, and it is off again after the page is reloaded.',
     done: 'Done',
     reset: 'Reset for new student',
     resetHint: 'Forgets your name, the talk key, listening time, reading aloud, the introduction choice, the ' +

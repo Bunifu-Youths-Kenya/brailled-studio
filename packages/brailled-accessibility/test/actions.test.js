@@ -194,18 +194,21 @@ describe('which actions are available', () => {
     const without = (list, ...gone) => list.filter(id => !gone.some(pattern => id.startsWith(pattern)));
 
     // Python is not built, moving a block needs one picked up, and the AI helper is off.
-    const usual = without(ids, 'view.python', 'edit.moveNewScript', 'edit.cancelMove', 'mode.', 'memory.');
+    const usual = without(ids, 'view.python', 'edit.moveNewScript', 'edit.cancelMove', 'mode.', 'memory.',
+        'voice.wake', 'voice.stopListening');
 
     test('in the outline, with everything there', () => {
         expect(available()).toEqual(usual);
     });
 
     test('while a block is being moved', () => {
-        expect(available({moving: true})).toEqual(without(ids, 'view.python', 'mode.', 'memory.'));
+        expect(available({moving: true})).toEqual(without(ids, 'view.python', 'mode.', 'memory.', 'voice.wake',
+            'voice.stopListening'));
     });
 
     test('the AI helper\'s own actions only where it is on', () => {
-        expect(available({ai: true})).toEqual(without(ids, 'view.python', 'edit.moveNewScript', 'edit.cancelMove'));
+        expect(available({ai: true})).toEqual(without(ids, 'view.python', 'edit.moveNewScript',
+            'edit.cancelMove', 'voice.wake', 'voice.stopListening'));
     });
 
     test('outline edits only while the outline is shown', () => {

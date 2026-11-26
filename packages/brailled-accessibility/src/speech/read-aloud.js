@@ -37,7 +37,9 @@ const createReader = scope => {
             });
             return true;
         },
-        stop: () => scope.speechSynthesis?.cancel()
+        stop: () => scope.speechSynthesis?.cancel(),
+        // Whether something is being read, or is about to be.
+        speaking: () => !!(scope.speechSynthesis?.speaking || scope.speechSynthesis?.pending)
     };
 };
 

@@ -47,7 +47,21 @@ const voiceMessages = fromTexts('brailled.voice', 'Voice input', {
     sayYesOrNo: 'I heard: {text}. Say yes or no, or choose a button.',
     yes: 'Yes, go ahead',
     no: 'No',
-    notDone: 'Nothing was done.'
+    notDone: 'Nothing was done.',
+    confirmChangeTitle: 'I heard: {text}. It changes things. Should I go ahead?',
+    // Announced words keep "hey" and the name apart, so that a screen reader saying them does not call it.
+    wakeOn: 'Now listening for the wake words: say hey, then {assistant}. Press {key} to stop.',
+    wakeOff: 'Stopped listening for the wake words.',
+    wakeNotAllowed: 'The wake word is not turned on for this editor.',
+    wakeUnavailable: 'The wake word cannot be used here. Hold the talk key instead.',
+    wakeFailed: 'Listening for the wake words stopped working. Press {key} to try again.',
+    wakeListening: 'Listening for “Hey {assistant}”',
+    wakePaused: 'Wake word paused',
+    wakeStop: 'Stop (F4)',
+    wakeNotice: 'Demo mode: while this is on, the sound around you goes to your browser’s speech service ' +
+        '(Chrome: Google).',
+    wakeNoticeAi: 'Demo mode: while this is on, the sound around you goes to your browser’s speech service ' +
+        '(Chrome: Google). {assistant} (AI) gets requests and your program.'
 });
 
 export default voiceMessages;

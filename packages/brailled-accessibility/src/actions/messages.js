@@ -20,6 +20,8 @@ const ACTION_TEXTS = {
     go_scripts: ['go to scripts', 'Moves to the scripts area.'],
     go_voice: ['go to voice bar', 'Moves to the microphone button.'],
     voice_talk: ['talk', 'Listens for one spoken command.'],
+    voice_wake: ['listen for the wake words', 'Starts or stops listening for the assistant to be called.'],
+    voice_stopListening: ['stop listening', 'Stops listening for the wake words.'],
     voice_settings: ['voice settings', 'Chooses the talk key, how long to listen and reading aloud.'],
     mode_build: ['build mode', '{assistant} suggests changes for you to approve.'],
     mode_guide: ['guide mode', '{assistant} teaches you to make changes yourself.'],
@@ -66,6 +68,9 @@ const speech = fromTexts('brailled.speech', 'Spoken answer in the editor', {
     voiceUnsupported: 'This browser cannot turn speech into text.',
     voiceOff: 'Voice is turned off for this editor.',
     noAi: '{assistant}, the AI helper, is off.',
+    wakeOff: 'The wake word is not turned on for this editor.',
+    wakeCannotAnswer: 'A suggestion is waiting. The wake words cannot answer it: hold {key}, or use Enter, Escape ' +
+        'or the buttons.',
     guideMode: 'Guide mode. I will help you do it yourself, one step at a time.',
     buildMode: 'Build mode. I will suggest changes for you to approve.',
     forgotten: 'I have forgotten our conversation.',

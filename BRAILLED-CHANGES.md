@@ -217,5 +217,11 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `packages/brailled-accessibility/src/introduction.js` |
 | 2026-11-26 | `packages/brailled-accessibility/src/names.js` |
 | 2026-11-26 | `packages/brailled-accessibility/test/introduction.test.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/wake/browser-engine.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/wake/control.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/wake/device-engine.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/wake/engine.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/wake/match.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/wake.test.js` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

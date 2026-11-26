@@ -9,7 +9,7 @@
  */
 import {SCRIPTS_VIEWS} from '../views.js';
 import {descriptions, names, speech} from './messages.js';
-import {altShift, control, plain, shift, TALK_KEYS, VIEW_TOGGLE} from './shortcuts.js';
+import {altShift, control, plain, shift, TALK_KEYS, VIEW_TOGGLE, WAKE_KEY} from './shortcuts.js';
 import {describeAbilities, describePlace} from './snapshot.js';
 
 const always = () => true;
@@ -18,6 +18,11 @@ const inOutline = app => (app.outlineIsShown() && app.outline() ? true : 'needsO
 const whileMoving = app => (inOutline(app) === true && !app.outline().isMoving() ? 'needsMoving' : inOutline(app));
 const withGui = app => (app.gui() ? true : 'notReady');
 const withVoice = app => (app.config.get().voice ? true : 'voiceOff');
+const withWake = app => {
+    const {voice, wakeWord} = app.config.get();
+    if (!voice || !wakeWord?.enabled) return 'wakeOff';
+    return app.wake() ? true : 'notReady';
+};
 const withAi = app => (app.config.get().ai ? true : 'noAi');
 
 const define = (id, options) => {
@@ -99,6 +104,21 @@ const ACTIONS = [
             app.memory.clear();
             return app.say(speech.forgotten);
         }
+    }),
+
+    define('voice.wake', {
+        proposable: false,
+        shortcuts: [WAKE_KEY],
+        available: withWake,
+        run: app => {
+            if (app.wake().getState().on) app.wake().stop();
+            else app.wake().start();
+        }
+    }),
+    define('voice.stopListening', {
+        proposable: false,
+        available: withWake,
+        run: app => app.wake().stop()
     }),
 
     define('voice.settings', {

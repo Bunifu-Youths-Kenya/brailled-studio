@@ -14,6 +14,7 @@ const PHRASES = {
     'edit.redo': ['redo', 'redo that'],
     'project.stop': ['stop', 'stop project', 'stop the project', 'stop all'],
     'project.run': ['run', 'start', 'run project', 'run the project', 'green flag', 'start project'],
+    'voice.stopListening': ['stop the wake word', 'stop wake word'],
     'voice.settings': ['open voice settings', 'voice setup'],
     'mode.guide': ['guide me', 'teach me', 'switch to guide mode'],
     'mode.build': ['switch to build mode'],

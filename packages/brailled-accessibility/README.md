@@ -14,6 +14,7 @@ the editor needs around them.
 | `src/palette-area.jsx` | Search placeholder and the block category landmark |
 | `src/actions/` | The action registry, local commands, context snapshot and editor-wide live region |
 | `src/voice/` | The voice bar, the speech-to-text interface and what happens to what was heard |
+| `src/wake/` | The wake word: matching it, the engines that listen for it, and when they may |
 | `src/speech/` | Reading replies aloud |
 | `src/ai/` | The AI side: what is sent, checking the form of what comes back, questions and explanations |
 | `src/proposals/` | The approval gate: queue, validator, risk, state machine, executor, dialog, highlighting |
@@ -96,6 +97,7 @@ off the device.
 | `help.whatCanIDo` | Alt+Shift+H | "what can I do here" |
 | `help.commandBox` | Alt+Shift+K | |
 | `help.introduce` | | The assistant's name, "who are you", "introduce yourself" |
+| `voice.wake`, `voice.stopListening` | F4 | "listen for the wake words", "stop listening" |
 | `go.menu`, `go.stage`, `go.devices`, `go.sprites`, `go.background`, `go.palette`, `go.scripts` | | "go to menu", "go to the stage", "go to block palette" and so on |
 | `view.toggle` | Alt+Shift+O | "switch view" |
 | `view.blocks`, `view.outline` | | "show blocks", "go to outline" |
@@ -159,7 +161,8 @@ are not expected to take them on their own. Neither has been tried with NVDA, JA
 pixels high or less, the bar is shorter, with smaller type, and the large stage is drawn at 70% so that the sprites
 stay on screen. Taller windows are unchanged.
 
-**When the microphone is open.** Only after one of the actions above, and never by itself. It closes after at
+**When the microphone is open.** Only after one of the actions above, unless the student has turned on the
+[wake word](#wake-word). For one request it closes after at
 most 15 seconds, or 5, 10, 30 or 60 as chosen in Voice settings; there is no unlimited choice, and the browser's
 service may stop sooner after silence. It also closes when the window loses focus or the page is hidden. A high
 tone marks it opening and a low tone closing. The voice bar announces and reads nothing while it is open, so that
@@ -203,6 +206,38 @@ turns off the microphone and reading aloud; the bar says so and everything else 
 commands instead. A blocked or missing microphone, silence, no network and an unsupported language each have
 their own message. Commands are understood in English phrases and in the action names of the editor's language.
 
+### Wake word
+
+Demo mode: say "Hey Mboni" instead of pressing the talk key. It is **off** until the configuration allows it and
+the student turns it on, with **F4** or in Voice settings. Chrome sends everything heard while it listens to
+Google; read [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md#wake-word-demo-mode) first.
+
+```json
+{
+    "voice": true,
+    "wakeWord": {
+        "enabled": true,
+        "engine": "demo",
+        "greetings": ["hey", "hi", "okay", "ok"],
+        "variants": ["Boni", "Bonnie", "Moni", "Mbony", "Mboni", "Mbonyi"]
+    }
+}
+```
+
+- **Matching** (`src/wake/match.js`): a greeting, then the assistant's name or a variant, at the start of a phrase.
+  Capitals, accents and punctuation are ignored, and "M boni" counts. How close a word must be is set by the list
+  alone. If you change `assistantName`, change `variants` too.
+- **One request.** "Hey Mboni, run" is taken as one breath. After "Hey Mboni" alone it listens for one request, or
+  introduces itself if it has not yet. Then it waits for the wake words again.
+- **Safety.** Anyone nearby can say the words. They never answer a suggestion, or the "Should I go ahead?"
+  question. A command that changes the project, runs it or forgets the conversation asks first, and only the talk
+  key, a button or the keyboard can say yes. "Stop" works at once.
+- **Pauses** while the page is hidden, while the editor reads aloud and while a request is taken. It cannot tell
+  when a screen reader is speaking.
+- **Engines** (`src/wake/engine.js` describes the interface): `"demo"` restarts the browser's continuous
+  recognition each time the browser ends it, waiting longer after quick failures and giving up after six.
+  `"on-device"` is a stub that says it cannot be used.
+
 ### Changing the speech service
 
 `src/voice/provider.js` describes the interface: `isSupported()` and
@@ -215,8 +250,8 @@ speech goes: follow the checklist in [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md).
 The assistant is called Mboni. `"assistantName"` in `static/brailled-config.json` changes it: up to 30 letters,
 with spaces, hyphens or apostrophes between them; anything else means Mboni. The name is used on the voice bar, in
 the notice, the dialogs, what is said, and by the AI helper. Saying or typing it before a command is understood
-("Mboni, where am I?"); on its own it asks who the helper is. There is no wake word: the microphone still opens
-only when asked.
+("Mboni, where am I?"); on its own it asks who the helper is. Calling it without pressing anything needs the
+[wake word](#wake-word).
 
 **Introduction.** The first time in a browser session that the talk key or button is pressed, the assistant
 introduces itself instead of listening, and the next press listens. It never speaks before the student does
@@ -304,6 +339,7 @@ Each step has a risk that the editor works out; nothing the AI says changes it.
 | - | - | - |
 | `approval` | `"every time"`: every change is approved. `"big changes only"`: changes marked "Edit" above that "undo" can take back are made without asking | `"every time"`, also for any other value |
 | `proposalExpirySeconds` | 30 to 900. Numbers outside that become the nearest limit | 120, also for anything that is not a number |
+| `wakeWord` | `enabled`, `engine` (`"demo"` or `"on-device"`), `greetings`, `variants` | Off |
 | `assistantName` | What the assistant is called: up to 30 letters | `"Mboni"`, also for anything that is not a name |
 | `assistantMode` | The mode the AI helper starts in: `"build"` or `"guide"`. A student can switch while the page is open | `"build"`, also for any other value |
 

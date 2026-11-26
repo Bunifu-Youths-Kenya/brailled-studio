@@ -113,6 +113,7 @@ const createApp = (vm, {
             chosenMode = null;
             modeChanged();
             app.introduction.forget();
+            parts.get('wake')?.stop({quietly: true});
             settings.reset();
         },
 
@@ -122,6 +123,7 @@ const createApp = (vm, {
             if (config.get().voice && settings.get().readAloud && !listening) reader.speak(text, intl.locale);
         },
         silence: () => reader.stop(),
+        reading: () => !!reader.speaking?.(),
         canReadAloud: () => reader.isAvailable(intl.locale),
         intl: () => intl,
         setIntl: next => {
@@ -145,6 +147,8 @@ const createApp = (vm, {
         library: () => (parts.get('sprites')?.items ? createLibrary(parts.get('sprites').items) : null),
         // The voice controller, see `voice/controller.js`.
         voice: () => parts.get('voice') || null,
+        // Listening for the wake words, see `wake/control.js`.
+        wake: () => parts.get('wake') || null,
         // The approval gate, see `proposals/gate.js`: takes the student's answer to a suggestion.
         gate: () => parts.get('gate') || null,
         // The AI helper, see `ai/assistant.js`: takes what is not a local command.
@@ -284,7 +288,8 @@ const createApp = (vm, {
         handleKey: (event, scope) => {
             // Keys that are held down are handled where holding is noticed.
             const found = ACTIONS.filter(action => action.scope === scope &&
-                action.shortcuts.some(shortcut => !shortcut.hold && matches(shortcut, event)));
+                action.shortcuts.some(shortcut => !shortcut.hold && !shortcut.elsewhere &&
+                    matches(shortcut, event)));
             return found.some(action => app.perform(action.id, {fromKey: true}));
         },
 

@@ -13,11 +13,13 @@ import dialogStyles from '../outline/dialog.css';
 
 const appShape = PropTypes.shape({
     announce: PropTypes.func.isRequired,
+    assistantName: PropTypes.func.isRequired,
     canReadAloud: PropTypes.func.isRequired,
     forgetStudent: PropTypes.func.isRequired,
     say: PropTypes.func.isRequired,
     silence: PropTypes.func.isRequired,
     speak: PropTypes.func.isRequired,
+    wake: PropTypes.func.isRequired,
     settings: PropTypes.shape({
         answerScreenReader: PropTypes.func.isRequired,
         dismissQuestion: PropTypes.func.isRequired,
@@ -75,6 +77,45 @@ const ScreenReaderQuestion = ({app}) => {
 
 ScreenReaderQuestion.propTypes = {
     app: appShape.isRequired
+};
+
+// Listening for the wake words. It is not kept: each visit starts with it off.
+const WakeSetting = ({assistant, wake}) => {
+    const intl = useIntl();
+    const {on} = useSyncExternalStore(wake.subscribe, wake.getState);
+    const handleChange = useCallback(event => {
+        if (event.target.checked) wake.start();
+        else wake.stop();
+    }, [wake]);
+    return (
+        <div className={dialogStyles.field}>
+            <label className={dialogStyles.row}>
+                <input
+                    aria-describedby="brailled-wake-hint"
+                    checked={on}
+                    type="checkbox"
+                    onChange={handleChange}
+                />
+                {intl.formatMessage(preferenceMessages.wake, {assistant})}
+            </label>
+            <p
+                className={dialogStyles.count}
+                id="brailled-wake-hint"
+            >
+                {intl.formatMessage(preferenceMessages.wakeHint)}
+            </p>
+        </div>
+    );
+};
+
+WakeSetting.propTypes = {
+    assistant: PropTypes.string.isRequired,
+    wake: PropTypes.shape({
+        getState: PropTypes.func.isRequired,
+        start: PropTypes.func.isRequired,
+        stop: PropTypes.func.isRequired,
+        subscribe: PropTypes.func.isRequired
+    }).isRequired
 };
 
 // Changes apply as soon as they are made.
@@ -237,6 +278,12 @@ const VoiceSettings = ({app, onClose}) => {
                     ))}
                 </select>
             </div>
+            {app.wake()?.available() ? (
+                <WakeSetting
+                    assistant={app.assistantName()}
+                    wake={app.wake()}
+                />
+            ) : null}
             <p className={dialogStyles.field}>
                 {intl.formatMessage(voiceMessages.privacy)}
             </p>

@@ -1,6 +1,8 @@
 // Voice input: when the microphone is open, what was heard, and what happens next.
+import parseCommand from '../actions/parser.js';
 import {routeCommand} from '../actions/route.js';
 import {TALK_KEYS} from '../actions/shortcuts.js';
+import {SAFE_ACTIONS} from '../proposals/risk.js';
 import voiceMessages from './messages.js';
 
 // A shorter press of the button is a tap: listen for one phrase. Screen readers often can only tap.
@@ -11,6 +13,11 @@ const CONFIDENCE_THRESHOLD = 0.7;
 
 const YES = ['yes', 'yes please', 'yes go ahead', 'go ahead', 'yes do it', 'do it', 'confirm', 'ok', 'okay'];
 const NO = ['no', 'no thanks', 'no thank you', 'cancel', 'wrong', 'do not', "don't"];
+
+// What may be done at once after the wake words: it changes nothing. Anyone nearby can say them, so everything
+// else is asked about first.
+const FREE_AFTER_WAKE = new Set([...SAFE_ACTIONS, 'help.introduce', 'help.commandBox', 'voice.settings',
+    'voice.stopListening', 'mode.build', 'mode.guide']);
 
 // The message for each of a provider's errors.
 const PROBLEMS = {
@@ -25,6 +32,29 @@ const PROBLEMS = {
 const plain = text => text.toLowerCase().replace(/[.,!?;:"]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+// The microphone may take a moment to be let go by what had it.
+const afterRelease = (release, open) => {
+    if (!release) return open();
+    let session = null;
+    let stopped = false;
+    let cancelled = false;
+    release.then(() => {
+        if (cancelled) return;
+        session = open();
+        if (stopped) session.stop();
+    });
+    return {
+        stop: () => {
+            if (session) session.stop();
+            else stopped = true;
+        },
+        cancel: () => {
+            cancelled = true;
+            session?.cancel();
+        }
+    };
+};
 
 /**
  * @param {object} options Options.
@@ -52,7 +82,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         mode: null,
         heard: '',
         status: null,
-        // `{text}` while waiting for the student to say yes or no.
+        // `{text, origin, unsure}` while waiting for the student to say yes or no.
         pending: null
     };
     state.status = resting();
@@ -106,32 +136,40 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         session?.stop();
     };
 
-    const deliver = text => {
+    // `origin` is `voice`, or `wake` for words that followed the wake words.
+    const deliver = (text, origin) => {
         beforeRun();
         app.preface(app.say(voiceMessages.heard, {text}));
-        routeCommand(app, text, 'voice');
+        routeCommand(app, text, origin);
+    };
+
+    const changesThings = text => {
+        const id = parseCommand(text, app.actionNames(), app.assistantName());
+        return !!id && !FREE_AFTER_WAKE.has(id);
     };
 
     // Leave the question, then act once its dialog has closed and focus is back where it was.
     const answer = then => {
         if (!state.pending) return;
-        const {text} = state.pending;
+        const {text, origin} = state.pending;
         app.silence();
         if (state.phase !== 'idle') {
             session?.cancel();
             close();
         }
         set({pending: null, phase: 'idle', mode: null});
-        setTimeout(() => then(text), 50);
+        setTimeout(() => then(text, origin), 50);
     };
     const confirm = () => answer(deliver);
     const reject = () => answer(() => tell(voiceMessages.notDone));
 
-    const heard = (words, confidence) => {
+    const heard = (words, confidence, origin = 'voice') => {
         // Some services add a full stop, which would be doubled in the sentences that quote the words.
         const text = words.replace(/[\s.!?]+$/, '');
         const sure = confidence === null || confidence >= threshold;
         if (state.pending) {
+            // The wake words answer no question.
+            if (origin === 'wake') return;
             if (YES.includes(plain(text)) && sure) confirm();
             else if (NO.includes(plain(text))) reject();
             else {
@@ -141,21 +179,22 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
             return;
         }
         // No measure of confidence counts as low: ask first.
-        if (confidence === null || confidence < threshold) {
-            set({heard: text, pending: {text}, status: {text: ''}});
-            app.speak(`${app.say(voiceMessages.confirmTitle, {text})} ${
-                app.say(voiceMessages.confirmHint, keyWords())}`);
+        const unsure = confidence === null || confidence < threshold;
+        if (unsure || (origin === 'wake' && changesThings(text))) {
+            set({heard: text, pending: {text, origin, unsure}, status: {text: ''}});
+            const title = unsure ? voiceMessages.confirmTitle : voiceMessages.confirmChangeTitle;
+            app.speak(`${app.say(title, {text})} ${app.say(voiceMessages.confirmHint, keyWords())}`);
             return;
         }
         set({heard: text});
-        deliver(text);
+        deliver(text, origin);
     };
 
     const ended = outcome => {
         close();
         set({phase: 'idle', mode: null});
         if (outcome.error) tell(PROBLEMS[outcome.error] || voiceMessages.failed);
-        else heard(outcome.text, outcome.confidence);
+        else heard(outcome.text, outcome.confidence, heldBy === 'wake' ? 'wake' : 'voice');
     };
 
     const begin = (mode, source = null) => {
@@ -182,7 +221,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
             tone.opened();
             set({status: listening()});
         };
-        session = provider.listen({
+        session = afterRelease(app.wake()?.release() ?? null, () => provider.listen({
             language: language(),
             onReady: ifCurrent(opened),
             onHear: ifCurrent(({text, final}) => {
@@ -192,7 +231,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
                 if (final && state.mode === 'tap') finish();
             }),
             onEnd: ifCurrent(ended)
-        });
+        }));
     };
 
     const unusable = () => {
@@ -215,6 +254,14 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         } else if (state.phase === 'idle' && !introduced()) {
             begin('hold', source);
         }
+    };
+
+    // The wake words were heard. Take one request, which may have come with them.
+    const wake = ({request, confidence}) => {
+        if (state.phase !== 'idle' || state.pending || problem()) return;
+        app.silence();
+        if (request) heard(request, confidence, 'wake');
+        else if (!introduced()) begin('tap', 'wake');
     };
 
     // The key or button came up.
@@ -273,6 +320,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         press,
         release,
         toggle,
+        wake,
         cancel,
         interrupt,
         confirm,

@@ -3,7 +3,7 @@ import {cleanName} from './names.js';
 
 const STORAGE_KEY = 'brailled.settings';
 const TALK_KEY_IDS = ['f2', 'altShiftV'];
-// Seconds the microphone may stay open. There is no unlimited choice: it never listens continuously.
+// Seconds the microphone may stay open for one request. There is no unlimited choice.
 const LISTEN_SECONDS = [5, 10, 15, 30, 60];
 
 // How much the assistant says when it introduces itself.

@@ -11,7 +11,7 @@ Voice is optional: everything can be done from the keyboard.
 | - | - |
 | Who turns speech into text? | The browser's Web Speech API |
 | Where does the sound go? | Chrome sends it to Google's servers ([MDN](https://developer.mozilla.org/docs/Web/API/SpeechRecognition)). Other browsers may use their maker's service or the device |
-| When is the microphone open? | Only while the talk key or button is held, or for one phrase after a tap, for at most 60 seconds (15 unless changed) |
+| When is the microphone open? | While the talk key or button is held, or for one phrase after a tap, for at most 60 seconds (15 unless changed). With the [wake word](#wake-word-demo-mode) turned on, all the time that it is listening |
 | What does Brailled receive? | The words, and how sure the service is |
 | What does Brailled keep or send? | The words stay in memory, on screen until replaced, and are not stored. If the AI helper is on, words that are not commands are sent to it (see below). See [Audio and transcripts](#audio-and-transcripts) |
 
@@ -33,6 +33,8 @@ Voice and the AI helper are separate switches in `static/brailled-config.json`:
 ```json
 {
     "voice": true,
+    "assistantName": "Mboni",
+    "wakeWord": {"enabled": false},
     "ai": false,
     "aiEndpoint": "",
     "approval": "every time",
@@ -44,6 +46,29 @@ Voice and the AI helper are separate switches in `static/brailled-config.json`:
 `proposalExpirySeconds` decide [what the helper's suggestions need](#ai-helper). While it is on, the bar at the
 bottom of the editor shows "AI helper is on: text you type or say to it, and your program, are sent to an online
 service" (without "or say" where voice is off), and the command box and the helper's questions say the same.
+
+## Wake word (demo mode)
+
+Calling the assistant by saying "Hey Mboni" is off unless the school allows it (`"wakeWord": {"enabled": true}`)
+**and** a student turns it on, with F4 or in Voice settings. It is off again after a reload and after "Reset for new
+student", and the choice is not stored.
+
+**While it listens, the sound around the computer goes to the browser's speech service the whole time** (Chrome:
+Google), not only what is said to the assistant. That includes other students, teachers and anyone else nearby.
+
+| Question | Answer |
+| - | - |
+| When does it listen? | While it is on and the editor is on screen. It pauses when the page is hidden, while the editor reads aloud and while a request is being taken |
+| What happens to what it hears? | A phrase that does not start with the wake words is dropped by the editor: not shown, kept, logged or sent on by Brailled. What the speech service keeps is up to its provider |
+| What shows that it is on? | A red "Listening for Hey Mboni" sign in the voice bar, with a Stop button, and the notice "Demo mode: while this is on, the sound around you goes to your browser's speech service (Chrome: Google)" |
+| How is it stopped? | F4, the Stop button, saying or typing "stop listening", or turning it off in Voice settings |
+| What can it do? | Take one request. It never approves a suggestion or answers a question the editor asks. A request that changes the project or runs it needs a yes by the talk key or a button |
+
+An engine that listens for the wake words on the device, sending nothing until called, is not built in; the code has
+a place for one (`src/wake/device-engine.js`).
+
+**Before using it with students,** do what is listed under [Notice and consent](#notice-and-consent), and also
+consider everyone else within earshot, who has agreed to nothing. It is meant for demonstrations.
 
 ## Turning voice off
 
@@ -83,7 +108,8 @@ else, voice is off and the bar says so. Copy the file with any deployment that s
 
 **In the editor.** The voice bar always shows: "Privacy: when you use voice, your browser may send the sound of
 your speech to an online service. Chrome sends it to Google." Screen readers read it with the talk button, and
-Voice settings repeat it. The browser also asks before first using the microphone.
+Voice settings repeat it. The browser also asks before first using the microphone. While the wake word is on, the
+demo mode notice takes its place.
 
 **Not in the editor.** Brailled does not ask for, record or enforce consent. A school that cannot arrange it can
 turn voice off, as above.

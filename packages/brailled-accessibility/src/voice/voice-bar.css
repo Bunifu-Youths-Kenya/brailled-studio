@@ -125,6 +125,36 @@
     text-align: end;
 }
 
+/* Shown whenever the wake words are listened for. */
+.wake {
+    display: flex;
+    flex: 0 0 9.5rem;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.125rem;
+    font-size: 0.8125rem;
+    font-weight: bold;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.wake-listening {
+    padding: 0 0.25rem;
+    background: #a30000;
+    border: 2px solid #fff;
+    border-radius: 0.25rem;
+}
+
+.wake-listening::before {
+    content: "● " / "";
+}
+
+.wake-paused {
+    padding: 0 0.25rem;
+    border: 2px dashed #fff;
+    border-radius: 0.25rem;
+}
+
 /* On a short screen the bar gives up height to the editor. The height matches shortMaxHeight in scratch-gui. */
 @media (max-height: 740px) {
     .bar {
@@ -162,4 +192,9 @@
         font-size: 0.75rem;
         line-height: 1.2;
     }
+}
+
+/* With the wake word indicator in the bar, the notice gives it room. */
+.wake ~ .side {
+    flex-shrink: 1;
 }

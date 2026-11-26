@@ -17,6 +17,8 @@ const control = (key, label = `Control+${key}`) => ({key, ctrl: true, label});
 const altShift = letter => ({code: `Key${letter}`, alt: true, shift: true, label: `Alt+Shift+${letter}`});
 
 const VIEW_TOGGLE = altShift('O');
+// Starts or stops listening for the wake words. The voice bar handles it, so that it works in dialogs too.
+const WAKE_KEY = {key: 'F4', elsewhere: true, label: 'F4'};
 // The keys to choose from for holding while speaking. `name` is the key alone.
 const TALK_KEYS = {
     f2: {key: 'F2', hold: true, name: 'F2', label: 'hold F2'},
@@ -53,6 +55,7 @@ const matches = (shortcut, event) => {
 export {
     TALK_KEYS,
     VIEW_TOGGLE,
+    WAKE_KEY,
     altShift,
     control,
     matches,

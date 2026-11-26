@@ -22,7 +22,8 @@ const fakeSpeech = () => {
             window.speech.requests.push(this);
             const {error} = window.speech;
             setTimeout(() => {
-                if (!error) return this.onaudiostart();
+                // One left running to hear the wake words does not ask to be told.
+                if (!error) return this.onaudiostart?.();
                 this.onerror({error});
                 return this.onend();
             }, 50);
@@ -38,8 +39,14 @@ const fakeSpeech = () => {
                 this.onend();
             }, 50);
         }
+        // A phrase heard by one that is left running.
+        hear (transcript, confidence = 0.95) {
+            const phrase = Object.assign([{transcript, confidence}], {isFinal: true});
+            this.onresult({resultIndex: 0, results: [phrase]});
+        }
         abort () {
             this.aborted = true;
+            setTimeout(() => this.onend(), 20);
         }
     }
     window.SpeechRecognition = Recognition;
@@ -1539,6 +1546,79 @@ const startAiServer = async (env = {}) => {
         check('running the project is still asked about', await dialog.count() === 1 &&
             !await page.evaluate(() => window.brailledApp.snapshot().project.running));
     }, {init: [fakeSpeech, fakeVoice], config: aiConfig(ai.endpoint, true, bigOnly)});
+
+    await group('wake word', async t => {
+        const {page, key, pause} = t;
+        const bar = page.locator('[data-brailled-zone="voice"]');
+        const indicator = bar.locator('[data-voice-wake]');
+        const notice = bar.locator('[data-voice-notice]');
+        const running = () => page.evaluate(() => window.speech.requests
+            .filter(r => r.continuous && !r.interimResults && !r.aborted).length);
+        const hear = async text => {
+            await page.evaluate(words => window.speech.requests.at(-1).hear(words), text);
+            await pause(1100);
+        };
+        await startOutline(t);
+        await pause(1500);
+        check('nothing listens until it is turned on', await indicator.count() === 0 &&
+            await page.evaluate(() => window.speech.requests.length) === 0);
+        await key('F4', 900);
+        check('F4 starts listening, with a visible sign', await indicator.getAttribute('data-voice-wake') ===
+            'listening' && /Listening for “Hey Mboni”/.test(await indicator.textContent()) && await running() === 1,
+        await indicator.textContent());
+        check('the notice says sound goes to the speech service',
+            /^Demo mode: while this is on, the sound around you goes to your browser’s speech service/
+                .test(await notice.textContent()), await notice.textContent());
+        const fits = () => bar.evaluate(el => Array.from(el.querySelectorAll('*'))
+            .every(child => child.closest('[role="group"]') ||
+                child.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 0.5));
+        for (const [width, height] of [[1366, 768], [1366, 650], [1024, 650]]) {
+            await page.setViewportSize({width, height});
+            await pause(800);
+            check(`the bar fits with the sign at ${width} by ${height}`, await fits());
+            await page.screenshot({path: path.join(out, `wake-${width}x${height}.png`)});
+        }
+        await page.setViewportSize({width: 1366, height: 768});
+        check('axe: listening', (await t.axe('[data-brailled-zone="voice"]')).length === 0,
+            (await t.axe('[data-brailled-zone="voice"]')).join('; '));
+
+        await t.goTo('move 10 steps');
+        const before = await t.items();
+        await hear('somebody talking about money');
+        check('other talk does nothing', (await t.items()).join() === before.join() &&
+            await bar.locator('[data-voice-transcript]').textContent() === 'Nothing heard yet.');
+        await hear('Hey Mboni, where am I');
+        check('a request after the wake words is answered', /^I heard: where am I\. You are in/.test(await t.said()),
+            await t.said());
+        check('and it listens for them again', await running() === 1);
+        await hear('okay Boni delete block');
+        const dialog = page.getByRole('dialog');
+        check('a change asked this way needs a yes first', /It changes things\. Should I go ahead\?/
+            .test(await dialog.textContent()) && (await t.items()).join() === before.join(),
+        await dialog.textContent());
+        await hear('hey Mboni yes');
+        check('which the wake words cannot give', await dialog.count() === 1 &&
+            (await t.items()).join() === before.join());
+        await key('Enter', 700);
+        check('"No" has focus', await dialog.count() === 0 && (await t.items()).join() === before.join());
+        await key('F4', 700);
+        check('F4 stops it', await indicator.count() === 0 && await running() === 0 &&
+            await t.said() === 'Stopped listening for the wake words.', await t.said());
+        await bar.getByRole('button', {name: 'Voice settings'}).click();
+        await pause();
+        const box = page.getByRole('checkbox', {name: /^Listen for “Hey Mboni”/});
+        await box.check();
+        await pause(500);
+        check('the settings turn it on', await indicator.count() === 1 && await box.isChecked());
+        await key('F4', 500);
+        check('F4 stops it from a window too', await indicator.count() === 0 && !await box.isChecked());
+        await key('Escape', 500);
+        await key('F4', 500);
+        await t.reload();
+        check('it is off after a reload', await indicator.count() === 0 &&
+            await page.evaluate(() => window.speech.requests.length) === 0);
+    }, {init: [fakeSpeech, fakeVoice],
+        config: {json: {voice: true, wakeWord: {enabled: true}}}});
 
     await group('AI helper: tools, modes and memory', async t => {
         const {page, key, pause} = t;

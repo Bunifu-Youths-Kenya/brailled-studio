@@ -1,6 +1,12 @@
 {
     "voice": true,
     "assistantName": "Mboni",
+    "wakeWord": {
+        "enabled": false,
+        "engine": "demo",
+        "greetings": ["hey", "hi", "okay", "ok"],
+        "variants": ["Boni", "Bonnie", "Moni", "Mbony", "Mboni", "Mbonyi"]
+    },
     "ai": false,
     "aiEndpoint": "",
     "approval": "every time",

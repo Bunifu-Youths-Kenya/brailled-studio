@@ -11,9 +11,33 @@ const EXPIRY_SECONDS = Object.freeze({least: 30, usual: 120, most: 900});
 // The one value of `approval` that lets small changes be made without asking.
 const BIG_CHANGES_ONLY = 'big changes only';
 
+// What calls the assistant where the configuration lists nothing of its own.
+const GREETINGS = Object.freeze(['hey', 'hi', 'okay', 'ok']);
+// Ways in which "Mboni" is often heard.
+const VARIANTS = Object.freeze(['Boni', 'Bonnie', 'Moni', 'Mbony', 'Mboni', 'Mbonyi']);
+const MOST_PHRASES = 20;
+
+// The wake word: off unless allowed with a plain `true`.
+const wakeFrom = (value, assistant) => {
+    const words = given => (Array.isArray(given) ?
+        given.map(cleanName).filter(Boolean)
+            .slice(0, MOST_PHRASES) :
+        null);
+    const greetings = words(value?.greetings);
+    // The usual variants are of the usual name only.
+    const variants = words(value?.variants) ?? (assistant === DEFAULT_ASSISTANT_NAME ? VARIANTS : []);
+    return Object.freeze({
+        enabled: value?.enabled === true,
+        engine: value?.engine === 'on-device' ? 'on-device' : 'demo',
+        greetings: greetings?.length ? greetings : GREETINGS,
+        names: Array.from(new Set([assistant, ...variants]))
+    });
+};
+
 // What applies until the file says otherwise.
 const SAFEST = Object.freeze({ai: false,
     assistantName: DEFAULT_ASSISTANT_NAME,
+    wakeWord: wakeFrom(null, DEFAULT_ASSISTANT_NAME),
     aiEndpoint: null,
     approval: 'every',
     proposalExpirySeconds: EXPIRY_SECONDS.usual,
@@ -49,6 +73,7 @@ const expiryFrom = value => (Number.isFinite(value) ?
 const interpret = file => {
     if (!file || typeof file !== 'object' || Array.isArray(file)) return UNREADABLE;
     const aiEndpoint = file.ai === true ? endpointFrom(file.aiEndpoint) : null;
+    const assistantName = cleanName(file.assistantName) ?? DEFAULT_ASSISTANT_NAME;
     return {
         voice: file.voice === true,
         ai: !!aiEndpoint,
@@ -58,7 +83,8 @@ const interpret = file => {
         // How the AI helper starts: suggesting changes, or teaching the student to make them.
         assistantMode: file.assistantMode === 'guide' ? 'guide' : 'build',
         // What the assistant is called on screen and aloud.
-        assistantName: cleanName(file.assistantName) ?? DEFAULT_ASSISTANT_NAME,
+        assistantName,
+        wakeWord: wakeFrom(file.wakeWord, assistantName),
         unreadable: false
     };
 };
