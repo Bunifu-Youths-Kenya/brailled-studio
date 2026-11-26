@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import React, {useCallback, useEffect, useLayoutEffect, useRef} from 'react';
+import {createPortal} from 'react-dom';
 
 import styles from './dialog.css';
 
@@ -23,11 +24,16 @@ const Dialog = ({title, describedBy, onCancel, children}) => {
         onCancel();
     }, [onCancel]);
 
-    return (
+    // The reading direction of the editor, which the dialog is placed outside of.
+    const editor = document.querySelector('[data-brailled-zone="voice"]')?.closest('[dir]');
+
+    // Placed in the page's body: another window that is open hides the rest of the editor from screen readers.
+    return createPortal((
         <dialog
             aria-describedby={describedBy}
             aria-labelledby="brailled-dialog-title"
             className={styles.dialog}
+            dir={editor?.getAttribute('dir')}
             ref={dialogRef}
             onCancel={handleCancel}
         >
@@ -39,7 +45,7 @@ const Dialog = ({title, describedBy, onCancel, children}) => {
             </h2>
             {children}
         </dialog>
-    );
+    ), document.body);
 };
 
 Dialog.propTypes = {

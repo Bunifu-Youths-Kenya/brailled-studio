@@ -34,6 +34,7 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-25 | `packages/scratch-paint/src/components/stroke-width-indicator.jsx` | The outline width input is labelled. | Missing accessible name. |
 | 2026-11-25 | `packages/scratch-gui/src/components/gui/gui.jsx` | Renders the voice bar below the editor, and gives the editor area a class so that it shares the height. | Voice input. |
 | 2026-11-25 | `AGENTS.md` | Lists the `brailled-accessibility` and `brailled-ai-server` packages. | The guide asks for the layout to stay current. |
+| 2026-11-26 | `packages/scratch-gui/src/components/target-pane/target-pane.jsx` | Passes the stage tabs the sprite library, a way to close it, and the library's random placing of a new sprite. | The AI helper's approved "add a sprite". |
 
 ## Files added by Brailled
 
@@ -138,10 +139,8 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `PRIVACY-NOTES.md` |
 | 2026-11-26 | `packages/brailled-accessibility/src/config.js` |
 | 2026-11-26 | `packages/scratch-gui/static/brailled-config.json` |
-| 2026-11-26 | `packages/brailled-accessibility/src/ai/ai-helper.jsx` |
 | 2026-11-26 | `packages/brailled-accessibility/src/ai/assistant.js` |
 | 2026-11-26 | `packages/brailled-accessibility/src/ai/messages.js` |
-| 2026-11-26 | `packages/brailled-accessibility/src/ai/proposal.js` |
 | 2026-11-26 | `packages/brailled-accessibility/src/ai/reply.js` |
 | 2026-11-26 | `packages/brailled-accessibility/src/ai/request.js` |
 | 2026-11-26 | `packages/brailled-accessibility/test/ai.test.js` |
@@ -160,5 +159,32 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `packages/brailled-ai-server/test/server.test.ts` |
 | 2026-11-26 | `packages/brailled-ai-server/tsconfig.json` |
 | 2026-11-26 | `packages/brailled-ai-server/src/listen.ts` |
+| 2026-11-26 | `packages/brailled-accessibility/src/ai/refs.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/ai/replies.jsx` |
+| 2026-11-26 | `packages/brailled-accessibility/src/library.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/ai-ports.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/answers.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/assistant-host.jsx` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/check.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/executor.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/fingerprint.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/gate.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/highlight.css` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/highlight.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/machine.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/messages.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/proposal-dialog.css` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/proposal-dialog.jsx` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/queue.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/risk.js` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/steps.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/assistant.test.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/boundary.test.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/examples.test.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/no-network.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/proposal-setup.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/proposals.test.js` |
+| 2026-11-26 | `packages/brailled-ai-server/test/no-network.ts` |
+| 2026-11-26 | `packages/brailled-ai-server/vitest.config.ts` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

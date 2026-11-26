@@ -1,11 +1,9 @@
-// Connects the AI helper, where one is configured, and shows its replies.
+// The AI helper's questions and explanations. Suggestions are shown by the approval gate.
 import PropTypes from 'prop-types';
-import React, {useEffect, useState, useSyncExternalStore} from 'react';
+import React, {useSyncExternalStore} from 'react';
 import {useIntl} from 'react-intl';
 
-import {TALK_KEYS} from '../actions/shortcuts.js';
 import Dialog from '../outline/dialog.jsx';
-import {createAssistant} from './assistant.js';
 import aiMessages from './messages.js';
 
 import dialogStyles from '../outline/dialog.css';
@@ -21,11 +19,7 @@ const Reply = ({assistant, reply, talkKey}) => {
     };
     const handleChoice = event => assistant.answer(event.currentTarget.value);
     const handleDismiss = assistant.dismiss;
-    const title = {
-        proposal: aiMessages.proposalTitle,
-        question: aiMessages.questionTitle,
-        explanation: aiMessages.explanationTitle
-    }[reply.type];
+    const title = reply.type === 'question' ? aiMessages.questionTitle : aiMessages.explanationTitle;
     const question = reply.type === 'question';
 
     return (
@@ -37,18 +31,6 @@ const Reply = ({assistant, reply, talkKey}) => {
             {/* Marks a dialog in which the talk key still works. */}
             <div data-brailled-voice-dialog>
                 <div id="brailled-ai-reply">
-                    {reply.type === 'proposal' ? (
-                        <React.Fragment>
-                            <p className={dialogStyles.field}>{say(aiMessages.summary, {summary: reply.summary})}</p>
-                            <p className={dialogStyles.label}>{say(aiMessages.stepsHeading)}</p>
-                            <ol className={dialogStyles.field}>
-                                {reply.steps.map((step, index) => (
-                                    <li key={index}>{step.sentence}</li>
-                                ))}
-                            </ol>
-                            <p className={dialogStyles.field}>{say(aiMessages.cannotApprove)}</p>
-                        </React.Fragment>
-                    ) : null}
                     {question ? <p className={dialogStyles.field}>{reply.question}</p> : null}
                     {question && reply.choices.length > 0 ? (
                         <ol className={dialogStyles.field}>
@@ -67,6 +49,7 @@ const Reply = ({assistant, reply, talkKey}) => {
                             ))}
                         </ol>
                     ) : null}
+                    {reply.spritesFrom ? <p className={dialogStyles.field}>{say(aiMessages.sayName)}</p> : null}
                     {reply.type === 'explanation' ? <p className={dialogStyles.field}>{reply.text}</p> : null}
                 </div>
                 {question ? (
@@ -122,9 +105,8 @@ Reply.propTypes = {
         dismiss: PropTypes.func.isRequired
     }).isRequired,
     reply: PropTypes.shape({
-        type: PropTypes.oneOf(['proposal', 'question', 'explanation']).isRequired,
-        summary: PropTypes.string,
-        steps: PropTypes.arrayOf(PropTypes.shape({sentence: PropTypes.string.isRequired})),
+        type: PropTypes.oneOf(['question', 'explanation']).isRequired,
+        spritesFrom: PropTypes.string,
         question: PropTypes.string,
         choices: PropTypes.arrayOf(PropTypes.string),
         text: PropTypes.string
@@ -157,40 +139,4 @@ Replies.propTypes = {
     talkKey: PropTypes.string
 };
 
-const AiHelper = ({app}) => {
-    const {aiEndpoint, voice} = useSyncExternalStore(app.config.subscribe, app.config.get);
-    const {talkKey} = useSyncExternalStore(app.settings.subscribe, app.settings.get);
-    const [assistant, setAssistant] = useState(null);
-
-    useEffect(() => {
-        if (!aiEndpoint) return;
-        const created = createAssistant({app, endpoint: aiEndpoint, fetch: window.fetch.bind(window)});
-        const leave = app.register('assistant', created);
-        setAssistant(created);
-        return () => {
-            leave();
-            created.dispose();
-            setAssistant(null);
-        };
-    }, [app, aiEndpoint]);
-
-    return (
-        <Replies
-            assistant={assistant}
-            talkKey={voice ? TALK_KEYS[talkKey].name : null}
-        />
-    );
-};
-
-AiHelper.propTypes = {
-    app: PropTypes.shape({
-        config: PropTypes.shape({get: PropTypes.func.isRequired, subscribe: PropTypes.func.isRequired}).isRequired,
-        register: PropTypes.func.isRequired,
-        settings: PropTypes.shape({
-            get: PropTypes.func.isRequired,
-            subscribe: PropTypes.func.isRequired
-        }).isRequired
-    }).isRequired
-};
-
-export default AiHelper;
+export default Replies;

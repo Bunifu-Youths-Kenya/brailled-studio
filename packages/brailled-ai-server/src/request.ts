@@ -8,9 +8,12 @@ export interface AssistantRequest {
   context: Record<string, unknown>
   program: string[]
   data: string[]
+  names: string[]
   blocks: string[]
   actions: { id: string; name: string; description: string }[]
+  spriteCategories: string[]
   previous?: { question: string; choices: string[] }
+  revises?: { summary: string; steps: string[] }
 }
 
 const CONTEXT_KEYS = ['view', 'focus', 'sprite', 'outline', 'moving', 'stageTab', 'device', 'project']
@@ -58,15 +61,27 @@ const previous: Check<NonNullable<AssistantRequest['previous']>> = (value) => {
   return question !== null && choices !== null ? { question, choices } : null
 }
 
+const revises: Check<NonNullable<AssistantRequest['revises']>> = (value) => {
+  if (!isObject(value) || !hasOnly(value, ['summary', 'steps'])) return null
+  const summary = text(300)(value.summary)
+  const steps = list(20, text(300))(value.steps)
+  return summary !== null && steps !== null ? { summary, steps } : null
+}
+
+const OPTIONAL = ['previous', 'revises']
+
 const fields: Record<keyof AssistantRequest, Check<unknown>> = {
   transcript: (value) => (typeof value === 'string' && value.trim() ? text(500)(value) : null),
   language: text(35),
   context,
   program: list(400, text(300)),
   data: list(200, text(300)),
+  names: list(10, text(2000)),
   blocks: list(400, text(400)),
   actions: list(80, action),
+  spriteCategories: list(30, text(40)),
   previous,
+  revises,
 }
 
 // The request, or the name of the first thing wrong with it.
@@ -76,7 +91,7 @@ export const readRequest = (body: unknown): { request: AssistantRequest } | { pr
   if (unknown !== undefined) return { problem: 'unknown field' }
   const request: Record<string, unknown> = {}
   for (const [key, check] of Object.entries(fields)) {
-    if (key === 'previous' && body[key] === undefined) continue
+    if (OPTIONAL.includes(key) && body[key] === undefined) continue
     const value = check(body[key])
     if (value === null) return { problem: key }
     request[key] = value

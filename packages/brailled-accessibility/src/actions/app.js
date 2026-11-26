@@ -3,6 +3,7 @@ import {createIntl} from 'react-intl';
 
 import {getEditor} from '../commands/editor.js';
 import {createConfig, fetchConfig} from '../config.js';
+import {createLibrary} from '../library.js';
 import {createSettings, storageOf} from '../settings.js';
 import {createReader} from '../speech/read-aloud.js';
 import {SCRIPTS_VIEWS} from '../views.js';
@@ -93,10 +94,14 @@ const createApp = (vm, {
         // `{tab, view, setView, setTab, openCommandBox, openSettings}`
         gui: () => parts.get('gui') || null,
         outline: () => parts.get('outline') || null,
-        // `{openLibrary}`
+        // `{openLibrary, closeLibrary, add, items}`
         sprites: () => parts.get('sprites') || null,
+        // The sprite library, see `library.js`.
+        library: () => (parts.get('sprites')?.items ? createLibrary(parts.get('sprites').items) : null),
         // The voice controller, see `voice/controller.js`.
         voice: () => parts.get('voice') || null,
+        // The approval gate, see `proposals/gate.js`: takes the student's answer to a suggestion.
+        gate: () => parts.get('gate') || null,
         // The AI helper, see `ai/assistant.js`: takes what is not a local command.
         assistant: () => parts.get('assistant') || null,
 

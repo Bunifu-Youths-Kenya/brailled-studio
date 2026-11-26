@@ -22,6 +22,8 @@ const voiceMessages = fromTexts('brailled.voice', 'Voice input', {
     aiNoticeWithVoice: 'AI helper is on: text you type or say to it, and your program, are sent to an online ' +
         'service. Chrome sends speech to Google.',
     settings: 'Voice settings',
+    settingsAi: 'AI settings',
+    settingsBoth: 'Voice and AI settings',
     starting: 'Opening the microphone.',
     listeningHold: 'Listening. Let go when you have finished.',
     listeningTap: 'Listening. Speak now.',

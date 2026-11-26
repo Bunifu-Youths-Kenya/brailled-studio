@@ -5,7 +5,8 @@
  * Blocks are given short references, b1, b2 and so on, which a proposal uses in place of block ids.
  */
 // Within what the server accepts.
-const LIMITS = Object.freeze({transcript: 500, line: 300, program: 400, data: 200, contextText: 300});
+const LIMITS = Object.freeze(
+    {transcript: 500, line: 300, program: 400, data: 200, contextText: 300, names: 2000});
 
 const clip = (text, length) => (text.length > length ? `${text.slice(0, length - 1)}…` : text);
 
@@ -42,9 +43,12 @@ const describeProgram = nodes => {
     return {lines, refs};
 };
 
-const describeValue = value => (value.choices ?
-    `${value.name}=one of ${value.choices.join('|')}` :
-    `${value.name}=${value.type}`);
+const describeValue = value => {
+    if (!value.choices) return `${value.name}=${value.type}`;
+    // Names from the project are listed apart, as they are not the editor's own words.
+    const choices = value.source ? [...value.choices, `a name from "${value.source}"`] : value.choices;
+    return `${value.name}=one of ${choices.join('|')}`;
+};
 
 // One line for each kind of block, such as: motion_movesteps (stack) "move 10 steps" STEPS=number
 const describeBlock = spec => clip(
@@ -56,34 +60,36 @@ const describeItem = item => clip(
 
 /**
  * @param {object} options Options.
- * @param {object} options.app The app.
+ * @param {object} options.ports What the AI side is given, see `proposals/ai-ports.js`.
  * @param {string} options.transcript What the student said or typed.
  * @param {?{question: string, choices: string[]}} [options.previous] The AI's question that this answers.
- * @returns {{body: object, refs: Map<string, string>, actions: Map<string, string>, targetId: string}} What to
- * send, and what is needed to read the reply: block ids by reference and action names by id.
+ * @param {?{summary: string, steps: string[]}} [options.revises] The suggestion that this asks to change.
+ * @returns {{body: object, refs: Map<string, string>, targetId: string}} What to send, and what is needed to read
+ * the reply: block ids by reference.
  */
-const buildRequest = ({app, transcript, previous = null}) => {
-    // The actions are listed separately, with their descriptions.
-    const {actions: _, ...context} = app.snapshot();
-    const {lines, refs} = describeProgram(app.editor.outline());
-    const actions = app.proposableActions();
+const buildRequest = ({ports, transcript, previous = null, revises = null}) => {
+    const {lines, refs} = describeProgram(ports.outline());
     const body = {
         transcript: clip(transcript, LIMITS.transcript),
-        language: app.intl().locale,
-        context: clipAll(context),
+        language: ports.language(),
+        context: clipAll(ports.snapshot()),
         program: lines,
-        data: app.editor.listData().items.slice(0, LIMITS.data)
+        data: ports.data().slice(0, LIMITS.data)
             .map(describeItem),
-        blocks: app.editor.blockSpecs().map(describeBlock),
-        actions
+        names: Object.entries(ports.names()).map(([source, names]) =>
+            clip(`${source}: ${names.join(' | ')}`, LIMITS.names)),
+        blocks: ports.blockSpecs().map(describeBlock),
+        actions: ports.actions(),
+        spriteCategories: ports.spriteCategories()
     };
     if (previous) body.previous = previous;
-    return {
-        body,
-        refs,
-        actions: new Map(actions.map(action => [action.id, action.name])),
-        targetId: app.vm.editingTarget.id
-    };
+    if (revises) {
+        body.revises = {
+            summary: clip(revises.summary, LIMITS.line),
+            steps: revises.steps.slice(0, 20).map(step => clip(step, LIMITS.line))
+        };
+    }
+    return {body, refs, targetId: ports.targetId()};
 };
 
 export {

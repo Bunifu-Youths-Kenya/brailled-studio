@@ -125,8 +125,10 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
             }
             // Read when pressed, so that a new choice applies at once.
             if (!matches(TALK_KEYS[app.settings.get().talkKey], event)) return;
-            // Dialogs keep the keyboard to themselves, apart from the voice's own question and the AI's replies.
-            if (hasOpenDialog(document) && !voice.getState().pending && !app.assistant()?.isOpen()) return;
+            // Dialogs keep the keyboard to themselves, apart from the voice's own question, the AI's replies and
+            // suggestions waiting for an answer.
+            const answerable = voice.getState().pending || app.assistant()?.isOpen() || app.gate()?.isOpen();
+            if (hasOpenDialog(document) && !answerable) return;
             event.preventDefault();
             event.stopPropagation();
             if (!event.repeat) voice.press('key');
@@ -201,6 +203,10 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     // While a question is open the bar says how to answer it.
     const barStatus = state.pending && !status ? hint : status;
     const handleSettings = () => app.perform('voice.settings');
+    const settingsLabel = (() => {
+        if (!aiEndpoint) return voiceMessages.settings;
+        return off ? voiceMessages.settingsAi : voiceMessages.settingsBoth;
+    })();
     // What leaves the computer is shown whenever it can: by voice, to the AI helper, or both.
     let notice = off ? null : voiceMessages.privacy;
     if (aiEndpoint) notice = off ? voiceMessages.aiNotice : voiceMessages.aiNoticeWithVoice;
@@ -277,14 +283,14 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
             </div>
             {notice ? (
                 <div className={styles.side}>
-                    {off ? null : (
+                    {off && !aiEndpoint ? null : (
                         <button
                             className={styles.settings}
                             type="button"
                             // eslint-disable-next-line react/jsx-no-bind
                             onClick={handleSettings}
                         >
-                            {intl.formatMessage(voiceMessages.settings)}
+                            {intl.formatMessage(settingsLabel)}
                         </button>
                     )}
                     <p

@@ -12,6 +12,9 @@
     "test:e2e": "node e2e/editor.e2e.cjs"
   },
   "jest": {
+    "setupFiles": [
+      "<rootDir>/test/no-network.js"
+    ],
     "testEnvironment": "node"
   },
   "peerDependencies": {
@@ -19,6 +22,7 @@
     "lodash.debounce": "^4.0.8",
     "prop-types": "^15.8.0",
     "react": "^18.0.0",
+    "react-dom": "^18.0.0",
     "react-intl": "^6.0.0",
     "react-tabs": "^5.2.0",
     "scratch-blocks": "^2.2.0"

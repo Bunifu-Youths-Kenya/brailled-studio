@@ -1,0 +1,53 @@
+/* Large type, for low vision. */
+.proposal {
+    font-size: 1.375rem;
+    line-height: 1.4;
+}
+
+.proposal button,
+.proposal input {
+    font-size: 1.125rem;
+}
+
+.proposal button {
+    margin-bottom: 0.5rem;
+}
+
+.warning {
+    padding: 0.5rem;
+    color: #fff;
+    background: #a30000;
+    border-radius: 0.25rem;
+    font-weight: bold;
+}
+
+.risk {
+    color: #a30000;
+}
+
+.now,
+.current {
+    font-weight: bold;
+}
+
+.all {
+    font-size: 1rem;
+}
+
+.hint {
+    font-size: 1rem;
+}
+
+.note {
+    margin: 0.25rem 0;
+    font-weight: bold;
+}
+
+.change {
+    margin-top: 0.5rem;
+    font-size: 1rem;
+}
+
+.change input {
+    margin-bottom: 0.5rem;
+}

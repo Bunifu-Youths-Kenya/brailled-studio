@@ -14,7 +14,9 @@ the editor needs around them.
 | `src/actions/` | The action registry, local commands, context snapshot and editor-wide live region |
 | `src/voice/` | The voice bar, the speech-to-text interface and what happens to what was heard |
 | `src/speech/` | Reading replies aloud |
-| `src/ai/` | The AI helper: what is sent, checking what comes back, and showing it |
+| `src/ai/` | The AI side: what is sent, checking the form of what comes back, questions and explanations |
+| `src/proposals/` | The approval gate: queue, validator, risk, state machine, executor, dialog, highlighting |
+| `src/library.js` | The sprite library by name and kind |
 | `src/settings.js` | The student's choices, kept in the browser |
 | `src/config.js` | What whoever runs the editor allows |
 | `src/use-kept-state.js` | State that survives the editor rebuilding on a language change |
@@ -100,7 +102,7 @@ off the device.
 | `project.run`, `project.stop` | | "run", "stop" |
 | `sprite.library` | | "open sprite library" |
 | `voice.talk`, `go.voice` | Hold the talk key | "talk", "go to voice bar" |
-| `voice.settings` | | "voice settings" |
+| `voice.settings` | | "voice settings", "AI settings" |
 
 - **Typed commands** go in the command box, and spoken ones come from the voice bar. Both are matched against
   fixed English phrases and the action names in the user's language. Anything else goes to the
@@ -157,7 +159,8 @@ neither the screen reader nor the editor is heard as speech.
    focus. Answer with a button, or hold the talk key and say "yes" or "no". Nothing is done until the answer is
    yes.
 2. A local command (the typed commands above) runs where focus was, even if you used the button.
-3. Anything else goes to the [AI helper](#ai-helper), if one is set up; if not, the answer says so.
+3. Anything else goes to the [AI helper](#ai-helper), if one is set up; if not, the answer says so. A yes or no
+   with nothing waiting is not sent anywhere. While a suggestion waits, what is said answers it.
 
 Replies are spoken by the screen reader through the live region and shown in the status line.
 
@@ -202,30 +205,94 @@ Optional, and off by default. It needs the [Brailled AI server](../brailled-ai-s
 starting with `/`, or `http` on this computer. `ai` is separate from `voice`. While the helper is on, notices say
 that what is typed or said to it is sent to an online service.
 
-**It never edits.** Anything said, or typed in the command box, that is not a local command is sent with the
-context snapshot, the selected sprite's program, the usable blocks and the actions it may propose. The reply is
-one of:
+Anything said, or typed in the command box, that is not a local command is sent with the context snapshot, the
+selected sprite's program, the usable blocks and the actions it may propose. The reply is one of:
 
-| Reply | What the student gets |
+| Reply | What happens |
 | - | - |
-| Proposal | The AI's one-sentence summary, then each step described by the editor itself |
-| Question | The question and any numbered choices. Type, choose or say an answer |
-| Explanation | The text |
+| Proposal | It goes to the approval gate |
+| Question | Shown with any numbered choices. Type, choose or say an answer, or its number. It may first open something, such as the sprite library, and may list sprites of one kind from the library |
+| Explanation | Shown |
 
-**Approving a proposal is not built yet**, so nothing can be run.
+### The AI can only propose
 
-**Checking.** The whole reply must have exactly one of those forms (`src/ai/reply.js`). Every command in a
-proposal goes through the editing engine's validator (`editor.preview`): each step is planned on the result of the
-steps before it, on a copy of the program. Steps use the references `b1`, `b2` from the program that was sent, or
-`new1` for the block that step 1 makes; other ids are refused. Actions must be ones that were offered. If anything
-fails, or another sprite was selected meanwhile, the student hears "I couldn't work that out, please try again"
-and nothing is shown or changed. The reason is written to the browser console.
+`src/ai/` is the AI side. It is given only the *ports* in `src/proposals/ai-ports.js`: ways to read the editor,
+to speak, and to `submit` steps to the proposal queue. It gets no editing engine, no actions to perform, no virtual
+machine, and nothing that approves. The queue takes a copy of what is submitted. `test/boundary.test.js` fails if
+`src/ai/` imports or calls anything else. Only the student's own input reaches the gate's `approve`.
+
+### Approval
+
+`src/proposals/` is the gate, the executor and the proposal dialog. A proposal goes
+
+    idle -> proposed -> approved -> executing -> done      or ends rejected, revised or expired
+
+Each step has a risk that the editor works out; nothing the AI says changes it.
+
+| Risk | Steps | Asked about |
+| - | - | - |
+| Safe | Moving about and reading: help, "go to", views, next and previous, reading the program, stop, opening the sprite library | Never |
+| Edit | Insert, change a value, move, wrap, create, rename, undo, redo, delete one block, add a sprite, run the project | By default. Not if the student chose "Only for big changes" |
+| Big, "hard to undo" | Deleting a whole script or more than one block, running with a device attached or in Upload mode, more than three changes at once, and anything not listed (so any future delete-sprite, overwrite, upload or robot action) | Always, with a warning |
+
+The setting is under **Voice and AI settings**: "Every time" (default) or "Only for big changes". It is kept in the
+browser and removed by "Reset for new student".
+
+**Asking.** The proposal is shown in large type, each step described by the editor itself, with the AI's one
+sentence labelled "The AI says". A screen reader reads it from the dialog; with reading aloud on, the editor reads
+it.
+
+| To | Say or type | Or |
+| - | - | - |
+| Approve | "yes", "go ahead" | Enter on "Yes", which has focus unless the change is hard to undo |
+| Reject | "no", "cancel" | Escape, or "No" |
+| Change it | "change it: three seconds" | The "Or say what to change" box |
+| Approve one step at a time | "step by step" | "One step at a time" |
+| Approve all that remain | "yes to all" | "Yes, do all the rest" |
+
+Nothing else approves. A press in the first 0.7 seconds is ignored. For a change that is hard to undo "No" has
+focus, so Enter alone rejects it.
+
+**It is cancelled** if, before approval, any program or name in the project, the selected sprite, the tab, the view
+or the place in the outline changes (running the project changes none of these), and **expires** after two minutes
+without an answer (each step has its own two minutes). It is validated again at approval and between steps.
+
+**Afterwards** the editor says what was done and how to undo it, and outlines the changed blocks in yellow for
+15 seconds, on the canvas and in the Outline. Edits approved together are one undo. An added sprite is removed by
+undo, unless blocks have since been put in it; that undo cannot be redone.
+
+**Checking.** The whole reply must have exactly one of the three forms (`src/ai/reply.js`). Every command goes
+through the editing engine's validator (`editor.preview`): each step is planned on the result of the steps before
+it, on a copy of the program. Steps use the references `b1`, `b2` from the program that was sent, or `new1` for the
+block that step 1 makes; other ids are refused. Actions must be ones that were offered, and sprites must be in the
+library. No command may follow adding a sprite. If anything fails, the student hears "I couldn't work that out,
+please try again" and nothing is shown or changed. The reason is written to the browser console.
 
 **Actions it may propose** are those usable at the time, except edits made by hand at the focused block, which
 would escape the validator, and opening the command box, listening and voice settings.
 
-While a reply is open, the talk key still works: "close" or "cancel" closes it, "stop" stops the project, and
-anything else answers a question.
+**Untrusted content.** Names of sprites, costumes, sounds, backdrops, variables, lists and messages, and block
+text, are written by whoever made the project. They are sent apart from the editor's own lists, and the model is
+told they are data and never instructions. That instruction can fail. What protects the project is that the model
+can only propose.
+
+**While something is open** the talk key still works. "stop" stops the project. "close" or "cancel" closes a
+question or explanation.
+
+### The two worked examples
+
+| "add a sprite" | |
+| - | - |
+| The AI asks which kind, opening the library | Opening it needs no approval |
+| The student picks Animals, People or Things | |
+| The AI asks again; the editor lists five sprites of that kind | "more" lists the next five |
+| The student names one, such as Dragon | The AI proposes "Add the Dragon sprite and select it" |
+| The student approves | The sprite is added and selected, and the library closes |
+
+"add a wait of 2 seconds after the move block" proposes one inserted block, described as "Add wait 2 seconds, after
+move 10 steps".
+
+These flows depend on the model following its instructions. Tests supply the model's replies.
 
 ## Accessible names
 

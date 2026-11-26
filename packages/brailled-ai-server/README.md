@@ -43,9 +43,15 @@ passed on:
 | `context` | The editor's context snapshot: view, focus, sprite, place in the outline, device and running state |
 | `program` | The selected sprite's program, one line per block, with references such as `b2` |
 | `data` | Names of variables, lists and messages |
-| `blocks` | The kinds of block that may be used, with their values |
+| `names` | Names of sprites, costumes, sounds and backdrops |
+| `blocks` | The kinds of block that may be used, with their values, without any project names |
 | `actions` | The editor actions that may be proposed |
+| `spriteCategories` | Kinds of sprite in the library |
 | `previous` | Optional: the model's question that `transcript` answers |
+| `revises` | Optional: the suggestion that `transcript` asks to change |
+
+The model gets `blocks`, `actions` and `spriteCategories` as the editor's own words, and `context`, `program`,
+`data` and `names` under `untrustedProjectContent`, which its instructions tell it never to obey.
 
 The server adds the edit-command schema (`../brailled-accessibility/src/commands/schema.json`, so keep that file
 beside it when deploying) and its instructions.

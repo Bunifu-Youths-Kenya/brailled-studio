@@ -3,13 +3,16 @@ const STORAGE_KEY = 'brailled.settings';
 const TALK_KEY_IDS = ['f2', 'altShiftV'];
 // Seconds the microphone may stay open. There is no unlimited choice: it never listens continuously.
 const LISTEN_SECONDS = [5, 10, 15, 30, 60];
+// What the AI helper's suggestions are asked about: every change, or only those hard to undo.
+const APPROVAL_LEVELS = ['every', 'big'];
 
 const DEFAULTS = Object.freeze({
     talkKey: 'f2',
     maxSeconds: 15,
     readAloud: false,
     // Whether a screen reader is used, or null while the question has not been answered.
-    screenReader: null
+    screenReader: null,
+    approval: 'every'
 });
 
 // Stored text may be old or edited by hand: keep only values the editor knows.
@@ -17,7 +20,8 @@ const clean = value => ({
     talkKey: TALK_KEY_IDS.includes(value?.talkKey) ? value.talkKey : DEFAULTS.talkKey,
     maxSeconds: LISTEN_SECONDS.includes(value?.maxSeconds) ? value.maxSeconds : DEFAULTS.maxSeconds,
     readAloud: value?.readAloud === true,
-    screenReader: typeof value?.screenReader === 'boolean' ? value.screenReader : DEFAULTS.screenReader
+    screenReader: typeof value?.screenReader === 'boolean' ? value.screenReader : DEFAULTS.screenReader,
+    approval: APPROVAL_LEVELS.includes(value?.approval) ? value.approval : DEFAULTS.approval
 });
 
 // The browser's storage, which can be switched off.
@@ -78,6 +82,7 @@ const createSettings = storage => {
 };
 
 export {
+    APPROVAL_LEVELS,
     DEFAULTS,
     LISTEN_SECONDS,
     STORAGE_KEY,

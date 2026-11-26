@@ -8,6 +8,8 @@ import SpriteSelectorComponent from '../sprite-selector/sprite-selector.jsx';
 import StageSelector from '../../containers/stage-selector.jsx';
 import {DevicesPanel, StageTabs} from '../../../../brailled-accessibility/src/index.js';
 import {STAGE_DISPLAY_SIZES} from '../../lib/layout-constants';
+import randomizeSpritePosition from '../../lib/randomize-sprite-position';
+import spriteLibrary from '../../lib/libraries/sprites.json';
 
 import styles from './target-pane.css';
 
@@ -58,6 +60,9 @@ const TargetPane = ({
         <StageTabs
             vm={vm}
             onOpenSpriteLibrary={onNewSpriteClick}
+            onCloseSpriteLibrary={onRequestCloseSpriteLibrary}
+            onPlaceSprite={randomizeSpritePosition}
+            spriteLibrary={spriteLibrary}
             devices={<DevicesPanel />}
             sprites={
                 <SpriteSelectorComponent

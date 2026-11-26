@@ -13,7 +13,7 @@ Voice is optional: everything can be done from the keyboard.
 | Where does the sound go? | Chrome sends it to Google's servers ([MDN](https://developer.mozilla.org/docs/Web/API/SpeechRecognition)). Other browsers may use their maker's service or the device |
 | When is the microphone open? | Only while the talk key or button is held, or for one phrase after a tap, for at most 60 seconds (15 unless changed) |
 | What does Brailled receive? | The words, and how sure the service is |
-| What does Brailled keep or send? | The words are shown on screen until replaced and are not stored. If an AI helper is set up, words that are not commands are sent to it (see below). The sound is not sent by Brailled |
+| What does Brailled keep or send? | The words stay in memory, on screen until replaced, and are not stored. If the AI helper is on, words that are not commands are sent to it (see below). See [Audio and transcripts](#audio-and-transcripts) |
 
 What Google or another provider keeps, for how long and for what purpose is set by that provider. It has not
 been reviewed for Brailled.
@@ -116,11 +116,11 @@ student wrote, is not sent to an online voice.
 
 ## Stored in the browser
 
-Under `brailled.settings` in local storage: the talk key, the longest listening time, whether to read aloud, and
-the answer to "Do you use a screen reader?". The answer can suggest that a student has a disability. It stays in
+Under `brailled.settings` in local storage: the talk key, the longest listening time, whether to read aloud, when
+to ask before the AI helper changes things, and the answer to "Do you use a screen reader?". The answer can suggest that a student has a disability. It stays in
 that browser and Brailled does not send it.
 
-On a shared computer, **Reset for new student** in Voice settings removes all four and asks the question again.
+On a shared computer, **Reset for new student** in the settings removes them all and asks the question again.
 Without it the next person gets the same settings. Reset does not close the project, clear what the voice bar
 last showed, or withdraw the browser's microphone permission; reload the page, and change the permission in the
 browser if needed. Clearing the site's data also removes the settings.
@@ -132,32 +132,53 @@ Off unless whoever runs the editor sets `"ai": true` and `aiEndpoint`, the addre
 sent to an AI.
 
 **What is sent, and when.** Only when a student says or types something that is not one of the editor's own
-commands, or answers the helper's question:
+commands, answers the helper's question, or asks for a suggestion to be changed:
 
 | Sent | Can contain personal information? |
 | - | - |
-| What the student said or typed (at most 500 characters), and the question it answers | Yes, whatever they say |
+| What the student said or typed (at most 500 characters) | Yes, whatever they say |
+| The helper's question being answered, or its suggestion being changed | Possibly |
 | The selected sprite's program, as text | Yes: text students write in blocks |
-| Names of sprites, variables, lists and messages; the project's blocks by kind | Yes, if students put names in them |
-| Where the student is: view, focused control, place in the program, device mode, running state, language | Little |
-| The editor's list of blocks and actions | No |
+| Names of sprites, costumes, sounds, backdrops, variables, lists and messages | Yes, if students put names in them |
+| The context snapshot: view, focused control, selected sprite, place in the program, device mode, running state | Possibly, as it quotes block text and names |
+| The editor's language, list of blocks and actions, and kinds of sprite in the library | No |
 
-Not sent: sound, pictures, costumes, screenshots, the page itself, the project file, the project's title, or the
-answer to the screen reader question. The programs of other sprites are not sent.
+The program and the names go beyond the context snapshot: without them the helper cannot say where a block should
+go. The programs of other sprites are not sent.
+
+**Not sent:** sound or recordings, pictures, costume or sound files, screenshots, the page itself, the project
+file, the project's title, code comments, any account or user name, the settings, or the answer to the screen
+reader question. Brailled adds no identifier for the student. Like any web request, it shows the server and its
+proxy the computer's network address, which the server keeps in memory for up to a day to limit requests and does
+not log.
 
 **Where it goes.** Editor → your AI server → [OpenRouter](https://openrouter.ai/) → the company running the
-chosen model. The server keeps and logs none of it, only whether a request worked and how long it took. By
-default it asks OpenRouter to use only providers that do not collect data (`data_collection: "deny"`) and
+chosen model. The server keeps and logs nothing students wrote, only whether a request worked and how long it took.
+By default it asks OpenRouter to use only providers that do not collect data (`data_collection: "deny"`) and
 endpoints with zero data retention (`zdr`). Those are OpenRouter's settings and the providers' promises, which
 Brailled cannot check. Read the terms of OpenRouter and of the model's provider.
 
-**Control.** Nothing the AI replies with is carried out. Its suggestions are checked by the editor and only
-described.
+**Control.** The helper can only suggest. The editor checks each suggestion and asks the student before changing
+anything, except where the student chose to be asked about big changes only. Names and block text are marked as
+untrusted data in what the model is told.
 
 **Notice and consent.** The notices under [What leaves the device](#what-leaves-the-device) are shown whenever the
 helper is on. What is in
 [Notice and consent](#notice-and-consent) applies to the AI helper too: tell students and families, get consent
 for children, and ask students not to include names or personal details. To turn the helper off, set `"ai": false`.
+
+## Audio and transcripts
+
+| | |
+| - | - |
+| Audio | Brailled does not record, store or upload audio. Its code only starts and stops the browser's speech recognition, which in Chrome **does upload the sound to Google** |
+| Transcripts (what was heard) and typed requests | Kept in memory only: shown until replaced, and gone when the page is closed. There is no setting that saves them |
+| Suggestions and the helper's replies | In memory only |
+| The project | Saved only when the student saves it, as before |
+
+A browser can keep things of its own, such as the console, where the editor writes why a reply was refused (which
+can quote a block). If a setting to save transcripts is ever added, it must be off by default, cleared by "Reset
+for new student", and described here.
 
 ## The rest of the editor
 

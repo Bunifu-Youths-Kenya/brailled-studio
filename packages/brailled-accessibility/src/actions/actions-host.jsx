@@ -2,9 +2,9 @@ import PropTypes from 'prop-types';
 import React, {useCallback, useEffect, useRef, useState, useSyncExternalStore} from 'react';
 import {useIntl} from 'react-intl';
 
-import AiHelper from '../ai/ai-helper.jsx';
 import Dialog from '../outline/dialog.jsx';
 import {dialogMessages} from '../outline/messages.js';
+import AssistantHost from '../proposals/assistant-host.jsx';
 import {getApp} from './app.js';
 import {hasOpenDialog} from './dom.js';
 import {speech} from './messages.js';
@@ -192,7 +192,7 @@ const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
                 {/* A new element each time, so that a repeated message is announced again. */}
                 <span key={notice.serial}>{notice.text}</span>
             </div>
-            <AiHelper app={app} />
+            <AssistantHost app={app} />
             {asking ? <ScreenReaderQuestion app={app} /> : null}
             {settingsOpen ? (
                 <VoiceSettings

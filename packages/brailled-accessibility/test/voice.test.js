@@ -496,8 +496,12 @@ describe('reset for a new student', () => {
         settings.subscribe(listener);
         settings.reset();
         expect(values[STORAGE_KEY]).toBeUndefined();
-        expect(settings.get()).toEqual({
-            talkKey: 'f2', maxSeconds: 15, readAloud: false, screenReader: null, questionDismissed: false});
+        expect(settings.get()).toEqual({talkKey: 'f2',
+            maxSeconds: 15,
+            readAloud: false,
+            screenReader: null,
+            approval: 'every',
+            questionDismissed: false});
         expect(listener).toHaveBeenCalled();
         expect(createSettings(storage).get().screenReader).toBeNull();
     });

@@ -17,15 +17,25 @@ const messages = defineMessages({
 
 const SPRITES_TAB_INDEX = 1;
 
-const StageTabs = ({devices, sprites, background, vm, onOpenSpriteLibrary}) => {
+const StageTabs = ({
+    devices, sprites, background, vm, spriteLibrary, onOpenSpriteLibrary, onCloseSpriteLibrary, onPlaceSprite
+}) => {
     const intl = useIntl();
 
     useEffect(
         () => getApp(vm).register('sprites', {
+            items: spriteLibrary,
             // The editor's handler expects the click that asked for the library.
-            openLibrary: () => onOpenSpriteLibrary({preventDefault: () => {}})
+            openLibrary: () => onOpenSpriteLibrary({preventDefault: () => {}}),
+            closeLibrary: () => onCloseSpriteLibrary(),
+            // Add a sprite from the library, which selects it, as choosing it there does.
+            add: item => {
+                const sprite = JSON.parse(JSON.stringify(item));
+                onPlaceSprite(sprite);
+                return vm.addSprite(JSON.stringify(sprite));
+            }
         }),
-        [vm, onOpenSpriteLibrary]
+        [vm, spriteLibrary, onOpenSpriteLibrary, onCloseSpriteLibrary, onPlaceSprite]
     );
     return (
         <Tabs
@@ -81,8 +91,14 @@ StageTabs.propTypes = {
     devices: PropTypes.node.isRequired,
     sprites: PropTypes.node.isRequired,
     background: PropTypes.node.isRequired,
-    vm: PropTypes.shape({on: PropTypes.func}).isRequired,
-    onOpenSpriteLibrary: PropTypes.func.isRequired
+    vm: PropTypes.shape({addSprite: PropTypes.func, on: PropTypes.func}).isRequired,
+    spriteLibrary: PropTypes.arrayOf(PropTypes.shape({
+        name: PropTypes.string.isRequired,
+        tags: PropTypes.arrayOf(PropTypes.string)
+    })).isRequired,
+    onOpenSpriteLibrary: PropTypes.func.isRequired,
+    onCloseSpriteLibrary: PropTypes.func.isRequired,
+    onPlaceSprite: PropTypes.func.isRequired
 };
 
 export default StageTabs;

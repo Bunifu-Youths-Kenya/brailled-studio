@@ -1,9 +1,9 @@
 /*
- * The AI helper. It asks the server, checks the whole reply and shows it. It never changes anything: a
- * proposal is only described.
+ * The AI helper. It asks the server and checks the form of the whole reply. It cannot change anything: it is
+ * given only `ports` (see `proposals/ai-ports.js`), and puts suggestions in the proposal queue.
  */
 import aiMessages from './messages.js';
-import {checkProposal} from './proposal.js';
+import {withBlockIds} from './refs.js';
 import {parseReply} from './reply.js';
 import {buildRequest} from './request.js';
 
@@ -11,6 +11,8 @@ const TIMEOUT_MS = 45000;
 // A reply is never shown sooner than this, so that "Asking" is not said over it.
 const MIN_REPLY_MS = 300;
 const CLOSE_WORDS = ['close', 'cancel', 'dismiss', 'never mind', 'nevermind'];
+// Ways of saying a number from a list, in English.
+const NUMBERS = ['one', 'two', 'three', 'four', 'five'];
 
 const PROBLEMS = {
     400: aiMessages.failed,
@@ -23,14 +25,21 @@ const plain = text => text.toLowerCase().replace(/[.,!?;:"]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
+// The choice that "2", "two" or "number two" picks, or the words as given.
+const picked = (text, choices) => {
+    const word = plain(text).replace(/^number /, '');
+    const number = /^[0-9]+$/.test(word) ? Number(word) : NUMBERS.indexOf(word) + 1;
+    return choices[number - 1] ?? text;
+};
+
 /**
  * @param {object} options Options.
- * @param {object} options.app The app.
+ * @param {object} options.ports Everything the helper may use.
  * @param {string} options.endpoint Address of the server's assistant.
  * @param {Function} options.fetch Like the browser's `fetch`.
- * @returns {object} The helper. `getState` gives `{busy, reply}`.
+ * @returns {object} The helper. `getState` gives `{busy, reply}`, a question or explanation to show.
  */
-const createAssistant = ({app, endpoint, fetch}) => {
+const createAssistant = ({ports, endpoint, fetch}) => {
     const listeners = new Set();
     let state = {busy: false, reply: null};
     let request = null;
@@ -43,32 +52,10 @@ const createAssistant = ({app, endpoint, fetch}) => {
 
     // The words of a reply, for reading aloud. A screen reader reads them from the dialog.
     const wordsOf = reply => {
-        if (reply.type === 'explanation') return `${app.say(aiMessages.explanationTitle)}. ${reply.text}`;
-        if (reply.type === 'question') {
-            const choices = reply.choices.map((choice, index) => `${index + 1}. ${choice}.`);
-            return [`${app.say(aiMessages.questionTitle)}.`, reply.question, ...choices].join(' ');
-        }
-        return [
-            app.say(aiMessages.proposalTitle),
-            app.say(aiMessages.summary, {summary: reply.summary}),
-            app.say(aiMessages.stepsHeading),
-            ...reply.steps.map((step, index) => `${index + 1}. ${step.sentence}.`),
-            app.say(aiMessages.cannotApprove)
-        ].join(' ');
-    };
-
-    // Wait until the microphone is closed, so that the reply is not heard as speech.
-    const whenQuiet = task => {
-        const voice = app.voice();
-        if (!voice || voice.getState().phase === 'idle') {
-            task();
-            return;
-        }
-        const stop = voice.subscribe(() => {
-            if (voice.getState().phase !== 'idle') return;
-            stop();
-            task();
-        });
+        if (reply.type === 'explanation') return `${ports.say(aiMessages.explanationTitle)}. ${reply.text}`;
+        const choices = reply.choices.map((choice, index) => `${index + 1}. ${choice}.`);
+        const hint = reply.spritesFrom ? [ports.say(aiMessages.sayName)] : [];
+        return [`${ports.say(aiMessages.questionTitle)}.`, reply.question, ...choices, ...hint].join(' ');
     };
 
     const fail = (message, reason) => {
@@ -76,42 +63,63 @@ const createAssistant = ({app, endpoint, fetch}) => {
         // eslint-disable-next-line no-console
         if (reason) console.warn(`assistant: ${reason}`);
         set({busy: false});
-        app.announce(app.say(message));
+        ports.announce(ports.say(message));
     };
 
-    // Check a reply against what was sent. Returns what to show, or null.
-    const accept = (raw, sent) => {
+    const show = reply => {
+        set({busy: false, reply});
+        ports.speak(wordsOf(reply));
+    };
+
+    // Use a reply, checked against what was sent. Returns why it cannot be used, or null.
+    const use = async (raw, sent) => {
         const reply = parseReply(raw);
-        if (!reply) return {reason: 'the reply has the wrong form'};
-        if (reply.type !== 'proposal') return {reply};
-        if (app.vm.editingTarget?.id !== sent.targetId) return {reason: 'another sprite has been selected'};
-        const checked = checkProposal({
-            editor: app.editor,
-            steps: reply.steps,
-            refs: sent.refs,
-            actions: sent.actions,
-            actionSentence: name => app.say(aiMessages.action, {name})
-        });
-        return checked.ok ? {reply: {...reply, steps: checked.steps}} : {reason: checked.reason};
+        if (!reply) return 'the reply has the wrong form';
+        if (reply.type === 'explanation') {
+            show(reply);
+            return null;
+        }
+        if (reply.type === 'question') {
+            if (reply.spritesFrom) {
+                reply.choices = ports.spriteNames(reply.spritesFrom, reply.page);
+                if (reply.choices.length === 0) return `no sprites of the kind "${reply.spritesFrom}" there`;
+            }
+            if (reply.steps) {
+                const {steps, ...question} = reply;
+                const taken = await ports.submit({steps, immediateOnly: true});
+                if (!taken.accepted) return taken.reason;
+                show(question);
+            } else {
+                show(reply);
+            }
+            return null;
+        }
+        if (ports.targetId() !== sent.targetId) return 'another sprite has been selected';
+        const steps = withBlockIds(reply.steps, sent.refs);
+        if (!steps) return 'it uses a block that was not listed';
+        // The gate may ask about it for a long time, and may come back for a change.
+        set({busy: false});
+        const taken = await ports.submit({summary: reply.summary, steps});
+        return taken.accepted ? null : taken.reason;
     };
 
-    const ask = async (transcript, previous = null) => {
+    const ask = async (transcript, {previous = null, revises = null} = {}) => {
         if (state.busy) {
-            app.announce(app.say(aiMessages.busy));
+            ports.announce(ports.say(aiMessages.busy));
             return;
         }
-        if (!app.vm.editingTarget) {
-            app.announce(app.say(aiMessages.noSprite));
+        if (!ports.targetId()) {
+            ports.announce(ports.say(aiMessages.noSprite));
             return;
         }
         set({busy: true, reply: null});
-        app.announce(app.say(aiMessages.asking));
+        ports.announce(ports.say(aiMessages.asking));
         const controller = new AbortController();
         request = controller;
         const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
         const shortest = new Promise(resolve => setTimeout(resolve, MIN_REPLY_MS));
         try {
-            const sent = buildRequest({app, transcript, previous});
+            const sent = buildRequest({ports, transcript, previous, revises});
             let response;
             try {
                 response = await fetch(endpoint, {
@@ -135,42 +143,37 @@ const createAssistant = ({app, endpoint, fetch}) => {
                 fail(message, `the server answered ${response.status}`);
                 return;
             }
-            await new Promise(whenQuiet);
+            await ports.whenQuiet();
             if (disposed) return;
-            const {reply, reason} = accept(body?.reply, sent);
-            if (!reply) {
-                fail(aiMessages.failed, reason);
-                return;
-            }
-            set({busy: false, reply});
-            app.speak(wordsOf(reply));
+            const problem = await use(body?.reply, sent);
+            if (problem) fail(aiMessages.failed, problem);
         } catch (error) {
-            // Whatever went wrong, nothing has changed and the helper can be asked again.
+            // Whatever went wrong, the helper can be asked again.
             // eslint-disable-next-line no-console
             console.error('assistant: failed', error);
             fail(aiMessages.failed);
         } finally {
             clearTimeout(timer);
-            request = null;
+            if (request === controller) request = null;
         }
     };
 
     const dismiss = () => {
         if (!state.reply) return;
-        app.silence();
+        ports.silence();
         set({reply: null});
-        app.announce(app.say(aiMessages.dismissed));
+        ports.announce(ports.say(aiMessages.dismissed));
     };
 
     // Answer the question being shown.
     const answer = text => {
         const {reply} = state;
         if (reply?.type !== 'question') return;
-        app.silence();
+        ports.silence();
         const {question, choices} = reply;
         set({reply: null});
         // The dialog closes, and focus returns, before the program is described.
-        setTimeout(() => ask(text, {question, choices}), 50);
+        setTimeout(() => ask(picked(text, choices), {previous: {question, choices}}), 50);
     };
 
     return {
@@ -181,13 +184,15 @@ const createAssistant = ({app, endpoint, fetch}) => {
         },
         // Words that are not a local command.
         handle: text => ask(text),
+        // The student asks for a suggestion to be changed.
+        revise: ({change, previous}) => ask(change, {revises: previous}),
         // Whether a reply is on screen, so that what is said next is about it.
         isOpen: () => !!state.reply,
         // What was said while a reply is on screen.
         respond: text => {
             if (CLOSE_WORDS.includes(plain(text))) dismiss();
             else if (state.reply?.type === 'question') answer(text);
-            else app.speak(app.say(aiMessages.closeFirst));
+            else ports.speak(ports.say(aiMessages.closeFirst));
         },
         answer,
         dismiss,

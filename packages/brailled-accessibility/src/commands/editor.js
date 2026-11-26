@@ -20,6 +20,7 @@ import plan from './planner.js';
 import {branchesOf, copy, isValue, shapeOf, snapshot} from './program.js';
 import {readBack, summarise} from './readback.js';
 import checkCommand from './schema-check.js';
+import {madeBy, mapBlockIds} from '../proposals/steps.js';
 import {createBlock, menuChoices} from './values.js';
 
 const HISTORY_LIMIT = 100;
@@ -121,6 +122,17 @@ const createEditor = (vm, {newId = randomId} = {}) => {
         return {ok: false, changed: false, reason, message: say(readbacks.notDone, {reason})};
     };
 
+    // Replace each reference to a block that an earlier command makes with its id.
+    const withMadeBlocks = (command, made) => {
+        const resolved = mapBlockIds(command, id => {
+            const number = madeBy(id);
+            if (!number) return id;
+            if (!made[number - 1]) throw new CommandError('noSuchBlock', {id});
+            return made[number - 1];
+        });
+        return resolved;
+    };
+
     // Plan editing commands in turn, each on the result of the last.
     const prepare = commands => {
         commands.forEach(checkCommand);
@@ -131,10 +143,12 @@ const createEditor = (vm, {newId = randomId} = {}) => {
             !isValue(shapeOf(block, context.extensionShape));
         let program = original;
         const sentences = [];
+        const made = [];
         let first = null;
         let last = null;
-        for (const command of commands) {
-            const {program: next, event} = plan(command, program, context);
+        for (const [index, command] of commands.entries()) {
+            const {program: next, event} = plan(withMadeBlocks(command, made), program, context);
+            if (event.kind === 'added' || event.kind === 'wrapped') made[index] = event.id;
             sentences.push(readBack({
                 event, before: program, after: next, name, fullName, isInstruction, intl: environment.intl
             }));
@@ -142,7 +156,7 @@ const createEditor = (vm, {newId = randomId} = {}) => {
             first = first || event;
             last = event;
         }
-        return {original, program, sentences, first, last};
+        return {original, program, sentences, made, first, last};
     };
 
     const currentName = id => {
@@ -187,7 +201,7 @@ const createEditor = (vm, {newId = randomId} = {}) => {
     };
 
     const edit = commands => {
-        const {original, program, sentences, first, last} = prepare(commands);
+        const {original, program, sentences, made, first, last} = prepare(commands);
         const target = vm.editingTarget;
         const patch = makePatch(original, program);
         if (Object.keys(patch.after).length === 0) {
@@ -205,7 +219,8 @@ const createEditor = (vm, {newId = randomId} = {}) => {
             focusAfter: last.kind === 'deleted' ? null : last.id
         };
         entry.perform('redo');
-        return record(target, entry);
+        // One for each command: the block it made, or null.
+        return {...record(target, entry), made: commands.map((_, index) => made[index] ?? null)};
     };
 
     const planDataCommand = command => {
@@ -246,7 +261,7 @@ const createEditor = (vm, {newId = randomId} = {}) => {
         entry.check(direction);
         entry.perform(direction);
         history[direction].pop();
-        history[direction === 'undo' ? 'redo' : 'undo'].push(entry);
+        if (!entry.once) history[direction === 'undo' ? 'redo' : 'undo'].push(entry);
         return {
             ok: true,
             changed: true,
@@ -254,6 +269,27 @@ const createEditor = (vm, {newId = randomId} = {}) => {
             message: say(direction === 'undo' ? readbacks.undone : readbacks.redone, {sentence: entry.sentence}),
             focusId: direction === 'undo' ? entry.focusBefore : entry.focusAfter
         };
+    };
+
+    /**
+     * Put a change made elsewhere, to the selected sprite, in its history so that "undo" takes it back. It
+     * cannot be redone.
+     * @param {object} change The change.
+     * @param {string} change.sentence What it did.
+     * @param {function(): boolean} change.unchanged Whether it can still be taken back.
+     * @param {function()} change.undo Takes it back.
+     */
+    const addEntry = ({sentence, unchanged, undo}) => {
+        record(vm.editingTarget, {
+            check: () => {
+                if (!unchanged()) throw new CommandError('changedSince');
+            },
+            perform: undo,
+            once: true,
+            sentence,
+            focusBefore: null,
+            focusAfter: null
+        });
     };
 
     const describe = ({script}) => {
@@ -313,31 +349,15 @@ const createEditor = (vm, {newId = randomId} = {}) => {
         }
     };
 
-    // Replace "new2", the block that step 2 makes, with its id.
-    const withMadeBlocks = (command, made) => {
-        const resolve = id => {
-            const step = /^new([0-9]+)$/.exec(id)?.[1];
-            if (!step) return id;
-            if (!made[step - 1]) throw new CommandError('noSuchBlock', {id});
-            return made[step - 1];
-        };
-        const resolved = {...command};
-        for (const key of ['block', 'after', 'before', 'through', 'script']) {
-            // In "insert" the block is a kind of block, not one in the program.
-            if (!Object.hasOwn(resolved, key) || (key === 'block' && command.op === 'insert')) continue;
-            resolved[key] = resolve(resolved[key]);
-        }
-        if (resolved.inside) resolved.inside = {...resolved.inside, block: resolve(resolved.inside.block)};
-        return resolved;
-    };
-
     /**
      * Check a list of proposed steps, each planned on the result of those before, and say what each would do.
-     * Nothing is changed. A step may name the block an earlier step makes as "new" and that step's number.
+     * Nothing is changed. A step may name the block an earlier step makes with `stepRef` (see
+     * `proposals/steps.js`).
      * @param {Array<?object>} commands One per step: a command matching `schema.json`, or null for a step that
      * is not a command.
-     * @returns {{ok: boolean, sentences: ?Array<?string>, reason: ?string, step: ?number}} The sentences in
-     * step order, or why the step numbered `step` (from 1) cannot be done.
+     * @returns {{ok: boolean, sentences: ?Array<?string>, details: ?Array<?object>, reason: ?string,
+     * step: ?number}} The sentences in step order, with how much each deletion removes, or why the step numbered
+     * `step` (from 1) cannot be done.
      */
     const preview = commands => {
         let step = 0;
@@ -353,6 +373,7 @@ const createEditor = (vm, {newId = randomId} = {}) => {
             const lists = {variable: context.variables, list: context.lists, message: context.broadcasts};
             let program = snapshot(vm.editingTarget.blocks);
             const made = [];
+            const details = commands.map(() => null);
             const sentences = commands.map((command, index) => {
                 step = index + 1;
                 if (command === null) return null;
@@ -401,10 +422,18 @@ const createEditor = (vm, {newId = randomId} = {}) => {
                     text: {...readbacks, ...plans}
                 });
                 if (event.kind === 'added' || event.kind === 'wrapped') made[index] = event.id;
+                if (event.kind === 'deleted') {
+                    details[index] = {
+                        instructions: event.removed.filter(id => isInstruction(program.blocks[id])).length,
+                        // Nothing of the script is left.
+                        wholeScript: program.scripts.includes(event.id) &&
+                            (event.following || !program.blocks[event.id].next)
+                    };
+                }
                 program = next;
                 return sentence;
             });
-            return {ok: true, sentences};
+            return {ok: true, sentences, details};
         } catch (error) {
             return {ok: false, reason: rejected(error).reason, step};
         }
@@ -417,6 +446,14 @@ const createEditor = (vm, {newId = randomId} = {}) => {
             words: environment.words}) :
         []);
 
+    // The names the project gives the things that menus offer.
+    const projectNames = () => {
+        if (!vm.editingTarget) return {};
+        const context = contextFor();
+        return Object.fromEntries(['sprites', 'costumes', 'sounds', 'backdrops']
+            .map(source => [source, context.names(source)]));
+    };
+
     /**
      * Every block that can be created for the selected sprite, with the values it takes.
      * @returns {Array<{opcode: string, name: string, shape: string, values: object[]}>} Each value has a `name`,
@@ -424,11 +461,23 @@ const createEditor = (vm, {newId = randomId} = {}) => {
      */
     const blockSpecs = () => {
         const context = contextFor();
+        // Blocks are named with these in place of the project's own names, which students write.
+        const placeholder = (items, word) => items.slice(0, 1).map(item => ({...item, name: `(${word})`}));
+        const naming = {
+            ...context,
+            names: source => [`(${source.replace(/s$/, '')} name)`],
+            variables: placeholder(context.variables, 'variable name'),
+            lists: placeholder(context.lists, 'list name'),
+            broadcasts: [{id: 'brailled-placeholder', name: '(message name)'}]
+        };
         return Object.entries(CATALOG).flatMap(([opcode, entry]) => {
             const program = {blocks: {}, scripts: []};
+            const named = {blocks: {}, scripts: []};
             let block;
+            let shown;
             try {
                 block = createBlock(program, opcode, {}, context);
+                shown = createBlock(named, opcode, {}, naming);
             } catch (error) {
                 // Not usable here: a stage without motion, or a project without a list.
                 if (!(error instanceof CommandError)) throw error;
@@ -437,10 +486,14 @@ const createEditor = (vm, {newId = randomId} = {}) => {
             const values = Object.entries({...entry.inputs, ...entry.fields}).map(([slot, spec]) => {
                 const type = spec.type || spec.kind;
                 if (type !== 'menu' && type !== 'choice') return {name: slot, type};
+                // Names from the project, which students write, are given apart from the editor's own choices.
+                if (type === 'menu' && spec.source) {
+                    return {name: slot, type: 'choice', choices: spec.special, source: spec.source};
+                }
                 const choices = menuChoices(spec, block, slot, program, context).map(choice => choice.value);
                 return {name: slot, type: 'choice', choices};
             });
-            return [{opcode, name: fullName(program, block.id), shape: entry.shape, values}];
+            return [{opcode, name: fullName(named, shown.id), shape: entry.shape, values}];
         });
     };
 
@@ -574,6 +627,8 @@ const createEditor = (vm, {newId = randomId} = {}) => {
         preview,
         outline,
         blockSpecs,
+        projectNames,
+        addEntry,
         listBlocks,
         listData,
         valuesOf,
