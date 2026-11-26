@@ -34,13 +34,15 @@ const RANGES = Object.freeze({
 const SPEECH_DEFAULTS = Object.freeze({
     provider: 'browser',
     listenModel: 'google/gemini-3.5-flash-lite',
-    ttsModel: 'google/gemini-3.8-flash-lite-tts',
-    ttsVoice: 'Kore',
+    ttsModel: 'hexgrad/kokoro-82m',
+    ttsVoice: 'af_heart',
     // The model of the `openai-audio` provider, which is there for comparison.
     compareModel: 'openai/gpt-audio-mini',
     compareVoice: 'alloy',
     // Whether saying "done" ends a recording, which needs the browser's speech recognition to run beside it.
     doneWord: false,
+    // Who reads the assistant's replies where the browser does the listening: the device, or the online voice.
+    readReplies: 'device',
     // Words besides the English ones that say yes, no or "change it", matched in the editor.
     answers: SWAHILI,
     ...Object.fromEntries(Object.entries(RANGES).map(([key, range]) => [key, range.usual]))
@@ -65,6 +67,7 @@ const speechFrom = value => {
         ttsVoice: matching(given.ttsVoice, VOICE_NAME, SPEECH_DEFAULTS.ttsVoice),
         compareVoice: matching(given.compareVoice, VOICE_NAME, SPEECH_DEFAULTS.compareVoice),
         doneWord: given.doneWord === true,
+        readReplies: given.readReplies === 'online' ? 'online' : 'device',
         answers: answersFrom(given.answers),
         ...Object.fromEntries(Object.entries(RANGES).map(([key, range]) => [key, numberIn(given[key], range)]))
     });
@@ -76,12 +79,16 @@ const speakingWith = speech => (speech?.provider === 'openai-audio' ?
     {...speech, ttsModel: speech.compareModel, ttsVoice: speech.compareVoice} :
     speech);
 
+// Whether an online voice reads the assistant's replies, whoever listens.
+const readsRepliesOnline = speech => !!speech && (speech.provider !== 'browser' || speech.readReplies === 'online');
+
 const voiceIsOn = value => value === true || value?.enabled === true;
 
 export {
     PROVIDERS,
     RANGES,
     SPEECH_DEFAULTS,
+    readsRepliesOnline,
     speakingWith,
     speechFrom,
     voiceIsOn

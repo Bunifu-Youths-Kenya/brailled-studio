@@ -11,7 +11,7 @@
  * always be asked about: never list them in `SAFE_ACTIONS` or `EDITS`, and give none of them a lower risk.
  */
 const SAFE_ACTIONS = new Set([
-    'help.whereAmI', 'help.whatCanIDo',
+    'help.about', 'help.whereAmI', 'help.whatCanIDo',
     'go.menu', 'go.stage', 'go.devices', 'go.sprites', 'go.background', 'go.palette', 'go.scripts', 'go.voice',
     'view.blocks', 'view.outline', 'view.toggle',
     'move.next', 'move.previous',

@@ -14,6 +14,7 @@ import voiceMessages from './messages.js';
 import {createSpeechProvider, speechLanguage} from './provider.js';
 import {createVoiceProviders} from './providers.js';
 import {createRecorderProvider} from './recorder.js';
+import {readsRepliesOnline} from './speech-config.js';
 import createTone from './tone.js';
 
 import dialogStyles from '../outline/dialog.css';
@@ -24,10 +25,11 @@ const VOICES_MS = 2000;
 const ZONE = '[data-brailled-zone="voice"], [data-brailled-voice-dialog]';
 
 // Asks before acting on words that may have been misheard.
-const Question = ({text, unsure, hint, status, listening, onYes, onNo}) => {
+const Question = ({text, unsure, hint, status, listening, docked, onYes, onNo}) => {
     const intl = useIntl();
     return (
         <Dialog
+            docked={docked}
             title={intl.formatMessage(
                 unsure ? voiceMessages.confirmTitle : voiceMessages.confirmChangeTitle, {text})}
             onCancel={onNo}
@@ -39,10 +41,11 @@ const Question = ({text, unsure, hint, status, listening, onYes, onNo}) => {
                 >
                     {hint}
                 </p>
-                {/* Announced, except while the microphone is open and would hear it. */}
+                {/* Announced, except while the microphone is open and would hear it. Beside the editor, the
+                    live region says it already. */}
                 <p
                     className={dialogStyles.count}
-                    role="status"
+                    role={docked ? null : 'status'}
                 >
                     {listening ? '' : status}
                 </p>
@@ -81,6 +84,8 @@ Question.propTypes = {
     hint: PropTypes.string.isRequired,
     status: PropTypes.string.isRequired,
     listening: PropTypes.bool.isRequired,
+    // Shown beside the editor, and said aloud, instead of in a window.
+    docked: PropTypes.bool.isRequired,
     onYes: PropTypes.func.isRequired,
     onNo: PropTypes.func.isRequired
 };
@@ -119,7 +124,8 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
     const waking = useSyncExternalStore(wake.subscribe, wake.getState);
     const talkKey = TALK_KEYS[useSettings(app).talkKey];
     // Off until the configuration says otherwise. Then there is nothing to hear, set or send.
-    const {voice: allowed, aiEndpoint} = useSyncExternalStore(app.config.subscribe, app.config.get);
+    const {voice: allowed, aiEndpoint, speech: chosenSpeech} =
+        useSyncExternalStore(app.config.subscribe, app.config.get);
     const assistant = useSyncExternalStore(app.config.subscribe, app.assistantName);
     const off = allowed !== true;
     const aiMode = useSyncExternalStore(app.subscribeMode, app.mode);
@@ -287,12 +293,16 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
     if (aiEndpoint) notice = off ? voiceMessages.aiNotice : voiceMessages.aiNoticeWithVoice;
     if (waking.on) notice = aiEndpoint ? voiceMessages.wakeNoticeAi : voiceMessages.wakeNotice;
     if (online) notice = waking.on ? voiceMessages.onlineNoticeWake : voiceMessages.onlineNotice;
+    else if (aiEndpoint && !off && readsRepliesOnline(chosenSpeech)) {
+        notice = waking.on ? voiceMessages.replyNoticeWake : voiceMessages.replyNotice;
+    }
     const recordingNow = listening && state.recording;
     const wakeState = waking.listening ? 'listening' : 'paused';
     let wakeWords = voiceMessages.handsFreeHint;
     let wakeClass = styles.handsFreeHint;
     if (waking.on) {
-        wakeWords = waking.listening ? voiceMessages.wakeListening : voiceMessages.wakePaused;
+        const heardFor = waking.conversing ? voiceMessages.wakeConversing : voiceMessages.wakeListening;
+        wakeWords = waking.listening ? heardFor : voiceMessages.wakePaused;
         wakeClass = waking.listening ? styles.wakeListening : styles.wakePaused;
     }
     const describedBy = [off ? 'brailled-voice-status' : null, notice ? 'brailled-voice-privacy' : null]
@@ -448,6 +458,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
             ) : null}
             {state.pending ? (
                 <Question
+                    docked={app.voiceFirst()}
                     hint={hint}
                     listening={state.phase !== 'idle'}
                     status={status}

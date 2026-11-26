@@ -18,8 +18,8 @@ const naming = (await import(new URL('src/speech/phrases.js', editor).href)) as 
 const result = await makePhrases(
   {
     sentences: read<{ sentences: string[] }>(new URL('src/speech/fixed-phrases.json', editor)).sentences,
-    voice: settings?.ttsVoice ?? 'Kore',
-    model: settings?.ttsModel ?? 'google/gemini-3.8-flash-lite-tts',
+    voice: settings?.ttsVoice ?? 'af_heart',
+    model: settings?.ttsModel ?? 'hexgrad/kokoro-82m',
     version: naming.PHRASE_VERSION,
     keyOf: naming.phraseKey,
   },

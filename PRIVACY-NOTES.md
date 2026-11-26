@@ -90,6 +90,14 @@ Google), not only what is said to the assistant. That includes other students, t
 | How is it stopped? | F4, the Stop button, saying or typing "stop listening", or turning it off in Voice settings |
 | What can it do? | Take one request. It never approves a suggestion or answers a question the editor asks. A request that changes the project or runs it needs a yes by the talk key or a button |
 
+**Conversations.** Where the school sets `"conversation": {"enabled": true}`, calling the assistant starts a
+conversation: **every phrase heard after that is taken as meant for the assistant**, until "goodbye" or a quiet
+spell (20 seconds unless changed), so bystanders' words can be sent to the AI helper too. Phrases heard with little
+certainty are dropped. The sign reads "Talking with Mboni". With `"voiceApproval": true`, words such as "add all"
+can then approve adding blocks or a sprite, right after the assistant asks; **anyone nearby could say them**. The
+assistant says what changed, and "undo" takes it back. Deleting, changing existing blocks, running the project and
+anything hard to undo still need the talk key, a button or the keyboard.
+
 An engine that listens for the wake words on the device, sending nothing until called, is not built in; the code has
 a place for one (`src/wake/device-engine.js`).
 
@@ -166,14 +174,16 @@ Before swapping it:
 
 ## Reading aloud
 
-With an [online voice](#online-voice-gemini-pair-openai-audio) chosen and reading aloud on:
+With an online voice, chosen with an [online provider](#online-voice-gemini-pair-openai-audio) or with
+`"readReplies": "online"`, and reading aloud on (in a conversation it reads everything the assistant says,
+read-backs included):
 
 | What is read | By | Sent |
 | - | - | - |
 | The assistant's fixed sentences (introduction, confirmations, standard questions) | Sound made once and shipped with the editor | Nothing. Works offline |
 | What the assistant replies and suggests | The online voice, a sentence at a time | The sentence, through your AI server and OpenRouter to the speech model's provider |
 | What edits and commands did, which can quote the program | The device's voice, unless the student ticks "Use the online voice for read-backs too" | Nothing unless ticked |
-| Anything holding the student's first name | The device's voice, always | Nothing |
+| Anything holding the student's first name | The device's voice, unless the student ticks "Let the online voice say my name" | Nothing unless ticked, and then the name |
 | Anything, after the online voice has failed | The device's voice, saying so | Nothing |
 
 The server keeps no sound and no text. With reading aloud off, nothing is read or sent for speech.
@@ -188,7 +198,7 @@ student wrote or their name, is not sent to an online voice.
 Under `brailled.settings` in local storage: the talk key, the longest listening time, whether to read aloud, how
 much the assistant says when introducing itself, the student's first name if they typed one, and the answer to "Do
 you use a screen reader?". The name is personal data, and the answer can suggest that a student has a disability.
-They stay in that browser and Brailled does not send them, to the AI helper or anywhere else. The name is only
+They stay in that browser and Brailled does not send them, to the AI helper or anywhere else (unless the student lets the online voice say it). The name is only
 used to greet the student; a screen reader or the device's voice says it. If a student says or types their name
 to the helper as part of a request, that request is sent like any other.
 

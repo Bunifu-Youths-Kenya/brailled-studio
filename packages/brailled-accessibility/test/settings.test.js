@@ -21,6 +21,8 @@ const defaults = {
     studentName: '',
     introduction: 'full',
     onlineReadbacks: false,
+    onlineName: false,
+    voiceFirst: true,
     questionDismissed: false
 };
 
@@ -50,6 +52,13 @@ describe('settings', () => {
             createSettings(storage).answerScreenReader(usesOne);
             expect(createSettings(storage).get()).toMatchObject({screenReader: usesOne, readAloud});
         });
+
+    test('saying questions instead of opening windows is on unless switched off', () => {
+        const storage = memory({[STORAGE_KEY]: '{"voiceFirst":"no"}'});
+        expect(createSettings(storage).get().voiceFirst).toBe(true);
+        createSettings(storage).set({voiceFirst: false});
+        expect(createSettings(storage).get().voiceFirst).toBe(false);
+    });
 
     test('putting the question off is not remembered after the visit', () => {
         const storage = memory();

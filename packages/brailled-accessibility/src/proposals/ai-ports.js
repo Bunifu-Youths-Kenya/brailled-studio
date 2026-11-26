@@ -21,8 +21,12 @@ const createAiPorts = (app, submitter) => Object.freeze({
     language: () => app.intl().locale,
     assistantName: () => app.assistantName(),
     say: (message, values) => app.say(message, values),
+    // Whether the student is talking with the helper hands-free, when it answers more briefly.
+    conversing: () => app.conversing(),
     announce: text => app.announce(text),
     speak: text => app.speak(text, {reply: true}),
+    // Say a reply that is shown beside the editor or in a window, as `app.present` decides.
+    present: text => app.present(text),
     silence: () => app.silence(),
     // Resolves when the microphone is closed, so that a reply is not heard as speech.
     whenQuiet: () => new Promise(resolve => {

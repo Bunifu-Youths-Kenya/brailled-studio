@@ -85,12 +85,21 @@ describe('what is sent', () => {
 describe('replies', () => {
     test('shows an explanation and reads it only if wanted', async () => {
         const {app, assistant, heard, reader, settle} = setUp({respond: () => answer(explanation)});
-        app.settings.set({readAloud: true});
+        app.settings.set({readAloud: true, voiceFirst: false});
         assistant.handle('what is a loop');
         await settle();
         expect(heard).toEqual(['Asking Mboni.']);
         expect(assistant.getState()).toEqual({busy: false, reply: explanation});
         expect(reader.speak.mock.calls.at(-1)[0]).toBe('Mboni says. A loop repeats blocks.');
+    });
+
+    test('beside the editor, a reply is said through the live region, for a screen reader too', async () => {
+        const {assistant, heard, reader, settle} = setUp({respond: () => answer(explanation)});
+        assistant.handle('what is a loop');
+        await settle();
+        expect(heard).toEqual(['Asking Mboni.', 'Mboni says. A loop repeats blocks.']);
+        // Reading aloud is off: the screen reader says it.
+        expect(reader.speak).not.toHaveBeenCalled();
     });
 
     test.each([

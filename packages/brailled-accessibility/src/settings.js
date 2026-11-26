@@ -19,7 +19,11 @@ const DEFAULTS = Object.freeze({
     studentName: '',
     introduction: 'full',
     // Whether an online voice, where there is one, also reads what edits and commands did.
-    onlineReadbacks: false
+    onlineReadbacks: false,
+    // Whether the student's name may be sent to an online voice, to be said.
+    onlineName: false,
+    // Whether questions are said and shown beside the editor instead of in windows that take focus.
+    voiceFirst: true
 });
 
 // Stored text may be old or edited by hand: keep only values the editor knows.
@@ -30,7 +34,9 @@ const clean = value => ({
     screenReader: typeof value?.screenReader === 'boolean' ? value.screenReader : DEFAULTS.screenReader,
     studentName: cleanName(value?.studentName) ?? DEFAULTS.studentName,
     introduction: INTRODUCTIONS.includes(value?.introduction) ? value.introduction : DEFAULTS.introduction,
-    onlineReadbacks: value?.onlineReadbacks === true
+    onlineReadbacks: value?.onlineReadbacks === true,
+    onlineName: value?.onlineName === true,
+    voiceFirst: value?.voiceFirst !== false
 });
 
 // The browser's storage, which can be switched off.

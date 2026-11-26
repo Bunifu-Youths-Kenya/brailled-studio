@@ -107,7 +107,7 @@ describe('the queue of sentences', () => {
         speaker.speak('One.', {online: true});
         await settle();
         expect(state.asked).toEqual(
-            [{text: 'One.', model: school.ttsModel, voice: 'Kore', provider: 'gemini-pair', cacheHits: 0}]);
+            [{text: 'One.', model: school.ttsModel, voice: 'af_heart', provider: 'gemini-pair', cacheHits: 0}]);
     });
 
     test('plays at the school\'s speed, keeping the pitch', async () => {
@@ -161,6 +161,30 @@ describe('the queue of sentences', () => {
         speaker.speak('Done.');
         await settle();
         expect([speaker.takeHits(), speaker.takeHits()]).toEqual([1, 0]);
+    });
+
+    test('fetches prepared sentences ahead, and then says them at once, as often as wanted', async () => {
+        const {speaker, state, settle, finish} = speakerFor();
+        await speaker.prepare('Hey! Okay.');
+        expect(state.asked.map(body => body.text)).toEqual(['Hey!', 'Okay.']);
+        // Reading something else does not give them up.
+        for (let i = 0; i < 2; i++) {
+            speaker.speak('Okay.', {online: true});
+            await settle();
+            await finish();
+        }
+        expect(state.asked).toHaveLength(2);
+        expect(state.played).toHaveLength(2);
+    });
+
+    test('holds on to nothing that was not prepared', async () => {
+        const {speaker, state, settle, finish} = speakerFor();
+        for (let i = 0; i < 2; i++) {
+            speaker.speak('Your program says hello.', {online: true});
+            await settle();
+            await finish();
+        }
+        expect(state.asked).toHaveLength(2);
     });
 
     test('mixes shipped and asked-for sentences', async () => {

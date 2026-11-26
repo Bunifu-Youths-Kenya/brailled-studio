@@ -1,6 +1,9 @@
 // What a student says or types about a proposal. Anything not clearly a yes is not a yes.
 const APPROVE = ['yes', 'yes please', 'go ahead', 'yes go ahead', 'approve', 'yes do it', 'do it'];
-const APPROVE_ALL = ['yes to all', 'yes do all', 'do all', 'do them all', 'approve all', 'all'];
+const APPROVE_ALL = ['yes to all', 'yes do all', 'do all', 'do them all', 'approve all', 'all', 'add all', 'add them',
+    'add them all', 'yes add all', 'yes add them', 'yes add them all'];
+// To be taken through the steps and do them oneself.
+const GUIDE = ['guide me', 'teach me', 'guide me through it', 'let me do it', 'i will do it'];
 const STEPS = ['step by step', 'go step by step', 'one step at a time', 'one at a time'];
 const REJECT = ['no', 'no thanks', 'no thank you', 'reject', 'cancel', 'stop here', 'no stop here'];
 // "change it: three seconds", or the same without the colon.
@@ -33,7 +36,7 @@ const changeAsked = (text, openings) => {
 /**
  * @param {string} text The words.
  * @param {{yes: string[], no: string[], change: string[]}} [more] Ways of answering besides the English ones.
- * @returns {?{type: 'approve'|'all'|'steps'|'reject'|'change', text: ?string}} What they ask for, or null.
+ * @returns {?{type: 'approve'|'all'|'steps'|'guide'|'reject'|'change', text: ?string}} What they ask for, or null.
  */
 const parseAnswer = (text, more = SWAHILI) => {
     const change = changeAsked(text, more.change);
@@ -42,10 +45,18 @@ const parseAnswer = (text, more = SWAHILI) => {
     if (APPROVE.includes(words) || more.yes.includes(words)) return {type: 'approve'};
     if (APPROVE_ALL.includes(words)) return {type: 'all'};
     if (STEPS.includes(words)) return {type: 'steps'};
+    if (GUIDE.includes(words)) return {type: 'guide'};
     return REJECT.includes(words) || more.no.includes(words) ? {type: 'reject'} : null;
 };
 
+// What may approve a suggestion in a conversation, hands-free: only words that say plainly to add it. A bare "yes"
+// is too easily said by someone nearby.
+const ADD_BY_VOICE = ['add all', 'add them', 'add them all', 'yes add all', 'yes add them', 'yes add them all',
+    'add it', 'yes add it'];
+const asksToAdd = text => ADD_BY_VOICE.includes(plain(text));
+
 export {
     SWAHILI,
+    asksToAdd,
     parseAnswer
 };

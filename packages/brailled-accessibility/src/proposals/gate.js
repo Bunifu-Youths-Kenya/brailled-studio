@@ -5,7 +5,8 @@
  *
  * Only the student's own input reaches `approve`: the dialog's buttons and what they say or type.
  */
-import {parseAnswer} from './answers.js';
+import {TALK_KEYS} from '../actions/shortcuts.js';
+import {asksToAdd, parseAnswer} from './answers.js';
 import {checkSteps} from './check.js';
 import {fingerprint as fingerprintOf} from './fingerprint.js';
 import {createMachine} from './machine.js';
@@ -15,6 +16,9 @@ import {needsApproval, proposalRisk, stepRisk} from './risk.js';
 const CHECK_MS = 1000;
 // The interface redraws after a change; where the student is cannot be recorded until it has.
 const SETTLE_MS = 500;
+
+// What puts something new into a project, and takes nothing away.
+const ADDING = ['insert', 'wrap', 'create'];
 
 /**
  * @param {object} options Options.
@@ -48,6 +52,28 @@ const createGate = ({
     // Tell the conversation's memory what became of a suggestion.
     const remember = text => app.memory.add('editor', text);
 
+    const talkKey = () => TALK_KEYS[app.settings.get().talkKey].name;
+
+    const adds = ({command, sprite}) => !!sprite || ADDING.includes(command?.op);
+
+    // Whether words said in a conversation may approve what is asked: only where the school allows it, and only
+    // adding things. Deleting, changing what is there, running and anything hard to undo need a key or a button.
+    const voiceMayApprove = () => {
+        const waitingSteps = current.steps.map((step, at) => ({step, risk: current.risks[at]}))
+            .slice(current.mode === 'steps' ? current.index : 0);
+        return app.config.get().conversation?.voiceApproval === true &&
+            proposalRisk(current.risks) !== 'big' &&
+            waitingSteps.every(({step, risk}) => risk === 'safe' || adds(step));
+    };
+
+    // How to answer in a conversation, where there is no time to read all the ways.
+    const howInConversation = () => {
+        if (voiceMayApprove()) return say(proposalMessages.sayInConversation);
+        const allowed = app.config.get().conversation?.voiceApproval === true;
+        return say(allowed ? proposalMessages.sayInConversationKey : proposalMessages.sayInConversationNoVoice,
+            {key: talkKey()});
+    };
+
     // The words of what is being asked, for reading aloud. A screen reader reads them from the dialog.
     const wordsOf = view => {
         const list = view.steps.map((step, index) => `${index + 1}. ${step.sentence}${
@@ -57,10 +83,11 @@ const createGate = ({
             view.risk === 'big' ? say(proposalMessages.warning) : null,
             view.summary ? say(proposalMessages.summary, {summary: view.summary}) : null,
             ...(view.mode === 'steps' ? [`${view.steps[view.index].sentence}.`] : list),
-            say(view.mode === 'steps' || view.steps.length === 1 ?
-                proposalMessages.howToAnswer :
-                proposalMessages.howToAnswerMany),
-            say(...timeLimit(view.seconds))
+            ...(app.conversing() ?
+                [howInConversation()] :
+                [say(view.mode === 'steps' || view.steps.length === 1 ?
+                    proposalMessages.howToAnswer :
+                    proposalMessages.howToAnswerMany), say(...timeLimit(view.seconds))])
         ].filter(Boolean).join(' ');
     };
 
@@ -83,7 +110,9 @@ const createGate = ({
             // How long there is to answer.
             seconds,
             // Changes when something new is asked, so that the dialog starts afresh.
-            serial
+            serial,
+            // Said and shown beside the editor. What is hard to undo always stops the student in a window.
+            docked: app.voiceFirst() && proposalRisk(risks) !== 'big'
         };
     };
 
@@ -103,7 +132,8 @@ const createGate = ({
             fingerprint: fingerprintOf(app)
         });
         show();
-        app.speak(wordsOf(state.proposal), {reply: true});
+        if (state.proposal.docked) app.present(wordsOf(state.proposal));
+        else app.speak(wordsOf(state.proposal), {reply: true});
     };
 
     const stopClock = () => {
@@ -221,6 +251,8 @@ const createGate = ({
         if (!Array.isArray(steps) || steps.length === 0) return refuse('there are no steps');
         const checked = checkSteps({app, steps});
         if (!checked.ok) return refuse(checked.reason);
+        // Something new to answer ends any guiding.
+        if (!immediateOnly) app.guide()?.stop({quietly: true});
         const {device} = app.snapshot();
         const risks = checked.steps.map(step => stepRisk({step, detail: step.detail, device}));
         const risk = proposalRisk(risks);
@@ -294,7 +326,8 @@ const createGate = ({
         const words = text.trim();
         if (!words) {
             show({askingChange: true, note: say(proposalMessages.sayChange)});
-            app.speak(say(proposalMessages.sayChange));
+            if (state.proposal.docked) app.present(say(proposalMessages.sayChange));
+            else app.speak(say(proposalMessages.sayChange));
             return;
         }
         const previous = {
@@ -307,6 +340,34 @@ const createGate = ({
         revise({change: words, previous});
     };
 
+    // The student would rather do it themselves: nothing is changed here, and they are taken through the steps.
+    const guide = () => {
+        if (!waiting() || !stillGood() || !app.guide()) return;
+        const steps = current.steps.slice(current.mode === 'steps' ? current.index : 0);
+        machine.send('reject');
+        remember('The student chose to be guided through the steps.');
+        end();
+        app.guide().start(steps);
+    };
+
+    // Say something about the question, and show it.
+    const prompt = text => {
+        show({note: text});
+        if (state.proposal.docked) app.present(text);
+        else app.speak(text, {reply: true});
+    };
+
+    // Words from a conversation, which anyone nearby could say. They may always turn it down or ask to be guided;
+    // they approve only where `voiceMayApprove` says so, and only with words that say to add it.
+    const handsFree = text => {
+        if (!waiting()) return;
+        const answer = parseAnswer(text, app.answerWords());
+        if (answer?.type === 'reject') reject();
+        else if (answer?.type === 'guide') guide();
+        else if (asksToAdd(text) && voiceMayApprove()) approve({all: true});
+        else prompt(howInConversation());
+    };
+
     // What the student said or typed while being asked.
     const hear = text => {
         if (!waiting()) return;
@@ -317,6 +378,8 @@ const createGate = ({
             approve({all: true});
         } else if (answer?.type === 'steps' && current.steps.length > 1) {
             stepByStep();
+        } else if (answer?.type === 'guide') {
+            guide();
         } else if (answer?.type === 'reject') {
             reject();
         } else if (answer?.type === 'change') {
@@ -341,6 +404,8 @@ const createGate = ({
         isOpen: () => waiting() && !!state.proposal,
         isAnswer: text => !!parseAnswer(text, app.answerWords()),
         hear,
+        handsFree,
+        guide,
         approve,
         stepByStep,
         reject,

@@ -3,6 +3,8 @@
 // Extra ways of saying an action, in English. Each action's own name is understood too.
 const PHRASES = {
     'help.introduce': ['introduce yourself', 'who are you', 'what is your name', 'what\'s your name'],
+    'help.about': ['what is this platform', 'what does this platform do', 'what is brailled', 'what does brailled do',
+        'what can you do', 'what is this editor'],
     'help.whereAmI': ['where am i', 'where is this', 'location'],
     'help.whatCanIDo': ['what can i do here', 'what can i do', 'help', 'options'],
     'program.describe': ['read program', 'read the program', 'read my program', 'describe program',

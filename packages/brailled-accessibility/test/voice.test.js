@@ -228,7 +228,8 @@ describe('doubtful words', () => {
     });
 
     test('yes carries the command out', () => {
-        const {vm, voice, say, wait, heard} = setUp();
+        const {vm, voice, say, wait, heard, settings} = setUp();
+        settings.set({voiceFirst: false});
         say('stop', 0.3);
         voice.confirm();
         wait();
@@ -237,13 +238,26 @@ describe('doubtful words', () => {
     });
 
     test('no does nothing', () => {
-        const {vm, voice, say, wait, heard} = setUp();
+        const {vm, voice, say, wait, heard, settings} = setUp();
+        settings.set({voiceFirst: false});
         say('stop', 0.3);
         voice.reject();
         wait();
         expect(vm.stopAll).not.toHaveBeenCalled();
         expect(voice.getState().pending).toBeNull();
         expect(heard).toEqual(['Nothing was done.']);
+    });
+
+    test('beside the editor, the question reaches a screen reader too', () => {
+        const {voice, say, wait, heard} = setUp();
+        say('stop', 0.3);
+        wait();
+        voice.reject();
+        wait();
+        expect(heard).toEqual([
+            'I heard: stop. I am not sure. Should I go ahead? Say yes or no while holding F2, or choose a button.',
+            'Nothing was done.'
+        ]);
     });
 
     test('can be answered by voice', () => {
@@ -443,6 +457,7 @@ describe('the configuration', () => {
             assistantName: 'Mboni',
             wakeWord: expect.objectContaining({enabled: false}),
             speech: expect.objectContaining({provider: 'browser'}),
+            conversation: expect.objectContaining({enabled: false, voiceApproval: false}),
             unreadable: false});
     });
 
@@ -460,6 +475,7 @@ describe('the configuration', () => {
             assistantName: 'Mboni',
             wakeWord: expect.objectContaining({enabled: false}),
             speech: expect.objectContaining({provider: 'browser'}),
+            conversation: expect.objectContaining({enabled: false, voiceApproval: false}),
             unreadable: true});
     });
 
@@ -545,6 +561,8 @@ describe('reset for a new student', () => {
             studentName: '',
             introduction: 'full',
             onlineReadbacks: false,
+            onlineName: false,
+            voiceFirst: true,
             questionDismissed: false
         });
         expect(listener).toHaveBeenCalled();

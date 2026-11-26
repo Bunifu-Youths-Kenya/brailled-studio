@@ -131,8 +131,8 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
     const tell = (message, changes = {}) => {
         set({...changes, status: {message}});
         const text = app.say(message, keyWords());
-        // While a question is open, its own dialog shows the message and the screen reader says it from there.
-        if (state.pending) app.speak(text);
+        // While a question is open in a window, the window shows the message and the screen reader says it there.
+        if (state.pending) app.present(text, {reply: false});
         else app.announce(text);
     };
 
@@ -160,7 +160,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         session?.stop();
     };
 
-    // `origin` is `voice`, or `wake` for words that followed the wake words.
+    // `origin` is `voice`, `wake` for words that followed the wake words, or `conversation` for words said after them.
     const deliver = (text, origin) => {
         beforeRun();
         app.preface(app.say(voiceMessages.heard, {text}));
@@ -194,23 +194,25 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         const text = words.replace(/[\s.!?]+$/, '');
         const sure = confidence === null || confidence >= threshold;
         if (state.pending) {
-            // The wake words answer no question.
-            if (origin === 'wake') return;
+            // Hands-free words answer none of these questions.
+            if (origin !== 'voice') return;
             const said = parseAnswer(text, app.answerWords())?.type;
             if ((YES.includes(plain(text)) || said === 'approve') && sure) confirm();
             else if (NO.includes(plain(text)) || said === 'reject') reject();
             else {
                 set({heard: text, status: {message: voiceMessages.sayYesOrNo, values: {text}}});
-                app.speak(app.say(voiceMessages.sayYesOrNo, {text}));
+                app.present(app.say(voiceMessages.sayYesOrNo, {text}), {reply: false});
             }
             return;
         }
         // No measure of confidence counts as low: ask first.
         const unsure = confidence === null || confidence < threshold;
-        if (unsure || ((origin === 'wake' || fromModel) && changesThings(text))) {
+        // In a conversation doubtful words are most likely not meant for the assistant.
+        if (unsure && origin === 'conversation') return;
+        if (unsure || ((origin !== 'voice' || fromModel) && changesThings(text))) {
             set({heard: text, pending: {text, origin, unsure}, status: {text: ''}});
             const title = unsure ? voiceMessages.confirmTitle : voiceMessages.confirmChangeTitle;
-            app.speak(`${app.say(title, {text})} ${app.say(voiceMessages.confirmHint, keyWords())}`);
+            app.present(`${app.say(title, {text})} ${app.say(voiceMessages.confirmHint, keyWords())}`, {reply: false});
             return;
         }
         set({heard: text});
@@ -363,11 +365,11 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
     };
 
     // The wake words were heard. Take one request, which may have come with them.
-    const wake = ({request, confidence}) => {
+    const wake = ({request, confidence, followUp = false}) => {
         if (state.phase !== 'idle' || state.pending || problem()) return;
         app.silence();
-        if (request) heard(request, confidence, 'wake');
-        else if (!introduced()) begin('tap', 'wake');
+        if (request) heard(request, confidence, followUp ? 'conversation' : 'wake');
+        else if (!followUp && !introduced()) begin('tap', 'wake');
     };
 
     // The key or button came up.

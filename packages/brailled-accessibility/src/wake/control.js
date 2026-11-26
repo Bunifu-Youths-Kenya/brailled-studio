@@ -2,10 +2,21 @@
  * When the editor listens for the wake words. Only when the school allows it, the student has turned it on, the
  * editor is on screen, and nothing else is using the microphone or reading aloud. It is off again after a reload.
  */
+import aiMessages from '../ai/messages.js';
 import voiceMessages from '../voice/messages.js';
 
 // How often to look again while it is on: reading aloud ends without telling anyone.
 const CHECK_MS = 300;
+
+// Words that end a conversation.
+const GOODBYE = ['goodbye', 'good bye', 'bye', 'bye bye', 'thank you', 'thanks', 'that is all', "that's all",
+    'go to sleep', 'kwaheri', 'asante'];
+// In a conversation, words heard with less certainty than this are taken to be someone else's talk.
+const LEAST_CERTAIN = 0.6;
+
+const plain = text => text.toLowerCase().replace(/[.,!?;:"]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 const PROBLEMS = {
     'denied': voiceMessages.denied,
@@ -26,7 +37,9 @@ const PROBLEMS = {
 const createWakeControl = ({app, engineFor, language, document}) => {
     const listeners = new Set();
     const engines = new Map();
-    let state = {on: false, listening: false};
+    let state = {on: false, listening: false, conversing: false};
+    // When something last happened in a conversation.
+    let activity = 0;
     // The engine that has the microphone.
     let holding = null;
     let timer = null;
@@ -65,11 +78,50 @@ const createWakeControl = ({app, engineFor, language, document}) => {
         clearInterval(timer);
         timer = null;
         release();
-        set({on: false});
+        set({on: false, conversing: false});
     };
 
-    // Called: take one request, then listen for the wake words again.
+    const tell = message => app.announce(app.say(message, {student: app.sayableName()}), {reply: true});
+
+    const endConversation = () => {
+        if (!state.conversing) return;
+        // The engine is started again, listening for the wake words only.
+        release();
+        tell(voiceMessages.conversationEnded);
+        set({conversing: false});
+    };
+
+    // Something said in a conversation.
+    const followUp = called => {
+        activity = Date.now();
+        const certain = called.confidence === null || called.confidence >= LEAST_CERTAIN;
+        if (!certain) return;
+        if (GOODBYE.includes(plain(called.request))) endConversation();
+        else app.voice()?.wake(called);
+    };
+
+    // Called by name where conversations are on: stay and talk.
+    const converse = called => {
+        // The engine is started again, hearing every phrase.
+        release();
+        activity = Date.now();
+        set({conversing: true});
+        if (called.request) app.voice()?.wake(called);
+        else if (!app.introduction.greet()) {
+            tell(app.sayableName() ? voiceMessages.greetingName : voiceMessages.greeting);
+        }
+    };
+
+    // Called: take one request, then listen for the wake words again; or begin or go on with a conversation.
     const woken = called => {
+        if (called.followUp) {
+            followUp(called);
+            return;
+        }
+        if (app.config.get().conversation?.enabled) {
+            converse(called);
+            return;
+        }
         handingOver = true;
         // The one request needs the microphone to itself.
         const free = release() ?? Promise.resolve();
@@ -92,9 +144,16 @@ const createWakeControl = ({app, engineFor, language, document}) => {
             return;
         }
         const voice = app.voice();
-        const quiet = !!voice && voice.getState().phase === 'idle' && !document.hidden && !app.reading();
+        const quiet = !!voice && voice.getState().phase === 'idle' && !document.hidden && !app.reading() &&
+            !app.assistant()?.getState().busy;
         if (!quiet) {
+            // The time without talk counts from when the assistant has finished.
+            activity = Date.now();
             release();
+            return;
+        }
+        if (state.conversing && Date.now() - activity >= app.config.get().conversation.idleSeconds * 1000) {
+            endConversation();
             return;
         }
         if (holding) return;
@@ -104,6 +163,7 @@ const createWakeControl = ({app, engineFor, language, document}) => {
         holding.start({
             language: language(),
             phrases: {greetings, names},
+            open: state.conversing,
             onWake: woken,
             onProblem: problem
         });
@@ -133,6 +193,14 @@ const createWakeControl = ({app, engineFor, language, document}) => {
                 return;
             }
             say(voiceMessages.wakeOn);
+            if (app.config.get().conversation?.enabled) {
+                const greeting = app.sayableName() ? voiceMessages.greetingName : voiceMessages.greeting;
+                app.prepareSpeech([
+                    app.say(greeting, {student: app.sayableName()}),
+                    app.say(aiMessages.thinking),
+                    app.say(voiceMessages.conversationEnded)
+                ]);
+            }
             sync();
         },
         stop: ({quietly = false} = {}) => {

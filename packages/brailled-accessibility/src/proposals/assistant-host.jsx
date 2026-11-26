@@ -11,6 +11,7 @@ import Replies from '../ai/replies.jsx';
 import {createAiPorts} from './ai-ports.js';
 import {createExecutor} from './executor.js';
 import {createGate} from './gate.js';
+import {createGuide} from './guide.js';
 import {createHighlighter} from './highlight.js';
 import ProposalDialog from './proposal-dialog.jsx';
 import {createProposalQueue} from './queue.js';
@@ -32,7 +33,9 @@ const connect = (app, endpoint) => {
         endpoint,
         fetch: window.fetch.bind(window)
     });
-    const leave = [queue.connect(gate.take), app.register('gate', gate), app.register('assistant', assistant)];
+    const guide = createGuide(app);
+    const leave = [queue.connect(gate.take), app.register('gate', gate), app.register('assistant', assistant),
+        app.register('guide', guide)];
     return {
         assistant,
         gate,
@@ -40,6 +43,7 @@ const connect = (app, endpoint) => {
             leave.forEach(task => task());
             assistant.dispose();
             gate.dispose();
+            guide.stop({quietly: true});
             highlighter.clear();
         }
     };
@@ -65,6 +69,7 @@ const AssistantHost = ({app}) => {
         <React.Fragment>
             <Replies
                 assistant={helper.assistant}
+                docked={app.voiceFirst()}
                 name={name}
                 talkKey={voice ? TALK_KEYS[talkKey].name : null}
             />
@@ -81,6 +86,7 @@ AssistantHost.propTypes = {
         assistantName: PropTypes.func.isRequired,
         config: PropTypes.shape({get: PropTypes.func.isRequired, subscribe: PropTypes.func.isRequired}).isRequired,
         register: PropTypes.func.isRequired,
+        voiceFirst: PropTypes.func.isRequired,
         settings: PropTypes.shape({
             get: PropTypes.func.isRequired,
             subscribe: PropTypes.func.isRequired

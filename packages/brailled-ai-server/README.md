@@ -169,7 +169,7 @@ The model gets `actions` and `spriteCategories` as the editor's own words, `hist
 providers are tried quickest first (`OPENROUTER_PROVIDER_SORT`).
 
 The server adds the edit-command schema (`../brailled-accessibility/src/commands/schema.json`, so keep that file
-beside it when deploying), its instructions and its tools. 
+beside it when deploying), its instructions and its tools.
 
 The answer is `{"reply": ...}` with the model's JSON object, a proposal, question or explanation. The editor
 checks the whole of it. Errors are `{"error": ...}`:

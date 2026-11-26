@@ -288,6 +288,33 @@ describe('the approval gate', () => {
         expect(reader.speak).not.toHaveBeenCalled();
     });
 
+    test('beside the editor, a suggestion is said through the live region, for a screen reader too', async () => {
+        const {gate, heard} = await proposed();
+        expect(gate.getState().proposal.docked).toBe(true);
+        expect(heard.at(-1)).toBe('Mboni suggests a change. Approve it? Mboni says: A change. ' +
+            '1. Add wait 5 seconds, after move 10 steps. ' +
+            'Say yes or go ahead, say no, or say change it, and what to change. ' +
+            'If there is no answer in 2 minutes, it is cancelled.');
+    });
+
+    test('what is hard to undo still stops the student in a window', async () => {
+        const context = setUp();
+        Object.assign(context.device, {name: 'micro:bit', connected: true});
+        context.gate.take({steps: [{action: 'project.run'}]});
+        await context.settle();
+        expect(context.gate.getState().proposal).toMatchObject({risk: 'big', docked: false});
+        expect(context.heard).toEqual([]);
+    });
+
+    test('with questions in windows, a suggestion is left to the window', async () => {
+        const context = setUp();
+        context.settings.set({voiceFirst: false});
+        context.gate.take({steps: [wait]});
+        await context.settle();
+        expect(context.gate.getState().proposal.docked).toBe(false);
+        expect(context.heard).toEqual([]);
+    });
+
     test('reads the proposal aloud when wanted', async () => {
         const context = setUp();
         context.settings.set({readAloud: true});

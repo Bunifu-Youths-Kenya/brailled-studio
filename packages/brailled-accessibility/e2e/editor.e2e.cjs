@@ -68,7 +68,7 @@ const answered = () => {
     // Sandboxed frames, which have no storage, run this too.
     if (window !== window.top) return;
     if (!localStorage.getItem('brailled.settings')) {
-        localStorage.setItem('brailled.settings', JSON.stringify({screenReader: true}));
+        localStorage.setItem('brailled.settings', JSON.stringify({voiceFirst: false, screenReader: true}));
     }
 };
 
@@ -1533,7 +1533,7 @@ const startAiServer = async (env = {}) => {
             await settings.getByRole('radio').count() === 2);
         await key('Escape', 500);
         await page.evaluate(() => localStorage.setItem('brailled.settings',
-            JSON.stringify({screenReader: true, approval: 'big'})));
+            JSON.stringify({voiceFirst: false, screenReader: true, approval: 'big'})));
         await t.reload();
         await startOutline(t);
         ai.model.reply = two;
@@ -1542,6 +1542,59 @@ const startAiServer = async (env = {}) => {
             (await t.items()).join() === original.join());
         check('the question says how long there is', /no answer in 2 minutes/.test(await dialog.textContent()));
     }, {init: [fakeSpeech, fakeVoice], config: aiConfig(ai.endpoint)});
+
+    const voiceFirst = () => {
+        if (window === window.top) localStorage.setItem('brailled.settings', JSON.stringify({screenReader: true}));
+    };
+    await group('voice first: questions are said and shown beside the editor', async t => {
+        const {page, key} = t;
+        const {dialog, ask, say} = helpers(t);
+        const docked = page.locator('[data-brailled-docked]');
+        ai.model.reply = examples;
+        await startOutline(t);
+        const original = await t.items();
+
+        await say('add a wait of 2 seconds after the move block');
+        check('a suggestion opens no window', await dialog.count() === 0 && await docked.count() === 1);
+        check('it is shown beside the editor', await docked.locator('h2').textContent() ===
+            'Mboni suggests a change. Approve it?' && await docked.isVisible());
+        check('focus stays where the student was', (await t.focused()).text.includes('move 10 steps'),
+            (await t.focused()).text);
+        check('it is said through the live region', /^Mboni suggests a change\. Approve it\?/.test(await t.said()),
+            await t.said());
+        check('axe: suggestion beside the editor', (await t.axe('[data-brailled-docked]')).length === 0,
+            (await t.axe('[data-brailled-docked]')).join('; '));
+        await page.screenshot({path: path.join(out, 'proposal-docked.png')});
+        await key('Alt+Shift+KeyQ', 600);
+        check('Alt+Shift+Q reaches it', (await t.focused()).text.trim() === 'Yes, go ahead',
+            (await t.focused()).text);
+        await key('Escape', 900);
+        check('Escape there turns it down, changing nothing', await docked.count() === 0 &&
+            (await t.items()).join() === original.join());
+        check('and focus goes back', (await t.focused()).text.includes('move 10 steps'), (await t.focused()).text);
+
+        await say('add a wait of 2 seconds after the move block');
+        await say('yes');
+        check('"yes" said aloud carries it out', await docked.count() === 0 &&
+            (await t.items()).length === original.length + 1);
+        await typed(t, 'undo');
+
+        ai.model.reply = {type: 'explanation', text: 'A loop repeats blocks.'};
+        await ask('what is a loop');
+        check('a reply opens no window, and is said', await dialog.count() === 0 && await docked.count() === 1 &&
+            /A loop repeats blocks\./.test(await t.said()), await t.said());
+        await key('Alt+Shift+KeyQ', 600);
+        await key('Escape', 600);
+        check('and closes with Escape', await docked.count() === 0);
+
+        ai.model.reply = user => ({type: 'proposal', summary: 'Start again.', steps: [{command:
+            {op: 'delete', block: refOf(user, 'event_whenflagclicked'), withFollowing: true}}]});
+        await t.goTo('move 10 steps');
+        await ask('delete everything');
+        check('what is hard to undo still opens a window', await dialog.count() === 1 && await docked.count() === 0);
+        await key('Escape', 900);
+        check('which turns it down too', (await t.items()).join() === original.join());
+    }, {init: [fakeSpeech, fakeVoice, voiceFirst], config: aiConfig(ai.endpoint)});
 
     const bigOnly = {approval: 'big changes only', proposalExpirySeconds: 30};
     await group('approval: the school asks about big changes only', async t => {
@@ -1908,6 +1961,88 @@ const startAiServer = async (env = {}) => {
     }, {init: [fakeVoice], config: {json: {voice: {enabled: true, provider: 'gemini-pair'}, ai: true,
         aiEndpoint: ai.endpoint}}});
 
+    await group('conversation', async t => {
+        const {page, key, pause} = t;
+        const bar = page.locator('[data-brailled-zone="voice"]');
+        const dialog = page.locator('dialog');
+        const status = () => bar.locator('[data-voice-status]').textContent();
+        const sign = () => bar.locator('[data-voice-wake]').textContent();
+        // Say something, once the editor is listening again.
+        const hear = async text => {
+            await page.waitForFunction(() => {
+                const recognition = window.speech.requests.at(-1);
+                return recognition?.continuous && !recognition.interimResults && !recognition.aborted;
+            }, null, {timeout: 20000});
+            await pause(300);
+            await page.evaluate(words => window.speech.requests.at(-1).hear(words), text);
+            await pause(2000);
+        };
+        await startOutline(t);
+        const original = await t.items();
+        await t.goTo('move 10 steps');
+        ai.model.voiced = [];
+        ai.model.mute = null;
+        await key('F4', 2500);
+        await hear('hey Mboni');
+        check('calling Mboni starts a conversation: a greeting, and a sign', /Hey! I’m listening\./.test(await status()),
+            await status());
+        await pause(2000);
+        check('the sign says so', /Talking with Mboni/.test(await sign()), await sign());
+        check('the greeting is read by the online voice', ai.model.voiced.some(text => /Hey!/.test(text)) ||
+            ai.model.voiced.some(text => /listening/.test(text)), ai.model.voiced.join(' | '));
+        await page.screenshot({path: path.join(out, 'conversation.png')});
+
+        await hear('what does this platform do');
+        check('it answers at once about the platform', /This is Brailled/.test(await status()), await status());
+
+        const twoWaits = {type: 'proposal', summary: 'Two waits.', steps: [
+            {command: {op: 'insert', block: 'control_wait', after: 'b2'}},
+            {command: {op: 'insert', block: 'control_repeat', after: 'new1'}}]};
+        ai.model.reply = twoWaits;
+        await hear('I am making a square, help me');
+        await dialog.waitFor({timeout: 10000});
+        check('a plan is shown, with "Guide me"', await dialog.getByRole('button', {name: 'Guide me'}).count() === 1);
+        await pause(3000);
+        check('and asked in few words', ai.model.voiced.includes('Say add all, guide me, or no.'),
+            ai.model.voiced.join(' | '));
+        await hear('yes');
+        check('"yes" alone adds nothing', await dialog.count() === 1 &&
+            (await t.items()).join() === original.join(), await status());
+        await hear('add all');
+        await pause(1500);
+        check('"add all" adds the blocks', await dialog.count() === 0 &&
+            (await t.items()).length > original.length &&
+            (await t.items()).some(item => item.includes('repeat 10')), (await t.items()).join(' | '));
+
+        ai.model.reply = {type: 'proposal', summary: 'One more.', steps: [
+            {command: {op: 'insert', block: 'looks_nextcostume', after: 'b2'}}]};
+        await t.goTo('move 10 steps');
+        await hear('help me change costumes');
+        await dialog.waitFor({timeout: 10000});
+        const before = await t.items();
+        await hear('guide me');
+        check('"guide me" says the step and changes nothing', /Step 1 of 1\. Add.*next costume/.test(await status()) &&
+            (await t.items()).join() === before.join(), await status());
+        await page.evaluate(() => {
+            const walk = node => [node, ...(node.children || []).flatMap(walk)];
+            const move = window.brailled.outline().flatMap(walk).find(node => node.text === 'move 10 steps');
+            window.brailled.run({op: 'insert', block: 'looks_nextcostume', after: move.id});
+        });
+        await pause(2500);
+        check('it notices the step done', /Well done\. That is all the steps\./.test(await status()), await status());
+
+        await hear('goodbye');
+        check('"goodbye" ends the conversation', /Say hey, then Mboni, when you need me\./.test(await status()),
+            await status());
+        await pause(3000);
+        check('and it waits to be called', /Listening for “Hey Mboni”/.test(await sign()), await sign());
+    }, {init: [fakeSpeech, fakeVoice, () => {
+        if (window === window.top) {
+            localStorage.setItem('brailled.settings', JSON.stringify({voiceFirst: false, screenReader: false, readAloud: true}));
+        }
+    }], config: {json: {voice: {enabled: true, readReplies: 'online'}, wakeWord: {enabled: true},
+        conversation: {enabled: true, voiceApproval: true}, ai: true, aiEndpoint: ai.endpoint}}});
+
     await group('no voice to read with', async t => {
         const {page, pause} = t;
         const bar = page.locator('[data-brailled-zone="voice"]');
@@ -1933,7 +2068,7 @@ const startAiServer = async (env = {}) => {
         Object.defineProperty(window, 'speechSynthesis', {configurable: true,
             get: () => ({getVoices: () => [], cancel: () => {}, speak: () => {}})});
         if (window === window.top) {
-            localStorage.setItem('brailled.settings', JSON.stringify({screenReader: false, readAloud: true}));
+            localStorage.setItem('brailled.settings', JSON.stringify({voiceFirst: false, screenReader: false, readAloud: true}));
         }
     }]});
 
@@ -1980,7 +2115,7 @@ const startAiServer = async (env = {}) => {
         ai.model.mute = null;
     }, {init: [fakeVoice, () => {
         if (window === window.top) {
-            localStorage.setItem('brailled.settings', JSON.stringify({screenReader: false, readAloud: true}));
+            localStorage.setItem('brailled.settings', JSON.stringify({voiceFirst: false, screenReader: false, readAloud: true}));
         }
     }], newSession: true, config: {json: {voice: {enabled: true, provider: 'gemini-pair'},
         ai: true, aiEndpoint: ai.endpoint}}});

@@ -6,6 +6,7 @@ import {useIntl} from 'react-intl';
 import Dialog from '../outline/dialog.jsx';
 import {INTRODUCTIONS, LISTEN_SECONDS, TALK_KEY_IDS} from '../settings.js';
 import voiceMessages from '../voice/messages.js';
+import {readsRepliesOnline} from '../voice/speech-config.js';
 import preferenceMessages from './preference-messages.js';
 import {TALK_KEYS} from './shortcuts.js';
 
@@ -14,6 +15,7 @@ import dialogStyles from '../outline/dialog.css';
 const appShape = PropTypes.shape({
     announce: PropTypes.func.isRequired,
     assistantName: PropTypes.func.isRequired,
+    config: PropTypes.shape({get: PropTypes.func.isRequired}).isRequired,
     forgetStudent: PropTypes.func.isRequired,
     online: PropTypes.shape({provider: PropTypes.func.isRequired}).isRequired,
     say: PropTypes.func.isRequired,
@@ -133,6 +135,9 @@ const VoiceSettings = ({app, onClose}) => {
         event => app.settings.set({maxSeconds: Number(event.target.value)}), [app]);
     const handleReadbacks = useCallback(
         event => app.settings.set({onlineReadbacks: event.target.checked}), [app]);
+    const handleOnlineName = useCallback(
+        event => app.settings.set({onlineName: event.target.checked}), [app]);
+    const handleVoiceFirst = useCallback(event => app.settings.set({voiceFirst: event.target.checked}), [app]);
     const handleName = useCallback(event => app.settings.set({studentName: event.target.value}), [app]);
     const handleIntroduction = useCallback(
         event => app.settings.set({introduction: event.target.value}), [app]);
@@ -233,6 +238,23 @@ const VoiceSettings = ({app, onClose}) => {
                     {note}
                 </p>
             </div>
+            <div className={dialogStyles.field}>
+                <label className={dialogStyles.row}>
+                    <input
+                        aria-describedby="brailled-voice-first-hint"
+                        checked={settings.voiceFirst}
+                        type="checkbox"
+                        onChange={handleVoiceFirst}
+                    />
+                    {intl.formatMessage(preferenceMessages.voiceFirst)}
+                </label>
+                <p
+                    className={dialogStyles.count}
+                    id="brailled-voice-first-hint"
+                >
+                    {intl.formatMessage(preferenceMessages.voiceFirstHint)}
+                </p>
+            </div>
             {app.online.provider() === 'browser' ? null : (
                 <div className={dialogStyles.field}>
                     <label className={dialogStyles.row}>
@@ -277,6 +299,25 @@ const VoiceSettings = ({app, onClose}) => {
                     {intl.formatMessage(preferenceMessages.studentNameHint)}
                 </p>
             </div>
+            {readsRepliesOnline(app.config.get().speech) && app.config.get().ai ? (
+                <div className={dialogStyles.field}>
+                    <label className={dialogStyles.row}>
+                        <input
+                            aria-describedby="brailled-online-name-hint"
+                            checked={settings.onlineName}
+                            type="checkbox"
+                            onChange={handleOnlineName}
+                        />
+                        {intl.formatMessage(preferenceMessages.onlineName)}
+                    </label>
+                    <p
+                        className={dialogStyles.count}
+                        id="brailled-online-name-hint"
+                    >
+                        {intl.formatMessage(preferenceMessages.onlineNameHint)}
+                    </p>
+                </div>
+            ) : null}
             <div className={dialogStyles.field}>
                 <label
                     className={dialogStyles.label}

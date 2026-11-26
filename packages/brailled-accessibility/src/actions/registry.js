@@ -59,6 +59,9 @@ const ACTIONS = [
         shortcuts: [altShift('H')],
         run: app => describeAbilities(app.snapshot(), app.intl())
     }),
+    define('help.about', {
+        run: app => app.say(speech.about)
+    }),
     define('help.introduce', {
         proposable: false,
         run: app => app.introduction.ask()
@@ -77,7 +80,11 @@ const ACTIONS = [
     goTo('go.background', 'background'),
     goTo('go.palette', 'palette'),
     goTo('go.scripts', 'scripts'),
-    goTo('go.voice', 'voice'),
+    define('go.voice', {
+        shortcuts: [altShift('Q')],
+        available: withGui,
+        run: app => app.goTo('voice')
+    }),
 
     define('voice.talk', {
         proposable: false,

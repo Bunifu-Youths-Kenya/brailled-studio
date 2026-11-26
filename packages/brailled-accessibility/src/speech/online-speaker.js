@@ -1,6 +1,7 @@
 /*
  * Reads text with an online voice, a sentence at a time and in order. A sentence whose sound ships with the editor
- * is played from there, offline or not. Nothing else is kept: neither the words nor the sound.
+ * is played from there, offline or not. The sound of a few short sentences prepared ahead is held in memory until the
+ * page closes. Nothing else is kept: neither the words nor the sound.
  */
 import {encodePcmWav} from '../voice/audio.js';
 import {phraseKey, sentences} from './phrases.js';
@@ -28,6 +29,9 @@ const createOnlineSpeaker = ({scope, address, settings, onFail}) => {
     let busy = false;
     // Sentences played from the shipped sound since the server was last told, for its record of costs.
     let hits = 0;
+    // Sentences to have ready, by name, and the sound of those that have arrived.
+    const wanted = new Set();
+    const held = new Map();
     const takeHits = () => {
         const taken = hits;
         hits = 0;
@@ -47,15 +51,18 @@ const createOnlineSpeaker = ({scope, address, settings, onFail}) => {
         return loading;
     };
 
-    const fileOf = sentence => {
+    const keyOf = sentence => {
         const {ttsVoice, ttsModel} = settings();
-        return kept.get(phraseKey(sentence, ttsVoice, ttsModel));
+        return phraseKey(sentence, ttsVoice, ttsModel);
     };
+    const fileOf = sentence => kept.get(keyOf(sentence));
 
-    // A WAV file of one sentence, as bytes.
-    const soundOf = async (sentence, online) => {
+    // A WAV file of one sentence, as bytes. What is `ahead` of being read is not given up when reading stops.
+    const soundOf = async (sentence, online, ahead = false) => {
+        const key = keyOf(sentence);
+        if (held.has(key)) return held.get(key);
         const controller = new scope.AbortController();
-        fetching.push(controller);
+        if (!ahead) fetching.push(controller);
         const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
         try {
             const file = fileOf(sentence);
@@ -79,7 +86,9 @@ const createOnlineSpeaker = ({scope, address, settings, onFail}) => {
             if (!response.ok) throw new Error(`the server answered ${response.status}`);
             const samples = new Uint8Array(await response.arrayBuffer());
             if (samples.length === 0) throw new Error('no sound');
-            return encodePcmWav(samples, SERVICE_RATE);
+            const sound = encodePcmWav(samples, SERVICE_RATE);
+            if (wanted.has(key)) held.set(key, sound);
+            return sound;
         } finally {
             clearTimeout(timer);
             fetching = fetching.filter(item => item !== controller);
@@ -155,6 +164,14 @@ const createOnlineSpeaker = ({scope, address, settings, onFail}) => {
             busy = true;
             read(sentences(text), online, turn);
         },
+        // Fetch the sound of short sentences that will be wanted at once, such as a greeting.
+        prepare: text => load().then(() => Promise.all(sentences(text)
+            .filter(sentence => !fileOf(sentence) && !held.has(keyOf(sentence)))
+            .map(sentence => {
+                wanted.add(keyOf(sentence));
+                // If it cannot be had now, it is asked for when it is wanted.
+                return soundOf(sentence, true, true).catch(() => {});
+            }))),
         stop,
         speaking: () => busy,
         takeHits

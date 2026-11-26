@@ -15,16 +15,17 @@ const ARM_MS = 700;
 const Question = ({gate, name, proposal}) => {
     const intl = useIntl();
     const say = (message, values) => intl.formatMessage(message, {assistant: name, ...values});
-    const {title, values, summary, steps, risk, mode, index, askingChange, note, seconds} = proposal;
+    const {title, values, summary, steps, risk, mode, index, askingChange, note, seconds, docked} = proposal;
     const shownAt = useRef(Date.now());
     const changeBox = useRef(null);
     const big = risk === 'big';
     const stepping = mode === 'steps';
     const many = steps.length > 1;
 
+    // Beside the editor, focus stays where the student is: they are asked aloud what to change.
     useEffect(() => {
-        if (askingChange) changeBox.current.focus();
-    }, [askingChange]);
+        if (askingChange && !docked) changeBox.current.focus();
+    }, [askingChange, docked]);
 
     // Only a deliberate press approves.
     const deliberate = task => () => {
@@ -34,6 +35,7 @@ const Question = ({gate, name, proposal}) => {
     const handleRest = deliberate(() => gate.approve({all: true}));
     const handleSteps = deliberate(gate.stepByStep);
     const handleNo = gate.reject;
+    const handleGuide = gate.guide;
     const handleChange = event => {
         event.preventDefault();
         const text = String(new FormData(event.target).get('change'))
@@ -66,6 +68,7 @@ const Question = ({gate, name, proposal}) => {
     return (
         <Dialog
             describedBy="brailled-proposal"
+            docked={docked}
             title={say(title, values)}
             onCancel={handleNo}
         >
@@ -89,9 +92,10 @@ const Question = ({gate, name, proposal}) => {
                     </p>
                 </div>
                 {stepping ? <ol className={styles.all}>{steps.map(sentence)}</ol> : null}
+                {/* Beside the editor, the note is said through the live region already. */}
                 <p
                     className={styles.note}
-                    role="status"
+                    role={docked ? null : 'status'}
                 >
                     {note}
                 </p>
@@ -122,6 +126,13 @@ const Question = ({gate, name, proposal}) => {
                         {say(proposalMessages.steps)}
                     </button>
                 ) : null}
+                <button
+                    className={dialogStyles.button}
+                    type="button"
+                    onClick={handleGuide}
+                >
+                    {say(proposalMessages.guide)}
+                </button>
                 <button
                     className={dialogStyles.button}
                     data-autofocus={big ? true : null}
@@ -164,6 +175,7 @@ const Question = ({gate, name, proposal}) => {
 Question.propTypes = {
     gate: PropTypes.shape({
         approve: PropTypes.func.isRequired,
+        guide: PropTypes.func.isRequired,
         hear: PropTypes.func.isRequired,
         isAnswer: PropTypes.func.isRequired,
         reject: PropTypes.func.isRequired,
@@ -184,7 +196,8 @@ Question.propTypes = {
         index: PropTypes.number.isRequired,
         askingChange: PropTypes.bool.isRequired,
         note: PropTypes.string,
-        seconds: PropTypes.number.isRequired
+        seconds: PropTypes.number.isRequired,
+        docked: PropTypes.bool.isRequired
     }).isRequired
 };
 

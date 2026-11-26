@@ -281,13 +281,13 @@ describe('listening for the wake words', () => {
     test('is off until the student turns it on', async () => {
         const {engine, wake, settle} = editor();
         await settle(5000);
-        expect(wake.getState()).toEqual({on: false, listening: false});
+        expect(wake.getState()).toMatchObject({on: false, listening: false});
         expect(engine.start).not.toHaveBeenCalled();
     });
 
     test('says so when on, and listens', async () => {
         const {engine, heard, wake} = await on();
-        expect(wake.getState()).toEqual({on: true, listening: true});
+        expect(wake.getState()).toMatchObject({on: true, listening: true});
         expect(engine.options.phrases).toEqual(phrases);
         expect(heard.at(-1)).toBe('Now listening for the wake words: say hey, then Mboni. Press F4 to stop.');
         // Read by a screen reader, the announcement does not call it.
@@ -313,7 +313,7 @@ describe('listening for the wake words', () => {
         await settle(500);
         expect(wake.getState().on).toBe(true);
         app.perform('voice.wake');
-        expect(wake.getState()).toEqual({on: false, listening: false});
+        expect(wake.getState()).toMatchObject({on: false, listening: false});
         wake.start();
         routeCommand(app, 'stop listening', 'voice');
         expect(wake.getState().on).toBe(false);
@@ -341,7 +341,7 @@ describe('listening for the wake words', () => {
         const parts = await on();
         begin(parts);
         await parts.settle(CHECK_MS * 2);
-        expect(parts.wake.getState()).toEqual({on: true, listening: false});
+        expect(parts.wake.getState()).toMatchObject({on: true, listening: false});
         expect(parts.engine.running).toBe(false);
         end(parts);
         await parts.settle(CHECK_MS * 2);
@@ -457,7 +457,7 @@ describe('listening for the wake words', () => {
         const {engine, heard, wake, settle} = await on();
         engine.options.onProblem('denied');
         await settle(500);
-        expect(wake.getState()).toEqual({on: false, listening: false});
+        expect(wake.getState()).toMatchObject({on: false, listening: false});
         expect(heard.at(-1)).toMatch(/microphone is blocked/);
     });
 

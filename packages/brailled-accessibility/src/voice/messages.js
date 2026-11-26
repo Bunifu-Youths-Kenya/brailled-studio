@@ -74,6 +74,14 @@ const voiceMessages = fromTexts('brailled.voice', 'Voice input', {
     wakeFailed: 'Listening for the wake words stopped working. Press {key} to try again.',
     wakeListening: 'Listening for “Hey {assistant}”',
     wakePaused: 'Wake word paused',
+    wakeConversing: 'Talking with {assistant}',
+    greeting: 'Hey! I’m listening.',
+    greetingName: 'Hey {student}! I’m listening.',
+    conversationEnded: 'Okay. Say hey, then {assistant}, when you need me.',
+    replyNotice: 'Chrome sends speech to Google. {assistant} (AI) gets your program, and an online voice reads its ' +
+        'replies.',
+    replyNoticeWake: 'Demo mode: room sound goes to Google. {assistant} (AI) gets requests and your program; an ' +
+        'online voice replies.',
     wakeStop: 'Stop (F4)',
     handsFree: 'Hands-free (F4)',
     handsFreeHint: 'Sends room sound online',

@@ -4,6 +4,7 @@ import {createAssistant} from '../src/ai/assistant.js';
 import {createAiPorts} from '../src/proposals/ai-ports.js';
 import {createExecutor} from '../src/proposals/executor.js';
 import {createGate} from '../src/proposals/gate.js';
+import {createGuide} from '../src/proposals/guide.js';
 import {createProposalQueue} from '../src/proposals/queue.js';
 import {createSettings} from '../src/settings.js';
 import sample from './fixtures/simple-sequence.json';
@@ -103,6 +104,8 @@ const setUp = ({respond = () => answer({type: 'explanation', text: 'Hello.'}), s
     assistant = createAssistant({ports, endpoint: '/api/assistant', fetch});
     app.register('gate', gate);
     app.register('assistant', assistant);
+    const guide = createGuide(app);
+    app.register('guide', guide);
 
     // Let timers and promises run, for less time than a proposal lasts.
     const settle = async (time = 2000) => {
@@ -128,6 +131,7 @@ const setUp = ({respond = () => answer({type: 'explanation', text: 'Hello.'}), s
         fetch,
         gate,
         gui,
+        guide,
         heard,
         highlight,
         outline,

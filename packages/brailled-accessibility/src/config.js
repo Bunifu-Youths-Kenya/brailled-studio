@@ -35,11 +35,24 @@ const wakeFrom = (value, assistant) => {
     });
 };
 
+const IDLE_SECONDS = Object.freeze({least: 5, usual: 20, most: 60});
+
+// Talking on after the wake words: each only for a plain `true`.
+const conversationFrom = value => Object.freeze({
+    enabled: value?.enabled === true,
+    // Whether "add all" said in a conversation may approve changes that "undo" takes back.
+    voiceApproval: value?.voiceApproval === true,
+    idleSeconds: Number.isFinite(value?.idleSeconds) ?
+        Math.min(Math.max(value.idleSeconds, IDLE_SECONDS.least), IDLE_SECONDS.most) :
+        IDLE_SECONDS.usual
+});
+
 // What applies until the file says otherwise.
 const SAFEST = Object.freeze({ai: false,
     assistantName: DEFAULT_ASSISTANT_NAME,
     wakeWord: wakeFrom(null, DEFAULT_ASSISTANT_NAME),
     speech: speechFrom(null),
+    conversation: conversationFrom(null),
     aiEndpoint: null,
     approval: 'every',
     proposalExpirySeconds: EXPIRY_SECONDS.usual,
@@ -88,6 +101,7 @@ const interpret = file => {
         // What the assistant is called on screen and aloud.
         assistantName,
         wakeWord: wakeFrom(file.wakeWord, assistantName),
+        conversation: conversationFrom(file.conversation),
         unreadable: false
     };
 };

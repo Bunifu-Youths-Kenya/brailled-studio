@@ -13,7 +13,7 @@ import {createReader} from '../speech/read-aloud.js';
 import {SCRIPTS_VIEWS} from '../views.js';
 import voiceMessages from '../voice/messages.js';
 import {createOnlineVoice} from '../voice/online.js';
-import {speakingWith} from '../voice/speech-config.js';
+import {readsRepliesOnline, speakingWith} from '../voice/speech-config.js';
 import {SWAHILI} from '../proposals/answers.js';
 import {accessibleName, focusableWithin, roleOf, zoneElement, zoneOf} from './dom.js';
 import {roleNames, speech} from './messages.js';
@@ -98,15 +98,21 @@ const createApp = (vm, {
     // Added once the app it reports to exists.
     let speaker = null;
 
-    // Whether to read with the online voice. Never what holds the student's name, which is not to be sent.
-    const readsOnline = (text, reply) => {
-        if (online.chosen() === 'browser' || !config.get().ai || speakerFailed) return false;
-        const {studentName, onlineReadbacks} = settings.get();
-        if (studentName && text.toLowerCase().includes(studentName.toLowerCase())) return false;
-        // Sound that ships with the editor is sent nowhere.
-        return speaker.has(text) || (online.provider() !== 'browser' && (reply || onlineReadbacks));
-    };
+    // Whether the student's name may be said: by the device, or online where they allow it.
+    const nameMaySound = () => settings.get().onlineName || reader.isAvailable(intl.locale);
+    const conversing = () => !!parts.get('wake')?.getState().conversing;
 
+    // Whether words may be sent to be read: not after listening online has failed.
+    const sends = () => !online.hasFallenBack();
+
+    // Whether to read with the online voice. What holds the student's name is not sent unless they allow it.
+    const readsOnline = (text, reply) => {
+        if (!readsRepliesOnline(config.get().speech) || !config.get().ai || speakerFailed) return false;
+        const {studentName, onlineName, onlineReadbacks} = settings.get();
+        if (!onlineName && studentName && text.toLowerCase().includes(studentName.toLowerCase())) return false;
+        // Sound that ships with the editor is sent nowhere. In a conversation the one voice says everything.
+        return speaker.has(text) || (sends() && (reply || onlineReadbacks || conversing()));
+    };
     const app = {
         vm,
         assistantName,
@@ -130,6 +136,11 @@ const createApp = (vm, {
             };
         },
         online,
+        conversing,
+        // The student's name, where it may be said, or nothing.
+        sayableName: () => (nameMaySound() ? settings.get().studentName : ''),
+        // The guide through a suggestion's steps, see `proposals/guide.js`.
+        guide: () => parts.get('guide') || null,
         // Words besides the English ones that answer a question.
         answerWords: () => config.get().speech?.answers ?? SWAHILI,
         // Nothing of one student stays for the next.
@@ -139,6 +150,7 @@ const createApp = (vm, {
             modeChanged();
             app.introduction.forget();
             parts.get('wake')?.stop({quietly: true});
+            parts.get('guide')?.stop({quietly: true});
             settings.reset();
         },
 
@@ -150,11 +162,19 @@ const createApp = (vm, {
             if (!config.get().voice || !settings.get().readAloud || listening) return;
             if (readsOnline(text, reply)) {
                 reader.stop();
-                speaker.speak(text, {online: online.provider() !== 'browser'});
+                speaker.speak(text, {online: sends()});
             } else {
                 speaker.stop();
                 reader.speak(text, intl.locale);
             }
+        },
+        // Whether questions are said and shown beside the editor, leaving focus where the student is.
+        voiceFirst: () => config.get().voice === true && settings.get().voiceFirst,
+        // Say what the student is asked. Shown beside the editor, it does not take focus, so the live region
+        // carries it to a screen reader too; in a window, the screen reader reads the window.
+        present: (text, options = {reply: true}) => {
+            if (app.voiceFirst()) app.announce(text, options);
+            else app.speak(text, options);
         },
         silence: () => {
             reader.stop();
@@ -162,13 +182,18 @@ const createApp = (vm, {
         },
         reading: () => !!reader.speaking?.() || speaker.speaking(),
         takeCacheHits: () => speaker.takeHits?.() ?? 0,
+        // Have the online voice ready to say these at once.
+        prepareSpeech: texts => {
+            if (!config.get().voice || !settings.get().readAloud) return;
+            texts.filter(text => readsOnline(text, true)).forEach(text => speaker.prepare?.(text));
+        },
         // Why reading aloud, where it is wanted, cannot read everything, as a sentence, or null.
         voiceWarning: () => {
             const {voice, ai} = config.get();
             const {readAloud, onlineReadbacks} = settings.get();
             if (!voice || !readAloud || reader.isAvailable(intl.locale)) return null;
             // The online voice reads replies without one on the device.
-            const repliesRead = ai && !speakerFailed && online.provider() !== 'browser';
+            const repliesRead = ai && !speakerFailed && sends() && readsRepliesOnline(config.get().speech);
             if (!repliesRead) return app.say(voiceMessages.noVoiceAll);
             return onlineReadbacks ? null : app.say(voiceMessages.noVoiceReplies);
         },
@@ -206,7 +231,7 @@ const createApp = (vm, {
             return () => listeners.delete(listener);
         },
         // Say something through the live region. A newer message replaces one not yet said.
-        announce: text => {
+        announce: (text, options) => {
             clearTimeout(announceTimer);
             announceTimer = setTimeout(() => {
                 const full = preface ? `${preface} ${text}` : text;
@@ -214,7 +239,7 @@ const createApp = (vm, {
                 clearTimeout(prefaceTimer);
                 app.introduction.heard(full);
                 listeners.forEach(listener => listener(full));
-                app.speak(full);
+                app.speak(full, options);
             }, ANNOUNCE_DELAY_MS);
         },
         // Say this before the next announcement, or on its own if none follows.
@@ -266,8 +291,11 @@ const createApp = (vm, {
             } else if (zone === 'stage') {
                 focusWhenReady(() => zoneElement(document, 'stage'), arrive);
             } else if (zone === 'voice') {
-                focusWhenReady(() => document.querySelector('[data-voice-talk]'),
-                    arrive);
+                // A question waiting beside the editor comes first.
+                focusWhenReady(() => {
+                    const docked = document.querySelector('[data-brailled-docked]');
+                    return (docked && focusableWithin(docked)[0]) || document.querySelector('[data-voice-talk]');
+                }, arrive);
             } else {
                 const find = () => document.querySelector(`[data-brailled-stage-tab="${zone}"]`);
                 find()?.click();
@@ -380,7 +408,7 @@ const createApp = (vm, {
     });
     // The kept sound is needed as soon as an online voice may be used.
     const loadPhrases = () => {
-        if (online.chosen() !== 'browser') speaker.load();
+        if (readsRepliesOnline(config.get().speech)) speaker.load();
     };
     config.subscribe(loadPhrases);
     // Added once the app it speaks through exists.
@@ -393,7 +421,7 @@ const createApp = (vm, {
                 say: (message, values) => app.say(message, values),
                 locale: intl.locale,
                 length,
-                student: studentName,
+                student: nameMaySound() ? studentName : '',
                 ai: !!ai,
                 approval,
                 actions: ACTIONS.map(action => action.id),

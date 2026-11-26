@@ -8,7 +8,7 @@ import aiMessages from './messages.js';
 
 import dialogStyles from '../outline/dialog.css';
 
-const Reply = ({assistant, name, reply, talkKey}) => {
+const Reply = ({assistant, docked, name, reply, talkKey}) => {
     const intl = useIntl();
     const say = (message, values) => intl.formatMessage(message, {assistant: name, ...values});
     const handleAnswer = event => {
@@ -25,6 +25,7 @@ const Reply = ({assistant, name, reply, talkKey}) => {
     return (
         <Dialog
             describedBy="brailled-ai-reply"
+            docked={docked}
             title={say(title)}
             onCancel={handleDismiss}
         >
@@ -104,6 +105,8 @@ Reply.propTypes = {
         answer: PropTypes.func.isRequired,
         dismiss: PropTypes.func.isRequired
     }).isRequired,
+    // Shown beside the editor, and said aloud, instead of in a window.
+    docked: PropTypes.bool.isRequired,
     // What the helper is called.
     name: PropTypes.string.isRequired,
     reply: PropTypes.shape({
@@ -120,13 +123,14 @@ Reply.propTypes = {
 const none = () => () => {};
 const nothing = () => null;
 
-const Replies = ({assistant, name, talkKey}) => {
+const Replies = ({assistant, docked, name, talkKey}) => {
     const reply = useSyncExternalStore(
         assistant ? assistant.subscribe : none,
         assistant ? () => assistant.getState().reply : nothing);
     return reply ? (
         <Reply
             assistant={assistant}
+            docked={docked}
             name={name}
             reply={reply}
             talkKey={talkKey}
@@ -139,6 +143,7 @@ Replies.propTypes = {
         getState: PropTypes.func.isRequired,
         subscribe: PropTypes.func.isRequired
     }),
+    docked: PropTypes.bool.isRequired,
     name: PropTypes.string.isRequired,
     talkKey: PropTypes.string
 };

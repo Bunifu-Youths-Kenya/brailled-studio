@@ -32,6 +32,11 @@ const start = async (answer: () => Response = sound, env: Record<string, string>
 }
 
 describe('reading words aloud', () => {
+  it.each(['browser', 'gemini-pair', 'openai-audio'])('reads for the editor\'s %s provider', async (provider) => {
+    const { post } = await start()
+    expect((await post({ ...speech, provider, cacheHits: 0 })).status).toBe(200)
+  })
+
   it.each([
     ['speechify/simba-3.5', 'beatrice_32'],
     ['microsoft/mai-voice-2.1-flash', 'en-GB-Emily:MAI-Voice-2.1-Flash'],

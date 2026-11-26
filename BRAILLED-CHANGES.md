@@ -250,5 +250,7 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `packages/brailled-ai-server/src/cost.ts` |
 | 2026-11-26 | `packages/brailled-ai-server/test/cost.test.ts` |
 | 2026-11-26 | `packages/brailled-ai-server/test/wav.ts` |
+| 2026-11-26 | `packages/brailled-accessibility/src/proposals/guide.js` |
+| 2026-11-26 | `packages/brailled-accessibility/test/conversation.test.js` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

@@ -3,6 +3,7 @@ import {defineMessages} from 'react-intl';
 // What the AI helper's part of the editor says.
 const aiMessages = defineMessages(Object.fromEntries(Object.entries({
     asking: 'Asking {assistant}.',
+    thinking: 'Okay.',
     busy: 'Still waiting for {assistant}.',
     failed: 'I couldn\'t work that out, please try again.',
     unreachable: '{assistant} cannot be reached. Everything else still works.',

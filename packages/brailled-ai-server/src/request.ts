@@ -120,7 +120,8 @@ export interface VoiceTurn {
   cacheHits: number
 }
 
-const PROVIDERS = ['gemini-pair', 'openai-audio']
+// "browser" is the editor's provider where the browser listens and only replies are read here.
+const PROVIDERS = ['browser', 'gemini-pair', 'openai-audio']
 const MOST_HITS = 10_000
 
 // What the editor may say of itself for the record: its provider, and the sentences it played from its own sound.

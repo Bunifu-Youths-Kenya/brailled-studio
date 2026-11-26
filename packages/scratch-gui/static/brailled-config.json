@@ -3,8 +3,9 @@
         "enabled": true,
         "provider": "browser",
         "listenModel": "google/gemini-3.5-flash-lite",
-        "ttsModel": "google/gemini-3.8-flash-lite-tts",
-        "ttsVoice": "Kore",
+        "ttsModel": "hexgrad/kokoro-82m",
+        "ttsVoice": "af_heart",
+        "readReplies": "online",
         "speed": 1,
         "maxRecordSeconds": 30,
         "silenceSeconds": 2,
@@ -14,13 +15,18 @@
     },
     "assistantName": "Mboni",
     "wakeWord": {
-        "enabled": false,
+        "enabled": true,
         "engine": "demo",
         "greetings": ["hey", "hi", "okay", "ok"],
         "variants": ["Boni", "Bonnie", "Moni", "Mbony", "Mboni", "Mbonyi"]
     },
-    "ai": false,
-    "aiEndpoint": "",
+    "conversation": {
+        "enabled": true,
+        "voiceApproval": true,
+        "idleSeconds": 20
+    },
+    "ai": true,
+    "aiEndpoint": "http://localhost:8787/api/assistant",
     "approval": "every time",
     "proposalExpirySeconds": 120
 }

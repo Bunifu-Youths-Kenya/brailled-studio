@@ -69,9 +69,17 @@ const createBrowserWakeWord = scope => {
                     if (options !== wanted) return;
                     const result = event.results[i];
                     if (!result.isFinal) continue;
-                    const called = matchWake(result[0].transcript, wanted.phrases);
+                    const {transcript} = result[0];
                     // Zero means "not measured".
-                    if (called) wanted.onWake({...called, confidence: result[0].confidence || null});
+                    const confidence = result[0].confidence || null;
+                    const called = matchWake(transcript, wanted.phrases);
+                    if (wanted.open) {
+                        // In a conversation every phrase is for the assistant, with or without the wake words.
+                        const request = called ? called.request : transcript.trim();
+                        if (request) wanted.onWake({request, confidence, followUp: true});
+                    } else if (called) {
+                        wanted.onWake({...called, confidence});
+                    }
                 }
             };
             recognition.onerror = event => {

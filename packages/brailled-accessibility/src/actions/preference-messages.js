@@ -24,10 +24,15 @@ const preferenceMessages = defineMessages(Object.fromEntries(Object.entries({
         'F4 turns it on and off, and it is off again after the page is reloaded.',
     onlineReadbacks: 'Use the online voice for read-backs too',
     onlineReadbacksHint: 'Sends what is read, which can include your program, to the online voice.',
+    onlineName: 'Let the online voice say my name',
+    onlineNameHint: 'Sends your first name to the service that reads replies aloud.',
+    voiceFirst: 'Say questions instead of opening windows',
+    voiceFirstHint: 'Suggestions and replies are said, and shown at the side, while you stay where you are. ' +
+        'Answer by voice, or press Alt+Shift+Q to reach them. Changes that are hard to undo still open a window.',
     done: 'Done',
     reset: 'Reset for new student',
-    resetHint: 'Forgets your name, the talk key, listening time, reading aloud, the introduction choice, the ' +
-        'screen reader answer and the conversation.',
+    resetHint: 'Forgets your name, the talk key, listening time, reading aloud, how questions are asked, the ' +
+        'introduction choice, the screen reader answer and the conversation.',
     wasReset: 'Settings reset for a new student.'
 }).map(([key, defaultMessage]) => [key, {
     id: `brailled.preferences.${key}`,

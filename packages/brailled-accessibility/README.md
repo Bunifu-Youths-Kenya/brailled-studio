@@ -109,7 +109,8 @@ off the device.
 | `edit.insert`, `edit.insertBefore`, `edit.delete`, `edit.values`, `edit.move`, `edit.moveBefore`, `edit.moveNewScript`, `edit.cancelMove`, `edit.wrap`, `edit.wrapFollowing`, `edit.createData`, `edit.renameData` | The Outline keys above | The action's name, such as "add block" |
 | `project.run`, `project.stop` | | "run", "stop" |
 | `sprite.library` | | "open sprite library" |
-| `voice.talk`, `go.voice` | Hold the talk key | "talk", "go to voice bar" |
+| `voice.talk` | Hold the talk key | "talk" |
+| `go.voice` | Alt+Shift+Q: the voice bar, or a question waiting beside the editor | "go to voice bar" |
 | `voice.settings` | | "voice settings" |
 | `mode.build`, `mode.guide`, `memory.forget` | | "build mode", "guide me", "forget our conversation" |
 
@@ -248,8 +249,9 @@ with `"enabled": true`.
 | - | - | - |
 | `provider` | `"browser"`, `"gemini-pair"`, `"openai-audio"` | `"browser"` |
 | `listenModel` | The model that hears and answers, as OpenRouter names it | `google/gemini-3.5-flash-lite` |
-| `ttsModel`, `ttsVoice` | The model and voice that read replies | `google/gemini-3.8-flash-lite-tts`, `Kore` |
+| `ttsModel`, `ttsVoice` | The model and voice that read replies | `hexgrad/kokoro-82m`, `af_heart` |
 | `compareModel`, `compareVoice` | The model and voice of `openai-audio` | `openai/gpt-audio-mini`, `alloy` |
+| `readReplies` | `"online"`: the online voice reads replies even when the browser listens | `"device"` |
 | `speed` | 0.5 to 2, applied when audio is played | 1 |
 | `maxRecordSeconds` | 5 to 60 | 30 |
 | `silenceSeconds` | 1 to 4: how long a pause ends a recording | 2 |
@@ -337,6 +339,37 @@ npm run voice:phrases --prefix ../brailled-ai-server         # make the missing 
 The usual name (Mboni) and talk key (F2) are in the shipped sentences. With others, those sentences are asked for
 like any reply, or read by the device where they are not replies. If speech fails, the device's voice takes over for
 the rest of the visit and says so.
+
+### Conversation
+
+```json
+{
+    "voice": {"enabled": true, "readReplies": "online", "ttsModel": "speechify/simba-3.5", "ttsVoice": "beatrice_32"},
+    "wakeWord": {"enabled": true},
+    "conversation": {"enabled": true, "voiceApproval": true, "idleSeconds": 20},
+    "ai": true,
+    "aiEndpoint": "http://localhost:8787/api/assistant"
+}
+```
+
+Say "Hey Mboni" once, then talk. She greets you (or introduces herself the first time), and every phrase is for her
+until "goodbye", "thank you" or `idleSeconds` without talk (5 to 60). The browser does the listening; the voice
+bar shows "Talking with Mboni". She does not listen while she speaks or thinks, so she cannot be interrupted by
+voice yet.
+
+- **A plan.** "I am making a square, help me" gets a suggestion, read as steps, ending "Say add all, guide me, or
+  no."
+- **"Add all"** approves it, only where `voiceApproval` is `true` and every step adds something (blocks, a variable
+  or list, a sprite) that "undo" takes back. A bare "yes" approves nothing. Otherwise the talk key, a button or the
+  keyboard is needed.
+- **"Guide me"** (also a button, or said with the talk key) changes nothing: it says each step, watches the project,
+  says "Well done" and goes on. "Repeat", "next step" and "stop guiding" work meanwhile. No AI is asked between
+  steps.
+- **Answered at once, without the AI:** editor commands, "where am I" and "what does this platform do".
+- Phrases heard with under 60% certainty are dropped. A command that changes the project asks first, and cannot be
+  answered by voice.
+- `readReplies: "online"` reads replies, and in a conversation everything, with `voice.ttsModel` and `ttsVoice`.
+  The greeting and "Okay" are fetched when listening starts, so they play at once.
 
 ### Changing the speech service
 
@@ -440,6 +473,7 @@ Each step has a risk that the editor works out; nothing the AI says changes it.
 | `approval` | `"every time"`: every change is approved. `"big changes only"`: changes marked "Edit" above that "undo" can take back are made without asking | `"every time"`, also for any other value |
 | `proposalExpirySeconds` | 30 to 900. Numbers outside that become the nearest limit | 120, also for anything that is not a number |
 | `voice` | `true`, `false`, or the [voice settings](#voice-settings) | Off |
+| `conversation` | `enabled`, `voiceApproval`, `idleSeconds`: [talking on](#conversation) after the wake words | Off |
 | `wakeWord` | `enabled`, `engine` (`"demo"` or `"on-device"`), `greetings`, `variants` | Off |
 | `assistantName` | What the assistant is called: up to 30 letters | `"Mboni"`, also for anything that is not a name |
 | `assistantMode` | The mode the AI helper starts in: `"build"` or `"guide"`. A student can switch while the page is open | `"build"`, also for any other value |
@@ -456,6 +490,12 @@ them.
 **Asking.** The proposal is shown in large type, each step described by the editor itself, with the AI's one
 sentence labelled "The AI says". A screen reader reads it from the dialog; with reading aloud on, the editor reads
 it.
+
+**Voice first.** Where voice is on, the student setting "Say questions instead of opening windows" (on by default)
+shows suggestions, the AI helper's replies and "Should I go ahead?" in a panel beside the editor instead of a
+dialog. Focus stays where the student is. The words go through the live region, so a screen reader says them, and
+are read aloud where that is on. Alt+Shift+Q moves to the panel, Escape in it answers no, and focus goes back.
+Suggestions that are hard to undo always open the dialog.
 
 | To | Say or type | Or |
 | - | - | - |

@@ -15,8 +15,8 @@ describe('the voice settings', () => {
         expect(SPEECH_DEFAULTS).toMatchObject({
             provider: 'browser',
             listenModel: 'google/gemini-3.5-flash-lite',
-            ttsModel: 'google/gemini-3.8-flash-lite-tts',
-            ttsVoice: 'Kore',
+            ttsModel: 'hexgrad/kokoro-82m',
+            ttsVoice: 'af_heart',
             silenceSeconds: 2,
             doneWord: false
         });
@@ -48,7 +48,7 @@ describe('the voice settings', () => {
 
     test('keep only plain voice names', () => {
         expect(speechFrom({ttsVoice: 'Puck'}).ttsVoice).toBe('Puck');
-        expect(speechFrom({ttsVoice: 'Kore; and more'}).ttsVoice).toBe('Kore');
+        expect(speechFrom({ttsVoice: 'Kore; and more'}).ttsVoice).toBe(SPEECH_DEFAULTS.ttsVoice);
     });
 
     test.each(Object.entries(RANGES))('hold %s within its range', (key, {least, usual, most}) => {
@@ -63,7 +63,7 @@ describe('the voice settings', () => {
         expect(speakingWith(speechFrom({provider: 'openai-audio', compareModel: 'a/b', compareVoice: 'verse'})))
             .toMatchObject({ttsModel: 'a/b', ttsVoice: 'verse'});
         expect(speakingWith(speechFrom({provider: 'gemini-pair'})))
-            .toMatchObject({ttsModel: SPEECH_DEFAULTS.ttsModel, ttsVoice: 'Kore'});
+            .toMatchObject({ttsModel: SPEECH_DEFAULTS.ttsModel, ttsVoice: 'af_heart'});
     });
 
     test('wait one to four seconds of silence', () => {

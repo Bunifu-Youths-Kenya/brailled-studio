@@ -10,6 +10,7 @@ const ACTION_TEXTS = {
     help_whereAmI: ['where am I', 'Says where you are in the editor.'],
     help_whatCanIDo: ['what can I do here', 'Lists the actions you can use here.'],
     help_introduce: ['introduce yourself', 'Says who the helper is and what it can do.'],
+    help_about: ['what is this', 'Says what this editor is and what the helper can do.'],
     help_commandBox: ['type a command', 'Opens a box for typing a command.'],
     go_menu: ['go to menu', 'Moves to the menu bar.'],
     go_stage: ['go to stage', 'Moves to the stage area.'],
@@ -68,6 +69,8 @@ const speech = fromTexts('brailled.speech', 'Spoken answer in the editor', {
     voiceUnsupported: 'This browser cannot turn speech into text.',
     voiceOff: 'Voice is turned off for this editor.',
     noAi: '{assistant}, the AI helper, is off.',
+    about: 'This is Brailled, an editor where you build programs from blocks, by keyboard or by voice. I am ' +
+        '{assistant}. Ask where you are, tell me what you want to make, or say run.',
     wakeOff: 'The wake word is not turned on for this editor.',
     wakeCannotAnswer: 'A suggestion is waiting. The wake words cannot answer it: hold {key}, or use Enter, Escape ' +
         'or the buttons.',

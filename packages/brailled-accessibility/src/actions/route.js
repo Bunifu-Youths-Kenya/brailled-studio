@@ -13,7 +13,8 @@ const CLOSING_MS = 50;
  * Act on what was said or typed.
  * @param {object} app The app.
  * @param {string} text The words.
- * @param {string} source Where they came from, such as `voice`, or `wake` for words that followed the wake words.
+ * @param {string} source Where they came from, such as `voice`, `wake` for words that followed the wake words, or
+ * `conversation` for words said after them, hands-free.
  * @returns {string} `action`, `gate`, `assistant`, `unknown` or `blocked`.
  */
 const routeCommand = (app, text, source) => {
@@ -24,12 +25,19 @@ const routeCommand = (app, text, source) => {
         const command = parseCommand(text, app.actionNames(), app.assistantName());
         if (command === 'project.stop' || command === 'voice.stopListening') {
             app.perform(command);
+        } else if (source === 'conversation') {
+            gate.handsFree(text);
         } else if (source === 'wake') {
             app.announce(app.say(speech.wakeCannotAnswer, {key: TALK_KEYS[app.settings.get().talkKey].name}));
         } else {
             gate.hear(text);
         }
         return 'gate';
+    }
+    // While the student is being guided, "next" and "repeat" are about the guide.
+    if (app.guide()?.hear(text)) {
+        app.assistant()?.dismiss();
+        return 'guide';
     }
     // While the AI helper's reply is open, what is said is about it, apart from stopping the project.
     const assistant = app.assistant();

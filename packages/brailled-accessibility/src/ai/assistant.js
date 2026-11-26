@@ -84,7 +84,7 @@ const createAssistant = ({ports, endpoint, fetch}) => {
         const choices = reply.choices?.length ? ` Choices: ${reply.choices.join(', ')}.` : '';
         ports.remember('assistant', reply.type === 'question' ? `${reply.question}${choices}` : reply.text);
         set({busy: false, reply});
-        ports.speak(wordsOf(reply));
+        ports.present(wordsOf(reply));
     };
 
     // Use a reply, checked against what was sent. Returns why it cannot be used, or null.
@@ -132,7 +132,7 @@ const createAssistant = ({ports, endpoint, fetch}) => {
             return;
         }
         set({busy: true, reply: null});
-        ports.announce(ports.say(aiMessages.asking));
+        ports.announce(ports.say(ports.conversing() ? aiMessages.thinking : aiMessages.asking));
         const controller = new AbortController();
         request = controller;
         const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
