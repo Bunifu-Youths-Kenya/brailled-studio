@@ -60,6 +60,16 @@ const createSettings = storage => {
         // Without a screen reader the editor reads its replies aloud.
         answerScreenReader: usesOne => set({screenReader: usesOne, readAloud: !usesOne}),
         dismissQuestion: () => set({questionDismissed: true}),
+        // Forget every choice, so that the next student starts as on a first visit.
+        reset: () => {
+            try {
+                storage?.removeItem(STORAGE_KEY);
+            } catch {
+                // Blocked storage holds nothing to remove.
+            }
+            state = {...clean(null), questionDismissed: false};
+            listeners.forEach(listener => listener());
+        },
         subscribe: listener => {
             listeners.add(listener);
             return () => listeners.delete(listener);

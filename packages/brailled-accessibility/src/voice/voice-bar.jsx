@@ -99,6 +99,8 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     }));
     const state = useSyncExternalStore(voice.subscribe, voice.getState);
     const talkKey = TALK_KEYS[useSettings(app).talkKey];
+    // Off until the configuration says otherwise. Then there is nothing to hear, set or send.
+    const off = useSyncExternalStore(app.config.subscribe, app.config.get).voice !== true;
 
     useEffect(() => app.register('voice', voice), [app, voice]);
     useEffect(() => {
@@ -198,6 +200,8 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     // While a question is open the bar says how to answer it.
     const barStatus = state.pending && !status ? hint : status;
     const handleSettings = () => app.perform('voice.settings');
+    let buttonText = listening ? voiceMessages.buttonListening : voiceMessages.button;
+    if (off) buttonText = voiceMessages.buttonOff;
     return (
         <div
             aria-label={intl.formatMessage(voiceMessages.region)}
@@ -207,9 +211,10 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
             role="region"
         >
             <button
-                aria-describedby="brailled-voice-privacy"
-                aria-disabled={!voice.isSupported()}
-                aria-keyshortcuts={talkKey.name}
+                aria-describedby={off ? 'brailled-voice-status' : 'brailled-voice-privacy'}
+                aria-disabled={off || !voice.isSupported()}
+                aria-keyshortcuts={off ? null : talkKey.name}
+                data-voice-talk
                 aria-pressed={listening}
                 className={styles.talk}
                 type="button"
@@ -236,7 +241,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
                     />
                     <path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8" />
                 </svg>
-                {intl.formatMessage(listening ? voiceMessages.buttonListening : voiceMessages.button)}
+                {intl.formatMessage(buttonText)}
             </button>
             {/* Focusable so that a long reply can be scrolled with the keyboard. Said by the live region. */}
             <div
@@ -245,37 +250,42 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
                 role="group"
                 tabIndex="0"
             >
-                <p
-                    className={styles.transcript}
-                    data-voice-transcript
-                >
-                    {state.heard ?
-                        intl.formatMessage(voiceMessages.heard, {text: state.heard}) :
-                        intl.formatMessage(voiceMessages.nothingHeard)}
-                </p>
+                {off ? null : (
+                    <p
+                        className={styles.transcript}
+                        data-voice-transcript
+                    >
+                        {state.heard ?
+                            intl.formatMessage(voiceMessages.heard, {text: state.heard}) :
+                            intl.formatMessage(voiceMessages.nothingHeard)}
+                    </p>
+                )}
                 <p
                     className={styles.status}
                     data-voice-status
+                    id="brailled-voice-status"
                 >
                     {barStatus}
                 </p>
             </div>
-            <div className={styles.side}>
-                <button
-                    className={styles.settings}
-                    type="button"
-                    // eslint-disable-next-line react/jsx-no-bind
-                    onClick={handleSettings}
-                >
-                    {intl.formatMessage(voiceMessages.settings)}
-                </button>
-                <p
-                    className={styles.privacy}
-                    id="brailled-voice-privacy"
-                >
-                    {intl.formatMessage(voiceMessages.privacy)}
-                </p>
-            </div>
+            {off ? null : (
+                <div className={styles.side}>
+                    <button
+                        className={styles.settings}
+                        type="button"
+                        // eslint-disable-next-line react/jsx-no-bind
+                        onClick={handleSettings}
+                    >
+                        {intl.formatMessage(voiceMessages.settings)}
+                    </button>
+                    <p
+                        className={styles.privacy}
+                        id="brailled-voice-privacy"
+                    >
+                        {intl.formatMessage(voiceMessages.privacy)}
+                    </p>
+                </div>
+            )}
             {state.pending ? (
                 <Question
                     hint={hint}

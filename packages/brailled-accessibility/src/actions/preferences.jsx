@@ -21,6 +21,7 @@ const appShape = PropTypes.shape({
         answerScreenReader: PropTypes.func.isRequired,
         dismissQuestion: PropTypes.func.isRequired,
         get: PropTypes.func.isRequired,
+        reset: PropTypes.func.isRequired,
         set: PropTypes.func.isRequired,
         subscribe: PropTypes.func.isRequired
     }).isRequired
@@ -97,6 +98,12 @@ const VoiceSettings = ({app, onClose}) => {
         if (readAloud) app.speak(text);
         else app.silence();
     }, [app]);
+    // The first-visit question follows, so this dialog closes first.
+    const handleReset = useCallback(() => {
+        onClose();
+        app.settings.reset();
+        app.announce(app.say(preferenceMessages.wasReset));
+    }, [app, onClose]);
 
     return (
         <Dialog
@@ -189,6 +196,20 @@ const VoiceSettings = ({app, onClose}) => {
             >
                 {intl.formatMessage(preferenceMessages.done)}
             </button>
+            <button
+                aria-describedby="brailled-reset-hint"
+                className={dialogStyles.button}
+                type="button"
+                onClick={handleReset}
+            >
+                {intl.formatMessage(preferenceMessages.reset)}
+            </button>
+            <p
+                className={dialogStyles.count}
+                id="brailled-reset-hint"
+            >
+                {intl.formatMessage(preferenceMessages.resetHint)}
+            </p>
         </Dialog>
     );
 };

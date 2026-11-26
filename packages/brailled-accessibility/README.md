@@ -15,6 +15,7 @@ the editor needs around them.
 | `src/voice/` | The voice bar, the speech-to-text interface and what happens to what was heard |
 | `src/speech/` | Reading replies aloud |
 | `src/settings.js` | The student's choices, kept in the browser |
+| `src/config.js` | What whoever runs the editor allows |
 | `src/use-kept-state.js` | State that survives the editor rebuilding on a language change |
 | `src/outline/` | The Outline view and its editing keys and dialogs |
 | `src/commands/` | The editing command format, validator and executor |
@@ -174,6 +175,13 @@ again next time. It can be changed in Voice settings. Escape also stops what is 
 **Privacy.** The Web Speech API is the browser's service, and Chrome sends the audio to Google's servers. The
 voice bar says so at all times. See [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md), including what a school should
 do before students use voice.
+
+**Reset for new student**, in Voice settings, forgets the talk key, listening time, reading aloud and the screen
+reader answer, and asks the first question again.
+
+**Turning voice off.** `static/brailled-config.json` with `"voice": false`, or a missing or unreadable file,
+turns off the microphone and reading aloud; the bar says so and everything else works. See
+[PRIVACY-NOTES.md](../../PRIVACY-NOTES.md#turning-voice-off).
 
 **Browsers.** Speech recognition is in Chrome, Edge and Safari, and not in Firefox, where the bar says to type
 commands instead. A blocked or missing microphone, silence, no network and an unsupported language each have

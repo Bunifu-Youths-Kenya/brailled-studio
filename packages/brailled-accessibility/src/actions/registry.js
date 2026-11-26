@@ -16,6 +16,7 @@ const withSprite = app => (app.vm.editingTarget ? true : 'needsSprite');
 const inOutline = app => (app.outlineIsShown() && app.outline() ? true : 'needsOutline');
 const whileMoving = app => (inOutline(app) === true && !app.outline().isMoving() ? 'needsMoving' : inOutline(app));
 const withGui = app => (app.gui() ? true : 'notReady');
+const withVoice = app => (app.config.get().voice ? true : 'voiceOff');
 
 const define = (id, options) => {
     const key = id.replace(/\./g, '_');
@@ -66,12 +67,16 @@ const ACTIONS = [
     define('voice.talk', {
         shortcutsFor: app => [TALK_KEYS[app.settings.get().talkKey]],
         available: app => {
+            if (withVoice(app) !== true) return 'voiceOff';
             if (!app.voice()) return 'notReady';
             return app.voice().isSupported() ? true : 'voiceUnsupported';
         },
         run: app => app.voice().toggle()
     }),
-    define('voice.settings', {available: withGui, run: app => app.gui().openSettings()}),
+    define('voice.settings', {
+        available: app => (withVoice(app) === true ? withGui(app) : 'voiceOff'),
+        run: app => app.gui().openSettings()
+    }),
 
     define('view.blocks', {available: withGui, run: app => app.showView(SCRIPTS_VIEWS.blocks)}),
     define('view.outline', {available: withGui, run: app => app.showView(SCRIPTS_VIEWS.outline)}),

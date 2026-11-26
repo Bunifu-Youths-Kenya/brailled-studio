@@ -88,12 +88,13 @@ const check = (name, ok, detail = '') => {
     const browser = await chromium.launch({executablePath});
     const errors = [];
     // Each group of checks starts from a fresh editor, so that one failure cannot cascade into the others.
-    const group = async (title, fn, {init = [], firstVisit = false} = {}) => {
+    const group = async (title, fn, {init = [], firstVisit = false, config = null} = {}) => {
         console.log(`--- ${title}`);
         const page = await browser.newPage({viewport: {width: 1366, height: 768}, acceptDownloads: true});
         page.setDefaultTimeout(15000);
         if (!firstVisit) await page.addInitScript(answered);
         for (const script of [init].flat()) await page.addInitScript(script);
+        if (config) await page.route('**/brailled-config.json', route => route.fulfill(config));
         page.on('pageerror', e => errors.push(`${title}: ${e.message}`));
         page.on('console', m => {
             const text = m.text();
@@ -1006,6 +1007,17 @@ const check = (name, ok, detail = '') => {
         });
         await typed(t, 'go to menu');
         check('off again, nothing is read', await spoken(page) === '', await spoken(page));
+
+        await bar.getByRole('button', {name: 'Voice settings'}).click();
+        await pause();
+        await dialog.getByRole('button', {name: 'Reset for new student'}).click();
+        await pause(900);
+        check('reset closes the settings and asks the first question again',
+            await dialog.count() === 0 && await question(page).isVisible());
+        const after = await stored(page);
+        check('reset removes the saved settings', after === null, JSON.stringify(after));
+        check('and returns the talk key to F2', await talk.getAttribute('aria-keyshortcuts') === 'F2');
+        check('and says so', await t.said() === 'Settings reset for a new student.', await t.said());
     }, {init: [fakeSpeech, fakeVoice]});
 
     await group('voice unavailable', async t => {
@@ -1025,6 +1037,46 @@ const check = (name, ok, detail = '') => {
         await key('Enter', 900);
         check('typed commands still work', await t.said() === 'Menu bar.', await t.said());
     }, {init: noSpeech});
+
+    // The school's switch, as `static/brailled-config.json` would be served.
+    for (const [title, answer, message] of [
+        ['voice turned off', {json: {voice: false}}, /^Voice is turned off for this editor\./],
+        ['configuration missing', {status: 404}, /configuration could not be read/]
+    ]) {
+        await group(title, async t => {
+            const {page, key, pause} = t;
+            const bar = page.locator('[data-brailled-zone="voice"]');
+            const talk = bar.locator('[data-voice-talk]');
+            const status = () => bar.locator('[data-voice-status]').textContent();
+            check('the voice bar says voice is off', message.test(await status()) &&
+                await talk.textContent() === 'Voice is off' && await talk.getAttribute('aria-disabled') === 'true',
+            await status());
+            check('there is no notice, setting or transcript',
+                await bar.getByRole('button').count() === 1 &&
+                await bar.locator('[data-voice-transcript]').count() === 0 && !/Privacy/.test(await bar.textContent()));
+            check('nothing is asked about screen readers', await page.getByRole('dialog').count() === 0);
+            check('axe: voice off', (await t.axe('[data-brailled-zone="voice"]')).length === 0,
+                (await t.axe('[data-brailled-zone="voice"]')).join('; '));
+            await key('F2', 700);
+            check('the talk key says so', message.test(await t.said()), await t.said());
+            await talk.click({force: true});
+            await pause(500);
+            check('the microphone is never opened', await page.evaluate(() => window.speech.requests.length) === 0 &&
+                await bar.getAttribute('data-voice-phase') === 'idle');
+            await typed(t, 'talk');
+            check('"talk" says so too', await t.said() === 'Voice is turned off for this editor.', await t.said());
+            await t.sample();
+            await key('Alt+Shift+KeyO', 900);
+            await t.goTo('move 10 steps');
+            await key('Delete', 900);
+            check('editing and typed commands still work',
+                !(await t.items()).some(item => item.includes('move 10 steps')));
+            await typed(t, 'go to menu');
+            check('typed navigation still works', await t.said() === 'Menu bar.', await t.said());
+            check('nothing is read aloud', await spoken(page) === '');
+            await page.screenshot({path: path.join(out, `${title.replace(/ /g, '-')}.png`)});
+        }, {init: [fakeSpeech, fakeVoice], firstVisit: true, config: answer});
+    }
 
     check('no page, workspace or Brailled errors', errors.length === 0, errors.slice(0, 4).join(' || '));
     console.log(`\n${results.filter(Boolean).length}/${results.length} checks passed; screenshots in ${out}`);

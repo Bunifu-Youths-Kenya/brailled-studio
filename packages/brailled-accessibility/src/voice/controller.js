@@ -38,14 +38,24 @@ const plain = text => text.toLowerCase().replace(/[.,!?;:"]/g, ' ')
  */
 const createVoice = ({app, provider, tone, language, beforeRun = () => {}, threshold = CONFIDENCE_THRESHOLD}) => {
     const listeners = new Set();
+    // Why voice cannot be used, as a message, or null if it can.
+    const problem = () => {
+        const {voice, unreadable} = app.config.get();
+        if (voice === null) return voiceMessages.checking;
+        if (unreadable) return voiceMessages.configUnreadable;
+        if (!voice) return voiceMessages.turnedOff;
+        return provider.isSupported() ? null : voiceMessages.unsupported;
+    };
+    const resting = () => ({message: problem() || voiceMessages.ready});
     let state = {
         phase: 'idle',
         mode: null,
         heard: '',
-        status: {message: provider.isSupported() ? voiceMessages.ready : voiceMessages.unsupported},
+        status: null,
         // `{text}` while waiting for the student to say yes or no.
         pending: null
     };
+    state.status = resting();
     let session = null;
     // Which request to listen is current; reports from earlier ones are ignored.
     let turn = 0;
@@ -185,15 +195,15 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         });
     };
 
-    const unsupported = () => {
-        if (provider.isSupported()) return false;
-        tell(voiceMessages.unsupported);
-        return true;
+    const unusable = () => {
+        const reason = problem();
+        if (reason) tell(reason);
+        return !!reason;
     };
 
     // The key or button went down.
     const press = source => {
-        if (unsupported()) return;
+        if (unusable()) return;
         if (state.phase === 'listening') {
             // A second tap ends listening.
             if (state.mode === 'tap') finish();
@@ -221,7 +231,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
 
     // For input that cannot hold: listen for one phrase, or stop listening.
     const toggle = () => {
-        if (unsupported()) return;
+        if (unusable()) return;
         if (state.phase === 'listening') finish();
         else if (state.phase === 'idle') begin('tap');
     };
@@ -234,9 +244,18 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
     };
 
     // Replies to what was said are shown in the voice bar too.
-    const connect = () => app.subscribe(text => {
-        if (state.phase === 'idle' && !state.pending) set({status: {text}});
-    });
+    const connect = () => {
+        const replies = app.subscribe(text => {
+            if (state.phase === 'idle' && !state.pending) set({status: {text}});
+        });
+        const configured = app.config.subscribe(() => set({status: resting()}));
+        // It may have loaded before there was anyone to tell.
+        set({status: resting()});
+        return () => {
+            replies();
+            configured();
+        };
+    };
 
     return {
         isSupported: () => provider.isSupported(),

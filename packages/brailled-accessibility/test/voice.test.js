@@ -1,7 +1,8 @@
 import {createApp} from '../src/actions/app.js';
 import parseCommand from '../src/actions/parser.js';
 import {findAction} from '../src/actions/registry.js';
-import {createSettings} from '../src/settings.js';
+import {createConfig} from '../src/config.js';
+import {createSettings, STORAGE_KEY} from '../src/settings.js';
 import {createVoice, TAP_MS} from '../src/voice/controller.js';
 import {createWebSpeechProvider, speechLanguage} from '../src/voice/provider.js';
 
@@ -20,11 +21,14 @@ const fakeProvider = (supported = true) => {
     };
 };
 
-const setUp = ({supported = true} = {}) => {
+// A configuration that has already loaded.
+const configured = values => ({get: () => ({voice: true, unreadable: false, ...values}), subscribe: () => () => {}});
+
+const setUp = ({supported = true, config = configured()} = {}) => {
     const vm = {runtime: {threads: []}, editingTarget: null, start: jest.fn(), stopAll: jest.fn()};
     const reader = {speak: jest.fn(() => true), stop: jest.fn(), isAvailable: () => true};
     const settings = createSettings(null);
-    const app = createApp(vm, {settings, reader});
+    const app = createApp(vm, {config, settings, reader});
     const heard = [];
     app.subscribe(text => heard.push(text));
     const provider = fakeProvider(supported);
@@ -369,6 +373,109 @@ describe('reading aloud', () => {
         app.announce('Something happened.');
         wait(1000);
         expect(spoken()).toEqual([]);
+    });
+});
+
+describe('where voice is turned off', () => {
+    test.each([
+        [{voice: false}, /^Voice is turned off for this editor\./],
+        [{voice: false, unreadable: true}, /configuration could not be read/],
+        [{voice: null}, /^Checking whether voice can be used/]
+    ])('with %o the microphone never opens', (values, message) => {
+        const {app, voice, provider, wait, heard, status} = setUp({config: configured(values)});
+        expect(status()).toMatch(message);
+        voice.press('key');
+        voice.release('key');
+        voice.press('button');
+        voice.toggle();
+        app.perform('voice.talk');
+        wait();
+        expect(provider.requests).toHaveLength(0);
+        expect(heard.length).toBeGreaterThan(0);
+    });
+
+    test('nothing is read aloud, and voice actions say why', () => {
+        const {app, settings, reader, wait, heard} = setUp({config: configured({voice: false})});
+        settings.set({readAloud: true});
+        app.perform('voice.settings');
+        wait();
+        expect(heard).toEqual(['Voice is turned off for this editor.']);
+        expect(reader.speak).not.toHaveBeenCalled();
+    });
+
+    test('other actions still work', () => {
+        const {app, vm, wait} = setUp({config: configured({voice: false})});
+        app.perform('project.stop');
+        wait();
+        expect(vm.stopAll).toHaveBeenCalled();
+    });
+
+    test('the bar learns the configuration when it loads', async () => {
+        jest.useRealTimers();
+        const config = createConfig(() => Promise.resolve({voice: true}));
+        const {status} = setUp({config});
+        expect(status()).toMatch(/^Checking/);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(status()).toMatch(/^Hold F2/);
+    });
+});
+
+describe('the configuration', () => {
+    const loaded = async load => {
+        const config = createConfig(load);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        return config.get();
+    };
+
+    beforeEach(() => jest.useRealTimers());
+
+    test.each([
+        [{voice: true}, true], [{voice: false}, false], [{voice: 'true'}, false], [{}, false]
+    ])('%o turns voice on: %s', async (file, voice) => {
+        expect(await loaded(() => Promise.resolve(file))).toEqual({voice, unreadable: false});
+    });
+
+    test.each([
+        ['a missing file', () => Promise.reject(new Error('404'))],
+        ['something else', () => Promise.resolve('voice')],
+        ['a list', () => Promise.resolve([true])]
+    ])('is off for %s', async (_, load) => {
+        expect(await loaded(load)).toEqual({voice: false, unreadable: true});
+    });
+
+    test('is off when there is nothing to load', () => {
+        expect(createConfig().get().voice).toBe(false);
+    });
+});
+
+describe('reset for a new student', () => {
+    test('forgets every choice and the stored copy', () => {
+        const values = {};
+        const storage = {
+            getItem: key => values[key] ?? null,
+            setItem: (key, value) => {
+                values[key] = value;
+            },
+            removeItem: key => delete values[key]
+        };
+        const settings = createSettings(storage);
+        settings.answerScreenReader(false);
+        settings.set({talkKey: 'altShiftV', maxSeconds: 60});
+        const listener = jest.fn();
+        settings.subscribe(listener);
+        settings.reset();
+        expect(values[STORAGE_KEY]).toBeUndefined();
+        expect(settings.get()).toEqual({
+            talkKey: 'f2', maxSeconds: 15, readAloud: false, screenReader: null, questionDismissed: false});
+        expect(listener).toHaveBeenCalled();
+        expect(createSettings(storage).get().screenReader).toBeNull();
+    });
+
+    test('asks again even if the question was put off', () => {
+        const settings = createSettings(null);
+        settings.dismissQuestion();
+        settings.reset();
+        expect(settings.get().questionDismissed).toBe(false);
     });
 });
 

@@ -2,6 +2,7 @@
 import {createIntl} from 'react-intl';
 
 import {getEditor} from '../commands/editor.js';
+import {createConfig, fetchConfig} from '../config.js';
 import {createSettings, storageOf} from '../settings.js';
 import {createReader} from '../speech/read-aloud.js';
 import {SCRIPTS_VIEWS} from '../views.js';
@@ -52,6 +53,7 @@ const focusWhenReady = (find, done = () => {}) => {
 };
 
 const createApp = (vm, {
+    config = createConfig(),
     settings = createSettings(storageOf(globalThis)),
     reader = createReader(globalThis)
 } = {}) => {
@@ -66,12 +68,13 @@ const createApp = (vm, {
     const app = {
         vm,
         editor: getEditor(vm),
+        config,
         settings,
 
         // Read text aloud, if that is wanted and the microphone would not hear it.
         speak: text => {
             const listening = !!parts.get('voice') && parts.get('voice').getState().phase !== 'idle';
-            if (settings.get().readAloud && !listening) reader.speak(text, intl.locale);
+            if (config.get().voice && settings.get().readAloud && !listening) reader.speak(text, intl.locale);
         },
         silence: () => reader.stop(),
         canReadAloud: () => reader.isAvailable(intl.locale),
@@ -161,7 +164,7 @@ const createApp = (vm, {
             } else if (zone === 'stage') {
                 focusWhenReady(() => zoneElement(document, 'stage'), arrive);
             } else if (zone === 'voice') {
-                focusWhenReady(() => document.querySelector('[data-brailled-zone="voice"] [aria-keyshortcuts]'),
+                focusWhenReady(() => document.querySelector('[data-voice-talk]'),
                     arrive);
             } else {
                 const find = () => document.querySelector(`[data-brailled-stage-tab="${zone}"]`);
@@ -261,7 +264,7 @@ const apps = new WeakMap();
 
 // The one app of a virtual machine.
 const getApp = vm => {
-    if (!apps.has(vm)) apps.set(vm, createApp(vm));
+    if (!apps.has(vm)) apps.set(vm, createApp(vm, {config: createConfig(fetchConfig(globalThis))}));
     return apps.get(vm);
 };
 

@@ -60,6 +60,7 @@ const speech = fromTexts('brailled.speech', 'Spoken answer in the editor', {
     needsSprite: 'No sprite is selected.',
     notReady: 'That part of the editor is not available right now.',
     voiceUnsupported: 'This browser cannot turn speech into text.',
+    voiceOff: 'Voice is turned off for this editor.',
     closeDialog: 'Close the open window first.',
     noAssistant: 'That is not a command I know, and the AI helper is not available yet. Try "what can I do here".',
     atVoice: 'Voice bar.',

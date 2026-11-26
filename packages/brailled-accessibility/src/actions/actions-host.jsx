@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState, useSyncExternalStore} from 'react';
 import {useIntl} from 'react-intl';
 
 import Dialog from '../outline/dialog.jsx';
@@ -101,7 +101,9 @@ const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
     const [commandBoxOpen, setCommandBoxOpen] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const settings = useSettings(app);
-    const asking = settings.screenReader === null && !settings.questionDismissed;
+    const {voice} = useSyncExternalStore(app.config.subscribe, app.config.get);
+    // Reading aloud is part of voice, so there is nothing to ask where voice is off.
+    const asking = voice === true && settings.screenReader === null && !settings.questionDismissed;
     const gui = useRef({});
 
     // Kept current on every render, so that actions see what is shown now.

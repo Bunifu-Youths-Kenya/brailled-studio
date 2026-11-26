@@ -18,14 +18,46 @@ Voice is optional: everything can be done from the keyboard.
 What Google or another provider keeps, for how long and for what purpose is set by that provider. It has not
 been reviewed for Brailled.
 
+## Turning voice off
+
+Whoever runs the editor can turn voice off entirely by editing
+`static/brailled-config.json` where the editor is served (in this repository,
+`packages/scratch-gui/static/brailled-config.json`):
+
+```json
+{
+    "voice": false
+}
+```
+
+The change applies the next time the editor is opened; nothing needs rebuilding.
+
+| With voice off | |
+| - | - |
+| Microphone input | Never opened, by key, button or command |
+| Reading aloud, and the screen reader question | Off |
+| The voice bar | Says "Voice is turned off for this editor", with no talk key or settings |
+| Everything else, including the keyboard, typed commands and screen reader announcements | Works as before |
+
+Voice is on only if the file can be read and says exactly `true`. If it is missing, unreadable or says anything
+else, voice is off and the bar says so. Copy the file with any deployment that should have voice.
+
+**Limits of this switch.**
+
+- It is a setting of the editor, not a security control: someone able to alter what the browser runs could undo
+  it. A server can block the microphone for the whole page with the header `Permissions-Policy: microphone=()`.
+- It covers Brailled's voice features. The editor's own microphone features, the sound recorder and the
+  "loudness" block, and the Text to Speech extension, are not affected. The header above also stops the first
+  two.
+
 ## Notice and consent
 
 **In the editor.** The voice bar always shows: "Privacy: when you use voice, your browser may send the sound of
 your speech to an online service. Chrome sends it to Google." Screen readers read it with the talk button, and
 Voice settings repeat it. The browser also asks before first using the microphone.
 
-**Not in the editor.** Brailled does not ask for, record or enforce consent, and has no switch for a school to
-turn voice off.
+**Not in the editor.** Brailled does not ask for, record or enforce consent. A school that cannot arrange it can
+turn voice off, as above.
 
 **Before students use voice,** whoever offers Brailled to them should:
 
@@ -60,8 +92,12 @@ student wrote, is not sent to an online voice.
 
 Under `brailled.settings` in local storage: the talk key, the longest listening time, whether to read aloud, and
 the answer to "Do you use a screen reader?". The answer can suggest that a student has a disability. It stays in
-that browser and Brailled does not send it. On a shared computer the next person gets the same settings. Clearing
-the site's data removes them.
+that browser and Brailled does not send it.
+
+On a shared computer, **Reset for new student** in Voice settings removes all four and asks the question again.
+Without it the next person gets the same settings. Reset does not close the project, clear what the voice bar
+last showed, or withdraw the browser's microphone permission; reload the page, and change the permission in the
+browser if needed. Clearing the site's data also removes the settings.
 
 ## AI helper
 
