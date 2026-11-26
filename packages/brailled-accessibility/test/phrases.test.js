@@ -30,11 +30,14 @@ const wanted = () => {
     })));
     const messages = [
         ...['sayAgain', 'tooLate', 'tooLong', 'couldNot', 'noPrivateService', 'onlineUnavailable', 'onlineLimit',
-            'speakerFailed', 'cancelled', 'notDone', 'confirmHint', 'working'].map(key => say(voiceMessages[key])),
-        ...['asking', 'busy', 'failed', 'unreachable', 'dismissed', 'tooMany', 'sayName']
+            'speakerFailed', 'cancelled', 'notDone', 'confirmHint', 'working', 'greeting', 'conversationEnded']
+            .map(key => say(voiceMessages[key])),
+        ...['asking', 'thinking', 'busy', 'failed', 'unreachable', 'dismissed', 'tooMany', 'sayName']
             .map(key => say(aiMessages[key])),
         ...['title', 'howToAnswer', 'howToAnswerMany', 'rejected', 'expired', 'stale', 'sayChange', 'revising',
-            'nothingWaiting', 'warning', 'done'].map(key => say(proposalMessages[key])),
+            'nothingWaiting', 'warning', 'done', 'sayInConversation', 'sayInConversationKey',
+            'sayInConversationNoVoice', 'guideStart', 'guideWellDone', 'guideFinished', 'guideStopped']
+            .map(key => say(proposalMessages[key])),
         say(...timeLimit(120))
     ];
     return Array.from(new Set([...introductions, ...messages].flatMap(sentences))).sort();

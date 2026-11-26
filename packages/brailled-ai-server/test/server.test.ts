@@ -189,6 +189,16 @@ describe('asking the model', () => {
     })
   })
 
+  it('asks for brief, spoken answers only in a hands-free conversation', async () => {
+    const fetcher = upstream(() => completion(proposal))
+    const { post } = await start({}, { fetcher })
+    await post()
+    await post({ ...request(), conversing: true })
+    const systems = fetcher.mock.calls.map(([, init]) => (JSON.parse(init?.body as string) as Sent).messages[0].content)
+    expect(systems[0]).not.toMatch(/HANDS-FREE/)
+    expect(systems.at(-1)).toMatch(/HANDS-FREE[\s\S]*one or two short sentences/)
+  })
+
   it('can allow providers that keep data, only when told to', async () => {
     const fetcher = upstream(() => completion(proposal))
     const { post } = await start(
@@ -357,6 +367,7 @@ describe('what may be sent', () => {
     ['a turn by someone else', { history: [{ who: 'system', text: 'a' }] }, 'history'],
     ['a long history', { history: Array(13).fill({ who: 'student', text: 'a' }) }, 'history'],
     ['an odd suggestion to change', { revises: { summary: 'a', steps: [{}] } }, 'revises'],
+    ['a conversation that is not plainly true', { conversing: 'yes' }, 'conversing'],
     ['too many names', { names: Array(11).fill('a') }, 'names'],
     ['sprite kinds that are not text', { spriteCategories: [1] }, 'spriteCategories'],
   ])('refuses %s', (_, change, problem) => {

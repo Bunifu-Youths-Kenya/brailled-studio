@@ -32,9 +32,10 @@ const PROBLEMS = {
  * @param {Function} options.engineFor Given an engine's name from the configuration, makes it (see `engine.js`).
  * @param {function(): string} options.language The language to listen for.
  * @param {Document} options.document To know whether the editor is on screen.
+ * @param {{yourTurn: function(): void}} options.tone Marks when the student may speak again in a conversation.
  * @returns {object} The control. `getState` gives `{on, listening}`.
  */
-const createWakeControl = ({app, engineFor, language, document}) => {
+const createWakeControl = ({app, engineFor, language, document, tone}) => {
     const listeners = new Set();
     const engines = new Map();
     let state = {on: false, listening: false, conversing: false};
@@ -45,6 +46,8 @@ const createWakeControl = ({app, engineFor, language, document}) => {
     let timer = null;
     // The microphone is on its way to the voice controller.
     let handingOver = false;
+    // The assistant has been reading aloud in a conversation, and the student has not yet been told it is their turn.
+    let turnToGive = false;
 
     const set = changes => {
         if (Object.entries(changes).every(([key, value]) => state[key] === value)) return;
@@ -78,6 +81,7 @@ const createWakeControl = ({app, engineFor, language, document}) => {
         clearInterval(timer);
         timer = null;
         release();
+        turnToGive = false;
         set({on: false, conversing: false});
     };
 
@@ -91,11 +95,17 @@ const createWakeControl = ({app, engineFor, language, document}) => {
         set({conversing: false});
     };
 
-    // Something said in a conversation.
+    // Something said in a conversation. The microphone stays open while the assistant reads, so it can hear the
+    // assistant's own words, or a screen reader's, which are never taken for the student's. Anything else stops the
+    // reading: the student is talking over it.
     const followUp = called => {
         activity = Date.now();
         const certain = called.confidence === null || called.confidence >= LEAST_CERTAIN;
-        if (!certain) return;
+        if (!certain || app.echoes(called.request)) return;
+        if (app.reading()) {
+            turnToGive = false;
+            app.silence();
+        }
         if (GOODBYE.includes(plain(called.request))) endConversation();
         else app.voice()?.wake(called);
     };
@@ -144,8 +154,17 @@ const createWakeControl = ({app, engineFor, language, document}) => {
             return;
         }
         const voice = app.voice();
-        const quiet = !!voice && voice.getState().phase === 'idle' && !document.hidden && !app.reading() &&
-            !app.assistant()?.getState().busy;
+        const reading = app.reading();
+        // In a conversation the student may talk over the assistant's reading.
+        const quiet = !!voice && voice.getState().phase === 'idle' && !document.hidden &&
+            (!reading || state.conversing) && !app.assistant()?.getState().busy;
+        if (state.conversing && reading) {
+            activity = Date.now();
+            turnToGive = true;
+        } else if (turnToGive && quiet) {
+            turnToGive = false;
+            tone.yourTurn();
+        }
         if (!quiet) {
             // The time without talk counts from when the assistant has finished.
             activity = Date.now();

@@ -85,6 +85,7 @@ const buildRequest = ({ports, transcript, previous = null, revises = null}) => {
         actions: ports.actions(),
         spriteCategories: ports.spriteCategories()
     };
+    if (ports.conversing()) body.conversing = true;
     if (previous) body.previous = previous;
     if (revises) {
         body.revises = {

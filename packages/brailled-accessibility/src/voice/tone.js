@@ -21,7 +21,9 @@ const createTone = scope => {
     };
     return {
         opened: () => beep(880),
-        closed: () => beep(440)
+        closed: () => beep(440),
+        // In a conversation, after the assistant has finished reading: the student may speak.
+        yourTurn: () => beep(660)
     };
 };
 

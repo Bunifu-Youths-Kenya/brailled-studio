@@ -24,6 +24,15 @@ import {buildSnapshot} from './snapshot.js';
 const BLOCKS_TAB = 0;
 // A closing dialog needs a moment before screen readers hear the live region again.
 const ANNOUNCE_DELAY_MS = 150;
+
+// How long what the editor said may still be heard by the microphone. A screen reader's speech cannot be followed,
+// so it is taken to last as long as a quick reader would take; the editor's own reading is followed while it lasts.
+const SAID_TAIL_MS = 1000;
+const SCREEN_READER_MS_PER_CHARACTER = 30;
+const SAID_KEPT_MS = 60000;
+// The share of heard words that, found in what was just said, make it the editor's own words coming back.
+const ECHO_SHARE = 0.6;
+const wordsIn = text => text.toLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
 // How long a preface waits for a reply before being said on its own.
 const PREFACE_WAIT_MS = 2500;
 
@@ -82,6 +91,14 @@ const createApp = (vm, {
     const listeners = new Set();
     let intl = createIntl({locale: 'en', defaultLocale: 'en', onError: () => {}});
     let announceTimer = null;
+    // What was said lately, so that the microphone does not take it for the student.
+    let said = [];
+    const noteSaid = text => {
+        const now = Date.now();
+        const lasts = settings.get().readAloud ? 0 : text.length * SCREEN_READER_MS_PER_CHARACTER;
+        said = said.filter(item => now - item.at < SAID_KEPT_MS);
+        said.push({words: wordsIn(text), at: now, until: now + SAID_TAIL_MS + lasts});
+    };
     const memory = createMemory();
     // The mode the student chose, or null for the configured one.
     let chosenMode = null;
@@ -158,6 +175,7 @@ const createApp = (vm, {
         // `reply` marks what the assistant says, which the online voice reads where one is chosen. Everything
         // else, such as what an edit did, stays on the device unless the student chooses otherwise.
         speak: (text, {reply = false} = {}) => {
+            noteSaid(text);
             const listening = !!parts.get('voice') && parts.get('voice').getState().phase !== 'idle';
             if (!config.get().voice || !settings.get().readAloud || listening) return;
             if (readsOnline(text, reply)) {
@@ -181,6 +199,16 @@ const createApp = (vm, {
             speaker.stop();
         },
         reading: () => !!reader.speaking?.() || speaker.speaking(),
+        // Whether words the microphone heard are most likely the editor's own, read aloud or by a screen reader.
+        echoes: text => {
+            const heard = wordsIn(text);
+            if (heard.length === 0) return false;
+            const now = Date.now();
+            const reading = app.reading();
+            const recent = new Set(said.filter(item => (reading ? now - item.at < SAID_KEPT_MS : now < item.until))
+                .flatMap(item => item.words));
+            return heard.filter(word => recent.has(word)).length / heard.length >= ECHO_SHARE;
+        },
         takeCacheHits: () => speaker.takeHits?.() ?? 0,
         // Have the online voice ready to say these at once.
         prepareSpeech: texts => {
@@ -238,6 +266,7 @@ const createApp = (vm, {
                 preface = null;
                 clearTimeout(prefaceTimer);
                 app.introduction.heard(full);
+                noteSaid(full);
                 listeners.forEach(listener => listener(full));
                 app.speak(full, options);
             }, ANNOUNCE_DELAY_MS);

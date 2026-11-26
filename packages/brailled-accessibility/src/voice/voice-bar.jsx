@@ -119,6 +119,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
         app,
         engineFor: engine => createEngine(engine, window),
         language: () => speechLanguage(locale.current, window.navigator.language),
+        tone: createTone(window),
         document
     }));
     const waking = useSyncExternalStore(wake.subscribe, wake.getState);

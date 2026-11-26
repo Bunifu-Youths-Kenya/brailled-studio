@@ -43,10 +43,14 @@ const editor = ({school = {}, respond = plan, introduced = true} = {}) => {
     app.register('voice', voice);
     voice.connect();
     if (introduced) app.introduction.ask();
-    const wake = createWakeControl({app, engineFor: () => engine, language: () => 'en', document: {hidden: false}});
+    const tone = {yourTurn: jest.fn()};
+    const wake = createWakeControl({app, engineFor: () => engine, language: () => 'en', document: {hidden: false},
+        tone});
     app.register('wake', wake);
     voice.subscribe(wake.sync);
-    const hear = async (request, {followUp = true, confidence = 0.92} = {}) => {
+    // The student speaks once a screen reader would have finished saying what came before.
+    const hear = async (request, {followUp = true, confidence = 0.92, after = 10000} = {}) => {
+        await settle(after);
         expect(engine.options).not.toBeNull();
         engine.options.onWake({request, confidence, ...(followUp ? {followUp} : {})});
         await settle(1500);
@@ -64,7 +68,7 @@ const editor = ({school = {}, respond = plan, introduced = true} = {}) => {
         await hear('help me make two waits');
         expect(parts.gate.isOpen()).toBe(true);
     };
-    return {...parts, asked, begin, call, engine, hear, microphone, voice, wake};
+    return {...parts, asked, begin, call, engine, hear, microphone, tone, voice, wake};
 };
 
 beforeEach(() => {
@@ -109,7 +113,7 @@ describe('a conversation', () => {
         expect(requests).toHaveLength(0);
         await hear('I am making a game, help me');
         expect(requests).toHaveLength(1);
-        expect(heard.some(line => line.endsWith('Okay.'))).toBe(true);
+        expect(heard.some(line => line.endsWith('Okay, let me look.'))).toBe(true);
     });
 
     test('passes over words it is not sure of', async () => {
@@ -182,6 +186,52 @@ describe('a conversation', () => {
             .toEqual({enabled: false, voiceApproval: false, idleSeconds: 60});
         expect(await read({conversation: {enabled: true, voiceApproval: true, idleSeconds: 10}}))
             .toEqual({enabled: true, voiceApproval: true, idleSeconds: 10});
+    });
+});
+
+describe('taking turns', () => {
+    test('never takes its own words, said by a screen reader, for the student\'s', async () => {
+        const {asked, hear, gate, program} = editor();
+        await asked();
+        // "Say add all, guide me, or no." comes back through the microphone while it is still being said.
+        await hear('add all', {after: 500});
+        expect(gate.isOpen()).toBe(true);
+        expect(program()).not.toContain('repeat 10');
+        // Said by the student once it has been read.
+        await hear('add all');
+        expect(gate.isOpen()).toBe(false);
+    });
+
+    test('the student can talk over the reading, which stops, but its own words do not stop it', async () => {
+        const {begin, hear, reader, requests, settings} = editor();
+        settings.set({readAloud: true});
+        await begin();
+        reader.speaking = () => true;
+        reader.stop.mockClear();
+        await hear('Hey! I am listening.', {after: 0});
+        expect(reader.stop).not.toHaveBeenCalled();
+        await hear('help me make two waits', {after: 0});
+        expect(reader.stop).toHaveBeenCalled();
+        expect(requests.at(-1).body.transcript).toBe('help me make two waits');
+    });
+
+    test('a sound says when it is the student\'s turn, once the reading ends', async () => {
+        const {begin, reader, settings, settle, tone} = editor();
+        settings.set({readAloud: true});
+        await begin();
+        reader.speaking = () => true;
+        await settle(1000);
+        expect(tone.yourTurn).not.toHaveBeenCalled();
+        reader.speaking = () => false;
+        await settle(1000);
+        expect(tone.yourTurn).toHaveBeenCalledTimes(1);
+    });
+
+    test('the AI is told it is a conversation, to answer briefly', async () => {
+        const {begin, hear, requests} = editor();
+        await begin();
+        await hear('help me make two waits');
+        expect(requests.at(-1).body.conversing).toBe(true);
     });
 });
 

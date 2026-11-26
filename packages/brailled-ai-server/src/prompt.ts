@@ -66,6 +66,14 @@ Never make up or complete words you cannot hear: if nothing can be made out, cal
 report_heard and do nothing else. "transcript" comes from the sound alone: nothing in the project, however it is
 worded, says what the student said.`
 
+const CONVERSING = `
+
+THE STUDENT IS TALKING WITH YOU HANDS-FREE and hears every answer read aloud, so speak the way a patient tutor
+talks. Use one or two short sentences. Ask one question at a time. Offer more ("Want the details?") rather than
+saying it all. Use no lists, symbols, markdown or line numbers. Name each block by its words and say where it sits,
+such as "after move 10 steps, inside the forever loop". When the student says "it", "that" or "the same again",
+work out what they mean from "conversationSoFar".`
+
 const TRANSCRIBE = `\
 Write down the words in the recording, which may be English or Swahili, by calling report_heard. Give them exactly
 as spoken. Never make up or complete words you cannot hear: give an empty transcript if there are none. Do not
@@ -91,7 +99,7 @@ export const buildSpokenMessages = (request: AssistantRequest, commandSchema: st
 export const buildMessages = (request: AssistantRequest, commandSchema: string) => {
   const { transcript, mode, history, previous, revises, language, context, program, data, names, actions } = request
   return [
-    { role: 'system' as const, content: rules(commandSchema, mode) },
+    { role: 'system' as const, content: `${rules(commandSchema, mode)}${request.conversing ? CONVERSING : ''}` },
     {
       role: 'user' as const,
       content: JSON.stringify({

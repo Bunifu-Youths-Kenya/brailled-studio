@@ -4,6 +4,11 @@
  "version": 1,
  "phrases": [
   {
+   "key": "e7140fa112ea3d4f",
+   "file": "e7140fa112ea3d4f.wav",
+   "text": "Add each block any way you like, and I will notice."
+  },
+  {
    "key": "1725504d7ebcf2aa",
    "file": "1725504d7ebcf2aa.wav",
    "text": "Approve it?"
@@ -44,6 +49,11 @@
    "text": "Hello."
   },
   {
+   "key": "e07d734675ee6170",
+   "file": "e07d734675ee6170.wav",
+   "text": "Hey!"
+  },
+  {
    "key": "026a4a0252776bd2",
    "file": "026a4a0252776bd2.wav",
    "text": "Hold F2 to talk to me."
@@ -79,9 +89,24 @@
    "text": "I did not catch that."
   },
   {
+   "key": "c1b540b077e9aa78",
+   "file": "c1b540b077e9aa78.wav",
+   "text": "I have stopped guiding."
+  },
+  {
    "key": "6df8cf484f43cb93",
    "file": "6df8cf484f43cb93.wav",
    "text": "If there is no answer in 2 minutes, it is cancelled."
+  },
+  {
+   "key": "5428b2b41e92cd19",
+   "file": "5428b2b41e92cd19.wav",
+   "text": "I’m listening."
+  },
+  {
+   "key": "9a7709a340dec534",
+   "file": "9a7709a340dec534.wav",
+   "text": "Let us do it together."
   },
   {
    "key": "6d6b67b72e39b12e",
@@ -124,6 +149,21 @@
    "text": "Nothing was done."
   },
   {
+   "key": "67cebc711d4e3d2b",
+   "file": "67cebc711d4e3d2b.wav",
+   "text": "Okay, let me look."
+  },
+  {
+   "key": "a9e7c5a340f80237",
+   "file": "a9e7c5a340f80237.wav",
+   "text": "Okay."
+  },
+  {
+   "key": "8c88d1ac7d968a47",
+   "file": "8c88d1ac7d968a47.wav",
+   "text": "Or say guide me, or no."
+  },
+  {
    "key": "9d020fedd4d5746d",
    "file": "9d020fedd4d5746d.wav",
    "text": "Please say it again."
@@ -139,6 +179,21 @@
    "text": "Say a name or a number from the list, or say more."
   },
   {
+   "key": "01007c364f465e46",
+   "file": "01007c364f465e46.wav",
+   "text": "Say add all, guide me, or no."
+  },
+  {
+   "key": "29c6a298c4fdd2b0",
+   "file": "29c6a298c4fdd2b0.wav",
+   "text": "Say guide me, or no."
+  },
+  {
+   "key": "7f1d917b2b8a3589",
+   "file": "7f1d917b2b8a3589.wav",
+   "text": "Say hey, then Mboni, when you need me."
+  },
+  {
    "key": "e55443725aaeaa4a",
    "file": "e55443725aaeaa4a.wav",
    "text": "Say it in fewer words."
@@ -147,6 +202,11 @@
    "key": "2437b758c9d12a7c",
    "file": "2437b758c9d12a7c.wav",
    "text": "Say or type what to change."
+  },
+  {
+   "key": "fc666f31d971fa62",
+   "file": "fc666f31d971fa62.wav",
+   "text": "Say run to try it."
   },
   {
    "key": "5c1da953f7a8abc2",
@@ -177,6 +237,11 @@
    "key": "4c13685494204938",
    "file": "4c13685494204938.wav",
    "text": "That came too late for what was asked, or the question changed."
+  },
+  {
+   "key": "d7352ee06acf4703",
+   "file": "d7352ee06acf4703.wav",
+   "text": "That is all the steps."
   },
   {
    "key": "f74cb25314f9fd75",
@@ -219,6 +284,11 @@
    "text": "There is no suggestion waiting for an answer."
   },
   {
+   "key": "4e7675501b420571",
+   "file": "4e7675501b420571.wav",
+   "text": "To approve, hold F2 and say yes."
+  },
+  {
    "key": "f571c2c5a4b1e4ca",
    "file": "f571c2c5a4b1e4ca.wav",
    "text": "Using the browser’s speech service from now on."
@@ -237,6 +307,11 @@
    "key": "38d1748cd98eb14f",
    "file": "38d1748cd98eb14f.wav",
    "text": "Warning:"
+  },
+  {
+   "key": "e36871c0cd1712ef",
+   "file": "e36871c0cd1712ef.wav",
+   "text": "Well done."
   },
   {
    "key": "62f13d0872827688",

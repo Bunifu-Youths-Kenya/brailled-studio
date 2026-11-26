@@ -161,6 +161,7 @@ passed on:
 | `spriteCategories` | Kinds of sprite in the library |
 | `previous` | Optional: the model's question that `transcript` answers |
 | `revises` | Optional: the suggestion that `transcript` asks to change |
+| `conversing` | Optional, only `true`: the student is talking hands-free, so the model is told to answer briefly, as speech |
 
 The model gets `actions` and `spriteCategories` as the editor's own words, `history` as a record, and `context`,
 `program`, `data` and `names` under `untrustedProjectContent`, which its instructions tell it never to obey.

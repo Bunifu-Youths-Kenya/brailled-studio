@@ -1967,13 +1967,17 @@ const startAiServer = async (env = {}) => {
         const dialog = page.locator('dialog');
         const status = () => bar.locator('[data-voice-status]').textContent();
         const sign = () => bar.locator('[data-voice-wake]').textContent();
-        // Say something, once the editor is listening again.
+        // Say something, once the editor is listening and Mboni has finished speaking, as a student taking turns
+        // would. Mboni goes on listening while she speaks, so words said sooner would talk over her.
+        const quiet = () => page.waitForFunction(() => {
+            const recognition = window.speech.requests.at(-1);
+            return recognition?.continuous && !recognition.interimResults && !recognition.aborted &&
+                !window.brailledApp.reading();
+        }, null, {timeout: 20000});
         const hear = async text => {
-            await page.waitForFunction(() => {
-                const recognition = window.speech.requests.at(-1);
-                return recognition?.continuous && !recognition.interimResults && !recognition.aborted;
-            }, null, {timeout: 20000});
-            await pause(300);
+            await quiet();
+            await pause(600);
+            await quiet();
             await page.evaluate(words => window.speech.requests.at(-1).hear(words), text);
             await pause(2000);
         };
@@ -1988,8 +1992,10 @@ const startAiServer = async (env = {}) => {
             await status());
         await pause(2000);
         check('the sign says so', /Talking with Mboni/.test(await sign()), await sign());
-        check('the greeting is read by the online voice', ai.model.voiced.some(text => /Hey!/.test(text)) ||
-            ai.model.voiced.some(text => /listening/.test(text)), ai.model.voiced.join(' | '));
+        // The greeting ships as a recording in the online voice, so it is played, not asked for.
+        const hits = () => page.evaluate(() => window.brailledApp.takeCacheHits());
+        check('the greeting is played in the online voice, from its recording', await hits() >= 1 &&
+            !ai.model.voiced.some(text => /Hey!|listening/.test(text)), ai.model.voiced.join(' | '));
         await page.screenshot({path: path.join(out, 'conversation.png')});
 
         await hear('what does this platform do');
@@ -2003,7 +2009,8 @@ const startAiServer = async (env = {}) => {
         await dialog.waitFor({timeout: 10000});
         check('a plan is shown, with "Guide me"', await dialog.getByRole('button', {name: 'Guide me'}).count() === 1);
         await pause(3000);
-        check('and asked in few words', ai.model.voiced.includes('Say add all, guide me, or no.'),
+        check('and asked in few words, ending with a recorded line', await hits() >= 1 &&
+            ai.model.voiced.includes('Two waits.') && !ai.model.voiced.some(text => /no answer in/.test(text)),
             ai.model.voiced.join(' | '));
         await hear('yes');
         check('"yes" alone adds nothing', await dialog.count() === 1 &&

@@ -24,6 +24,8 @@ export interface AssistantRequest {
   spriteCategories: string[]
   previous?: { question: string; choices: string[] }
   revises?: { summary: string; steps: string[] }
+  // The student is talking with the assistant hands-free and hears every answer.
+  conversing?: true
 }
 
 const CONTEXT_KEYS = ['view', 'focus', 'sprite', 'outline', 'moving', 'stageTab', 'device', 'project']
@@ -88,7 +90,7 @@ const turn: Check<Turn> = (value) => {
 // Letters, with spaces, hyphens or apostrophes between them: a name, not a sentence or an instruction.
 const NAME = /^\p{L}(?:[\p{L}\p{M} '’-]{0,28}[\p{L}\p{M}])?$/u
 
-const OPTIONAL = ['previous', 'revises']
+const OPTIONAL = ['previous', 'revises', 'conversing']
 
 const fields: Record<keyof AssistantRequest, Check<unknown>> = {
   transcript: (value) => (typeof value === 'string' && value.trim() ? text(500)(value) : null),
@@ -105,6 +107,7 @@ const fields: Record<keyof AssistantRequest, Check<unknown>> = {
   spriteCategories: list(30, text(40)),
   previous,
   revises,
+  conversing: (value) => (value === true ? true : null),
 }
 
 export interface VoiceTurn {

@@ -43,6 +43,11 @@ describe('what is sent', () => {
         expect(body.actions.map(action => `${action.name} ${action.description}`).join()).not.toMatch(/IGNORE/);
     });
 
+    test('says it is a conversation only in one', () => {
+        const {ports} = setUp();
+        expect(buildRequest({ports, transcript: 'hi'}).body).not.toHaveProperty('conversing');
+    });
+
     test('long names and many variables still fit what the server accepts', () => {
         const {ports, vm, app} = setUp();
         const long = 'very long '.repeat(500);

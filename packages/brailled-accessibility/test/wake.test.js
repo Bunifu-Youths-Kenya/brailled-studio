@@ -244,7 +244,8 @@ const editor = ({school = {wakeWord: allowed}, supported = true, respond, introd
     app.register('voice', voice);
     voice.connect();
     const page = {hidden: false};
-    const wake = createWakeControl({app, engineFor: () => engine, language: () => 'en', document: page});
+    const wake = createWakeControl({app, engineFor: () => engine, language: () => 'en', document: page,
+        tone: {yourTurn: () => {}}});
     app.register('wake', wake);
     voice.subscribe(wake.sync);
     // The wake words, with whatever followed them.

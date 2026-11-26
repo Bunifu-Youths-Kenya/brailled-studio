@@ -344,7 +344,7 @@ the rest of the visit and says so.
 
 ```json
 {
-    "voice": {"enabled": true, "readReplies": "online", "ttsModel": "speechify/simba-3.5", "ttsVoice": "beatrice_32"},
+    "voice": {"enabled": true, "readReplies": "online", "ttsModel": "hexgrad/kokoro-82m", "ttsVoice": "af_heart"},
     "wakeWord": {"enabled": true},
     "conversation": {"enabled": true, "voiceApproval": true, "idleSeconds": 20},
     "ai": true,
@@ -354,8 +354,15 @@ the rest of the visit and says so.
 
 Say "Hey Mboni" once, then talk. She greets you (or introduces herself the first time), and every phrase is for her
 until "goodbye", "thank you" or `idleSeconds` without talk (5 to 60). The browser does the listening; the voice
-bar shows "Talking with Mboni". She does not listen while she speaks or thinks, so she cannot be interrupted by
-voice yet.
+bar shows "Talking with Mboni". She does not listen while she thinks.
+
+- **Taking turns.** She goes on listening while she speaks, so the student can talk over her: her reading stops and
+  what they said is taken. Words that are her own coming back through the microphone, read aloud or by a screen
+  reader, are never taken for the student's: heard while she reads, or while a quick screen reader would still be
+  saying them, words that are mostly hers are dropped. That keeps her "Say add all" from approving anything. When
+  her reading ends, a soft tone says it is the student's turn.
+- **Brief answers.** The request says it is a conversation, and the model is told to answer in one or two spoken
+  sentences, one question at a time, naming blocks by their words and where they sit.
 
 - **A plan.** "I am making a square, help me" gets a suggestion, read as steps, ending "Say add all, guide me, or
   no."
@@ -369,7 +376,8 @@ voice yet.
 - Phrases heard with under 60% certainty are dropped. A command that changes the project asks first, and cannot be
   answered by voice.
 - `readReplies: "online"` reads replies, and in a conversation everything, with `voice.ttsModel` and `ttsVoice`.
-  The greeting and "Okay" are fetched when listening starts, so they play at once.
+  "Okay, let me look.", the greeting, the goodbye and the lines about adding and guiding ship as recordings, so
+  they play at once.
 
 ### Changing the speech service
 
