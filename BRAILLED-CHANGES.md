@@ -35,6 +35,7 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-25 | `packages/scratch-gui/src/components/gui/gui.jsx` | Renders the voice bar below the editor, and gives the editor area a class so that it shares the height. | Voice input. |
 | 2026-11-25 | `AGENTS.md` | Lists the `brailled-accessibility` and `brailled-ai-server` packages. | The guide asks for the layout to stay current. |
 | 2026-11-26 | `packages/scratch-gui/src/components/target-pane/target-pane.jsx` | Passes the stage tabs the sprite library, a way to close it, and the library's random placing of a new sprite. | The AI helper's approved "add a sprite". |
+| 2026-11-26 | `.gitignore` | Ignores every `.env*` file except `.env.example`. | `.env` files hold the AI server's API key. |
 
 ## Files added by Brailled
 

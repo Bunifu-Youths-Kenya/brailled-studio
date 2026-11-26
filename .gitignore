@@ -132,3 +132,7 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Brailled: .env files can hold keys. Ignore every one, wherever it is, except the example.
+.env*
+!.env.example
