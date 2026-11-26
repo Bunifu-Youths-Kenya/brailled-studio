@@ -44,13 +44,18 @@ const editor = ({school = {}, respond = plan, introduced = true} = {}) => {
     voice.connect();
     if (introduced) app.introduction.ask();
     const tone = {yourTurn: jest.fn()};
-    const wake = createWakeControl({app, engineFor: () => engine, language: () => 'en', document: {hidden: false},
-        tone});
+    const wake = createWakeControl({
+        app,
+        engineFor: () => engine,
+        language: () => 'en',
+        document: {hidden: false},
+        tone
+    });
     app.register('wake', wake);
     voice.subscribe(wake.sync);
     // The student speaks once a screen reader would have finished saying what came before.
-    const hear = async (request, {followUp = true, confidence = 0.92, after = 10000} = {}) => {
-        await settle(after);
+    const hear = async (request, {followUp = true, confidence = 0.92, wait = 10000} = {}) => {
+        await settle(wait);
         expect(engine.options).not.toBeNull();
         engine.options.onWake({request, confidence, ...(followUp ? {followUp} : {})});
         await settle(1500);
@@ -194,7 +199,7 @@ describe('taking turns', () => {
         const {asked, hear, gate, program} = editor();
         await asked();
         // "Say add all, guide me, or no." comes back through the microphone while it is still being said.
-        await hear('add all', {after: 500});
+        await hear('add all', {wait: 500});
         expect(gate.isOpen()).toBe(true);
         expect(program()).not.toContain('repeat 10');
         // Said by the student once it has been read.
@@ -208,9 +213,9 @@ describe('taking turns', () => {
         await begin();
         reader.speaking = () => true;
         reader.stop.mockClear();
-        await hear('Hey! I am listening.', {after: 0});
+        await hear('Hey! I am listening.', {wait: 0});
         expect(reader.stop).not.toHaveBeenCalled();
-        await hear('help me make two waits', {after: 0});
+        await hear('help me make two waits', {wait: 0});
         expect(reader.stop).toHaveBeenCalled();
         expect(requests.at(-1).body.transcript).toBe('help me make two waits');
     });
