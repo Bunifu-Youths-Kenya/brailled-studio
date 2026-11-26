@@ -10,7 +10,7 @@ import {asksToAdd, parseAnswer} from './answers.js';
 import {checkSteps} from './check.js';
 import {fingerprint as fingerprintOf} from './fingerprint.js';
 import {createMachine} from './machine.js';
-import proposalMessages, {timeLimit} from './messages.js';
+import proposalMessages from './messages.js';
 import {needsApproval, proposalRisk, stepRisk} from './risk.js';
 
 const CHECK_MS = 1000;
@@ -74,20 +74,26 @@ const createGate = ({
             {key: talkKey()});
     };
 
-    // The words of what is being asked, for reading aloud. A screen reader reads them from the dialog.
+    // The words of what is being asked, for reading aloud, as one person asks another: no title, no label. The
+    // dialog on screen keeps both, and says how long there is.
     const wordsOf = view => {
-        const list = view.steps.map((step, index) => `${index + 1}. ${step.sentence}${
-            step.risk === 'big' ? `, ${say(proposalMessages.hardToUndo)}` : ''}.`);
+        const many = view.steps.length > 1;
+        const risky = step => (step.risk === 'big' ? `, ${say(proposalMessages.hardToUndo)}` : '');
+        const sentence = step => `${step.sentence}${risky(step)}.`;
+        const list = many ?
+            view.steps.map((step, index) => `${index + 1}. ${sentence(step)}`) :
+            [sentence(view.steps[0])];
+        const summary = view.summary?.trim().replace(/([^.!?])$/, '$1.');
+        let ask = many ? say(proposalMessages.askMany, {count: view.steps.length}) : say(proposalMessages.ask);
+        if (view.mode === 'steps') ask = say(proposalMessages.askStep, view.values);
         return [
-            say(view.title, view.values),
             view.risk === 'big' ? say(proposalMessages.warning) : null,
-            view.summary ? say(proposalMessages.summary, {summary: view.summary}) : null,
-            ...(view.mode === 'steps' ? [`${view.steps[view.index].sentence}.`] : list),
-            ...(app.conversing() ?
-                [howInConversation()] :
-                [say(view.mode === 'steps' || view.steps.length === 1 ?
-                    proposalMessages.howToAnswer :
-                    proposalMessages.howToAnswerMany), say(...timeLimit(view.seconds))])
+            summary || null,
+            ...(view.mode === 'steps' ? [sentence(view.steps[view.index])] : list),
+            ask,
+            app.conversing() ? howInConversation() : say(view.mode === 'steps' || !many ?
+                proposalMessages.howToAnswer :
+                proposalMessages.howToAnswerMany)
         ].filter(Boolean).join(' ');
     };
 

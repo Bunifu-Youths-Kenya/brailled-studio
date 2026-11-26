@@ -32,7 +32,7 @@ const wanted = () => {
         ...['sayAgain', 'tooLate', 'tooLong', 'couldNot', 'noPrivateService', 'onlineUnavailable', 'onlineLimit',
             'speakerFailed', 'cancelled', 'notDone', 'confirmHint', 'working', 'greeting', 'conversationEnded']
             .map(key => say(voiceMessages[key])),
-        ...['asking', 'thinking', 'busy', 'failed', 'unreachable', 'dismissed', 'tooMany', 'sayName']
+        ...['thinking', 'busy', 'failed', 'unreachable', 'dismissed', 'tooMany', 'sayName']
             .map(key => say(aiMessages[key])),
         ...['title', 'howToAnswer', 'howToAnswerMany', 'rejected', 'expired', 'stale', 'sayChange', 'revising',
             'nothingWaiting', 'warning', 'done', 'sayInConversation', 'sayInConversationKey',

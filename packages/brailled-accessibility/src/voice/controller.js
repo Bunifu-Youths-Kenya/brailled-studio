@@ -163,7 +163,6 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
     // `origin` is `voice`, `wake` for words that followed the wake words, or `conversation` for words said after them.
     const deliver = (text, origin) => {
         beforeRun();
-        app.preface(app.say(voiceMessages.heard, {text}));
         routeCommand(app, text, origin);
     };
 
@@ -222,7 +221,6 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
             !['approve', 'all', 'reject'].includes(parseAnswer(text, app.answerWords())?.type);
         if (request) {
             beforeRun();
-            app.preface(app.say(voiceMessages.heard, {text}));
             use();
         } else {
             deliver(text, origin);

@@ -65,11 +65,12 @@ const createAssistant = ({ports, endpoint, fetch}) => {
     };
 
     // The words of a reply, for reading aloud. A screen reader reads them from the dialog.
+    // What is said: the reply alone, as one person talks to another. The panel on screen keeps its title.
     const wordsOf = reply => {
-        if (reply.type === 'explanation') return `${ports.say(aiMessages.explanationTitle)}. ${reply.text}`;
+        if (reply.type === 'explanation') return reply.text;
         const choices = reply.choices.map((choice, index) => `${index + 1}. ${choice}.`);
         const hint = reply.spritesFrom ? [ports.say(aiMessages.sayName)] : [];
-        return [`${ports.say(aiMessages.questionTitle)}.`, reply.question, ...choices, ...hint].join(' ');
+        return [reply.question, ...choices, ...hint].join(' ');
     };
 
     const fail = (message, reason) => {
@@ -132,7 +133,7 @@ const createAssistant = ({ports, endpoint, fetch}) => {
             return;
         }
         set({busy: true, reply: null});
-        ports.announce(ports.say(ports.conversing() ? aiMessages.thinking : aiMessages.asking));
+        ports.announce(ports.say(aiMessages.thinking));
         const controller = new AbortController();
         request = controller;
         const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

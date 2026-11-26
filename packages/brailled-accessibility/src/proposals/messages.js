@@ -8,6 +8,9 @@ const proposalMessages = defineMessages(Object.fromEntries(Object.entries({
     warning: 'Warning: this is hard to undo. Nothing happens unless you say yes.',
     hardToUndo: 'hard to undo',
     summary: '{assistant} says: {summary}',
+    ask: 'Shall I?',
+    askMany: 'Shall I do all {count}?',
+    askStep: 'Step {number} of {count}. Shall I?',
     howToAnswer: 'Say yes or go ahead, say no, or say change it, and what to change.',
     howToAnswerMany: 'Say yes to do all the steps, step by step to approve each one, no, or change it, and what ' +
         'to change.',

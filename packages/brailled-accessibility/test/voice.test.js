@@ -83,13 +83,13 @@ describe('holding to talk', () => {
         expect(voice.getState().phase).toBe('finishing');
     });
 
-    test('a sure command is carried out and echoed with the reply', () => {
+    test('a sure command is carried out, and only its result is said', () => {
         const {vm, say, heard, status, beforeRun, voice} = setUp();
         say('Stop.');
         expect(beforeRun).toHaveBeenCalled();
         expect(vm.stopAll).toHaveBeenCalled();
-        expect(heard).toEqual(['I heard: Stop. Project stopped.']);
-        expect(status()).toBe('I heard: Stop. Project stopped.');
+        expect(heard).toEqual(['Project stopped.']);
+        expect(status()).toBe('Project stopped.');
         expect(voice.getState()).toMatchObject({phase: 'idle', heard: 'Stop', pending: null});
     });
 
@@ -105,7 +105,7 @@ describe('holding to talk', () => {
         const {vm, say, heard} = setUp();
         say('draw me a house');
         expect(heard).toEqual([expect.stringMatching(
-            /^I heard: draw me a house\. That is not a command I know, and Mboni is not connected here/)]);
+            /^That is not a command I know, and Mboni is not connected here/)]);
         expect(vm.start).not.toHaveBeenCalled();
         expect(vm.stopAll).not.toHaveBeenCalled();
     });
@@ -234,7 +234,7 @@ describe('doubtful words', () => {
         voice.confirm();
         wait();
         expect(vm.stopAll).toHaveBeenCalled();
-        expect(heard).toEqual(['I heard: stop. Project stopped.']);
+        expect(heard).toEqual(['Project stopped.']);
     });
 
     test('no does nothing', () => {
@@ -368,7 +368,7 @@ describe('reading aloud', () => {
         const {say, settings, spoken} = setUp();
         settings.answerScreenReader(false);
         say('stop');
-        expect(spoken()).toEqual(['I heard: stop. Project stopped.']);
+        expect(spoken()).toEqual(['Project stopped.']);
     });
 
     test('reads the question about doubtful words, and its answers', () => {

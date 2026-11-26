@@ -358,7 +358,7 @@ describe('listening for the wake words', () => {
         const {call, heard, engine, provider, vm} = await on();
         await call('stop');
         expect(vm.stopAll).toHaveBeenCalled();
-        expect(heard.join(' ')).toMatch(/I heard: stop\. /);
+        expect(heard.join(' ')).toMatch(/Project stopped\./);
         expect(provider.listen).not.toHaveBeenCalled();
         expect(engine.running).toBe(true);
     });

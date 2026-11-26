@@ -85,9 +85,9 @@ describe('the assistant\'s name', () => {
     test('is used in what the editor says', async () => {
         const {app, heard, settle} = setUpAi({school: {assistantName: 'Zuri'},
             respond: () => answer({type: 'explanation', text: 'Hello.'})});
-        routeCommand(app, 'what is a loop', 'voice');
+        routeCommand(app, 'who are you', 'voice');
         await settle();
-        expect(heard).toContain('Asking Zuri.');
+        expect(heard.join(' ')).toMatch(/I am Zuri/);
     });
 
     test('is sent to the server, and the student\'s name never is', async () => {

@@ -5,6 +5,7 @@ import {parseAnswer} from '../src/proposals/answers.js';
 import {checkSteps} from '../src/proposals/check.js';
 import {SETTLE_MS} from '../src/proposals/gate.js';
 import {createMachine, FINISHED} from '../src/proposals/machine.js';
+import {timeLimit} from '../src/proposals/messages.js';
 import {needsApproval, proposalRisk, SAFE_ACTIONS, stepRisk, undoable} from '../src/proposals/risk.js';
 import {stepRef} from '../src/proposals/steps.js';
 import {setUp} from './proposal-setup.js';
@@ -291,10 +292,9 @@ describe('the approval gate', () => {
     test('beside the editor, a suggestion is said through the live region, for a screen reader too', async () => {
         const {gate, heard} = await proposed();
         expect(gate.getState().proposal.docked).toBe(true);
-        expect(heard.at(-1)).toBe('Mboni suggests a change. Approve it? Mboni says: A change. ' +
-            '1. Add wait 5 seconds, after move 10 steps. ' +
-            'Say yes or go ahead, say no, or say change it, and what to change. ' +
-            'If there is no answer in 2 minutes, it is cancelled.');
+        // Said as one person asks another, with no title or label.
+        expect(heard.at(-1)).toBe('A change. Add wait 5 seconds, after move 10 steps. Shall I? ' +
+            'Say yes or go ahead, say no, or say change it, and what to change.');
     });
 
     test('what is hard to undo still stops the student in a window', async () => {
@@ -321,10 +321,8 @@ describe('the approval gate', () => {
         context.gate.take({summary: 'Wait a bit.', steps: [wait]});
         await context.settle();
         expect(context.reader.speak.mock.calls.at(-1)[0]).toBe(
-            'Mboni suggests a change. Approve it? Mboni says: Wait a bit. ' +
-            '1. Add wait 5 seconds, after move 10 steps. ' +
-            'Say yes or go ahead, say no, or say change it, and what to change. ' +
-            'If there is no answer in 2 minutes, it is cancelled.');
+            'Wait a bit. Add wait 5 seconds, after move 10 steps. Shall I? ' +
+            'Say yes or go ahead, say no, or say change it, and what to change.');
     });
 
     test.each(['yes', 'Go ahead.'])('"%s" approves: it is done, read back and can be undone', async words => {
@@ -669,14 +667,16 @@ describe('the approval gate', () => {
     });
 
     test.each([[30, '30 seconds'], [300, '5 minutes'], [60, '1 minute'], [90, '90 seconds']])(
-        'waits the %i seconds the configuration gives, and says so', async (seconds, words) => {
+        'waits the %i seconds the configuration gives, and shows it', async (seconds, words) => {
             const context = setUp({school: {proposalExpirySeconds: seconds}});
             context.settings.set({readAloud: true});
             context.gate.take({steps: [wait]});
             await context.settle();
             expect(context.gate.getState().proposal.seconds).toBe(seconds);
-            expect(context.reader.speak.mock.calls.at(-1)[0])
-                .toContain(`If there is no answer in ${words}, it is cancelled.`);
+            // The dialog shows the time; it is not said, so that the question stays short.
+            expect(context.reader.speak.mock.calls.at(-1)[0]).not.toContain('If there is no answer');
+            expect(context.app.say(...timeLimit(seconds)))
+                .toBe(`If there is no answer in ${words}, it is cancelled.`);
             await context.settle((seconds * 1000) - 5000);
             expect(context.gate.getState().status).toBe('proposed');
             await context.settle(6000);
