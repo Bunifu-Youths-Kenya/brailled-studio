@@ -38,6 +38,8 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-26 | `.gitignore` | Ignores every `.env*` file except `.env.example`. | `.env` files hold the AI server's API key. |
 | 2026-11-26 | `packages/scratch-gui/static/favicon.ico` | The Scratch icon is replaced by Brailled's braille cell, made from `packages/logos/fav.png` on a white tile. | The product must not ship the Scratch logo. |
 | 2026-11-26 | `packages/scratch-gui/webpack.config.js` | Page titles say "Brailled" instead of "Scratch". | The product must not ship the Scratch name. |
+| 2026-11-26 | `packages/scratch-gui/src/lib/titled-hoc.jsx` | A new project is named "Brailled Project", under a message id of its own. | The product must not ship the Scratch name; Scratch's translations of the old id would bring it back. |
+| 2026-11-26 | `packages/scratch-gui/test/integration/menu-bar.test.js`, `project-state.test.js` | Expect the new default project name. | Same. |
 
 ## Files added by Brailled
 

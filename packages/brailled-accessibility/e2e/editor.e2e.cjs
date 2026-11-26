@@ -219,6 +219,14 @@ const startAiServer = async (env = {}) => {
         check('stage column is left of the scripts area', aside.right <= main.x + 1);
         const header = await page.$eval('header', h => h.innerText);
         check('menu bar has Save', /Save/.test(header));
+        const projectName = () => page.locator('header input[type="text"]').inputValue();
+        check('a new project is named for Brailled', await projectName() === 'Brailled Project' &&
+            await page.title() === 'Brailled', `${await projectName()} / ${await page.title()}`);
+        await page.locator('header select').selectOption('es');
+        await page.waitForTimeout(2500);
+        check('in other languages too', await projectName() === 'Brailled Project', await projectName());
+        await page.locator('header select').selectOption('en');
+        await page.waitForTimeout(2500);
         const logo = page.locator('header').getByRole('img', {name: 'Brailled Education'});
         for (const width of [1366, 1024]) {
             await page.setViewportSize({width, height: 768});

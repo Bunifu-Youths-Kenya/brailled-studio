@@ -12,9 +12,10 @@ import {setProjectTitle} from '../reducers/project-title';
 
 const messages = defineMessages({
     defaultProjectTitle: {
-        id: 'gui.gui.defaultProjectTitle',
+        // An id of its own, so that Scratch's translations of the old name are not used.
+        id: 'brailled.gui.defaultProjectTitle',
         description: 'Default title for project',
-        defaultMessage: 'Scratch Project'
+        defaultMessage: 'Brailled Project'
     }
 });
 
