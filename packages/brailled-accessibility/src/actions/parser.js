@@ -28,6 +28,7 @@ const PLACES = {
     'go.background': ['background', 'backgrounds', 'backdrop', 'backdrops'],
     'go.palette': ['palette', 'block palette', 'blocks palette', 'categories', 'block categories'],
     'go.scripts': ['scripts', 'script area', 'scripts area', 'code', 'editor', 'workspace'],
+    'go.voice': ['voice', 'voice bar', 'microphone'],
     'view.blocks': ['blocks', 'blocks view'],
     'view.outline': ['outline', 'outline view'],
     'view.python': ['python', 'python view']

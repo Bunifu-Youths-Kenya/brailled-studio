@@ -12,6 +12,7 @@ the editor needs around them.
 | `src/scripts-views.jsx` | Blocks / Outline / Python toggle |
 | `src/palette-area.jsx` | Search placeholder and the block category landmark |
 | `src/actions/` | The action registry, local commands, context snapshot and editor-wide live region |
+| `src/voice/` | The voice bar, the speech-to-text interface and what happens to what was heard |
 | `src/use-kept-state.js` | State that survives the editor rebuilding on a language change |
 | `src/outline/` | The Outline view and its editing keys and dialogs |
 | `src/commands/` | The editing command format, validator and executor |
@@ -94,9 +95,11 @@ off the device.
 | `edit.insert`, `edit.insertBefore`, `edit.delete`, `edit.values`, `edit.move`, `edit.moveBefore`, `edit.moveNewScript`, `edit.cancelMove`, `edit.wrap`, `edit.wrapFollowing`, `edit.createData`, `edit.renameData` | The Outline keys above | The action's name, such as "add block" |
 | `project.run`, `project.stop` | | "run", "stop" |
 | `sprite.library` | | "open sprite library" |
+| `voice.talk`, `go.voice` | Hold F2 | "talk", "go to voice bar" |
 
-- **Typed commands** go in the command box. They are matched against fixed English phrases and the action names
-  in the user's language; anything else is refused with a hint.
+- **Typed commands** go in the command box, and spoken ones come from the voice bar. Both are matched against
+  fixed English phrases and the action names in the user's language. The command box refuses anything else with
+  a hint.
 - **Answers** are spoken through one live region that stays available on every tab.
 - **Next and previous** move through the outline when it is shown, and otherwise through the controls of the
   current part of the editor.
@@ -112,6 +115,52 @@ it into eight or nine short lines for a model to read. In development builds the
 with `snapshotText()`.
 
 It holds sprite names and block text, which students write. Treat it as their data before sending it anywhere.
+
+## Voice input
+
+A bar at the bottom of the editor has the talk button, what was heard in large type, and a status line. Voice is
+optional: everything it does can be done from the keyboard or by typing the command.
+
+| To talk | What happens |
+| - | - |
+| Hold **F2** | The microphone is open while the key is down. On many laptops, hold Fn as well |
+| Hold the button (mouse, touch, or Space or Enter) | The same |
+| Tap the button, or activate it with a screen reader | Listens for one phrase. Tap again to stop sooner |
+| Say or type "talk" | The same as a tap |
+| Escape | Stops listening and does nothing |
+
+F2 was chosen because no use of it was found in the editor, the block library or the paint editor, and
+browsers and screen readers are not expected to take it on its own. It has not been tried with NVDA, JAWS,
+VoiceOver or Orca.
+
+**When the microphone is open.** Only after one of the actions above, for at most 15 seconds, and never by itself.
+It also closes when the window loses focus or the page is hidden. A high tone marks it opening and a low tone
+closing. The voice bar announces nothing while it is open, so that the screen reader is not heard as speech.
+
+**What happens to the words.**
+
+1. If the speech service is less than 70% sure, or gives no measure, a dialog asks "Should I go ahead?". "No" has
+   focus. Answer with a button, or hold F2 and say "yes" or "no". Nothing is done until the answer is yes.
+2. A local command (the typed commands above) runs where focus was, even if you used the button.
+3. Anything else goes to the AI helper. There is none yet, so the answer says so. A helper registers with
+   `getApp(vm).register('assistant', {handle(text, {source})})` and must only propose actions.
+
+Replies are spoken by the screen reader through the live region and shown in the status line. The editor has no
+speaking voice of its own.
+
+**Privacy.** The Web Speech API is the browser's service. Chrome sends the audio to Google's servers, and other
+browsers may send it elsewhere. The voice bar says so before first use. Decide whether that is acceptable for
+your students before offering voice. Brailled adds no storing or sending of its own.
+
+**Browsers.** Speech recognition is in Chrome, Edge and Safari, and not in Firefox, where the bar says to type
+commands instead. A blocked or missing microphone, silence, no network and an unsupported language each have
+their own message. Commands are understood in English phrases and in the action names of the editor's language.
+
+### Changing the speech service
+
+`src/voice/provider.js` describes the interface: `isSupported()` and
+`listen({language, onReady, onHear, onEnd})`, which returns `{stop(), cancel()}`. Return your provider from
+`createSpeechProvider`, or pass `createProvider` to `VoiceBar`.
 
 ## Accessible names
 

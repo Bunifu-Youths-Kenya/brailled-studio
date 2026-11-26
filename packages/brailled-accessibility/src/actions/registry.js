@@ -8,7 +8,7 @@
  */
 import {SCRIPTS_VIEWS} from '../views.js';
 import {descriptions, names, speech} from './messages.js';
-import {altShift, control, plain, shift, VIEW_TOGGLE} from './shortcuts.js';
+import {altShift, control, plain, shift, TALK, VIEW_TOGGLE} from './shortcuts.js';
 import {describeAbilities, describePlace} from './snapshot.js';
 
 const always = () => true;
@@ -61,6 +61,16 @@ const ACTIONS = [
     goTo('go.background', 'background'),
     goTo('go.palette', 'palette'),
     goTo('go.scripts', 'scripts'),
+    goTo('go.voice', 'voice'),
+
+    define('voice.talk', {
+        shortcuts: [TALK],
+        available: app => {
+            if (!app.voice()) return 'notReady';
+            return app.voice().isSupported() ? true : 'voiceUnsupported';
+        },
+        run: app => app.voice().toggle()
+    }),
 
     define('view.blocks', {available: withGui, run: app => app.showView(SCRIPTS_VIEWS.blocks)}),
     define('view.outline', {available: withGui, run: app => app.showView(SCRIPTS_VIEWS.outline)}),

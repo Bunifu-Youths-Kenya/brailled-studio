@@ -77,10 +77,13 @@ const SkipLinks = () => {
 };
 
 const shellClassName = styles.shell;
+// For the area between the menu bar and the voice bar.
+const shellBodyClassName = styles.body;
 
 export {
     SkipLinks,
     SCRIPTS_ZONE_ID,
     STAGE_ZONE_ID,
+    shellBodyClassName,
     shellClassName
 };

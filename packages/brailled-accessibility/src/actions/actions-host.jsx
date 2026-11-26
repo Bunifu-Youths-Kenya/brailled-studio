@@ -5,6 +5,7 @@ import {useIntl} from 'react-intl';
 import Dialog from '../outline/dialog.jsx';
 import {dialogMessages} from '../outline/messages.js';
 import {getApp} from './app.js';
+import {hasOpenDialog} from './dom.js';
 import {speech} from './messages.js';
 import parseCommand from './parser.js';
 import {snapshotToText} from './snapshot.js';
@@ -124,7 +125,7 @@ const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
     useEffect(() => {
         const handleKeyDown = event => {
             // Dialogs keep the keyboard to themselves.
-            if (event.repeat || document.querySelector('.ReactModal__Overlay, dialog[open]')) return;
+            if (event.repeat || hasOpenDialog(document)) return;
             if (app.handleKey(event, 'global')) {
                 event.preventDefault();
                 event.stopPropagation();

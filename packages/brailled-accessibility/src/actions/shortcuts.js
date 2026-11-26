@@ -7,6 +7,7 @@
  * @property {boolean} [ctrl] Needs Control, or Command on a Mac.
  * @property {boolean} [alt] Needs Alt.
  * @property {boolean} [shift] Needs Shift.
+ * @property {boolean} [hold] The key is held down, not just pressed.
  * @property {string} label How it is written and spoken.
  */
 
@@ -16,6 +17,8 @@ const control = (key, label = `Control+${key}`) => ({key, ctrl: true, label});
 const altShift = letter => ({code: `Key${letter}`, alt: true, shift: true, label: `Alt+Shift+${letter}`});
 
 const VIEW_TOGGLE = altShift('O');
+// Held down while speaking.
+const TALK = {key: 'F2', hold: true, label: 'hold F2'};
 
 /**
  * Whether a key press is this shortcut.
@@ -33,6 +36,7 @@ const matches = (shortcut, event) => {
 };
 
 export {
+    TALK,
     VIEW_TOGGLE,
     altShift,
     control,

@@ -11,6 +11,45 @@ const url = process.argv[2] || 'http://localhost:8601/';
 const executablePath = process.env.CHROME_PATH || '/usr/bin/google-chrome';
 const out = fs.mkdtempSync(path.join(os.tmpdir(), 'brailled-e2e-'));
 
+// Stands in for the browser's speech recognition, so that no microphone or online service is needed.
+// `window.speech.say` is what the next request "hears"; `window.speech.error` makes it fail.
+const fakeSpeech = () => {
+    window.speech = {requests: [], say: null, error: null};
+    const result = (transcript, confidence) => ({results: [Object.assign([{transcript, confidence}], {isFinal: true})]});
+    class Recognition {
+        start () {
+            window.speech.requests.push(this);
+            const {error} = window.speech;
+            setTimeout(() => {
+                if (!error) return this.onaudiostart();
+                this.onerror({error});
+                return this.onend();
+            }, 50);
+        }
+        // A finished phrase, while the microphone is still open.
+        phrase () {
+            this.onresult(result(...window.speech.say));
+        }
+        stop () {
+            this.stopped = true;
+            setTimeout(() => {
+                if (window.speech.say) this.phrase();
+                this.onend();
+            }, 50);
+        }
+        abort () {
+            this.aborted = true;
+        }
+    }
+    window.SpeechRecognition = Recognition;
+    window.webkitSpeechRecognition = Recognition;
+};
+
+const noSpeech = () => {
+    delete window.SpeechRecognition;
+    delete window.webkitSpeechRecognition;
+};
+
 const results = [];
 const check = (name, ok, detail = '') => {
     results.push(ok);
@@ -21,10 +60,11 @@ const check = (name, ok, detail = '') => {
     const browser = await chromium.launch({executablePath});
     const errors = [];
     // Each group of checks starts from a fresh editor, so that one failure cannot cascade into the others.
-    const group = async (title, fn) => {
+    const group = async (title, fn, {init} = {}) => {
         console.log(`--- ${title}`);
         const page = await browser.newPage({viewport: {width: 1366, height: 768}, acceptDownloads: true});
         page.setDefaultTimeout(15000);
+        if (init) await page.addInitScript(init);
         page.on('pageerror', e => errors.push(`${title}: ${e.message}`));
         page.on('console', m => {
             const text = m.text();
@@ -88,10 +128,10 @@ const check = (name, ok, detail = '') => {
                 });
                 await pause(900);
             },
-            axe: async () => {
+            axe: async (selector = 'dialog') => {
                 await page.addScriptTag({path: path.join(repo, 'node_modules/axe-core/axe.min.js')});
-                return page.evaluate(async () => (await window.axe.run('dialog')).violations
-                    .map(v => `${v.id}: ${v.nodes.map(n => n.html.slice(0, 120)).join(' ')}`));
+                return page.evaluate(async within => (await window.axe.run(within)).violations
+                    .map(v => `${v.id}: ${v.nodes.map(n => n.html.slice(0, 120)).join(' ')}`), selector);
             }
         };
         try {
@@ -561,6 +601,231 @@ const check = (name, ok, detail = '') => {
         await command('open sprite library');
         check('open sprite library', await page.locator('.ReactModal__Content').count() === 1);
     });
+
+    await group('voice input', async t => {
+        const {page, key, pause} = t;
+        const bar = page.locator('[data-brailled-zone="voice"]');
+        const button = bar.locator('button');
+        const phase = () => bar.getAttribute('data-voice-phase');
+        const status = () => bar.locator('[data-voice-status]').textContent();
+        const transcript = () => bar.locator('[data-voice-transcript]').textContent();
+        const requests = () => page.evaluate(() => window.speech.requests.length);
+        const will = (text, confidence = 0.95) => page.evaluate(say => {
+            Object.assign(window.speech, {say, error: null});
+        }, text === null ? null : [text, confidence]);
+        // Hold F2, "say" the words, let go.
+        const say = async (text, confidence) => {
+            await will(text, confidence);
+            await page.keyboard.down('F2');
+            await pause(600);
+            await page.keyboard.up('F2');
+            await pause(1100);
+            return t.said();
+        };
+        const onItem = async () => (await t.focused()).text;
+        const toItem = async text => {
+            await page.locator('[data-brailled-outline] [tabindex="0"]').focus();
+            await t.goTo(text);
+        };
+
+        const boxes = await page.evaluate(() => ['header', 'main', 'aside', '[data-brailled-zone="voice"]']
+            .map(selector => document.querySelector(selector).getBoundingClientRect().toJSON()));
+        const [, main, aside, voice] = boxes;
+        check('the voice bar is across the bottom, covering nothing', voice.bottom === 768 && voice.width === 1366 &&
+            main.bottom <= voice.top + 0.5 && aside.bottom <= voice.top + 0.5, `${main.bottom} ${voice.top}`);
+        check('it says how to talk, and where sound may go', /Hold F2, or this button.*online service/.test(await status()));
+        check('the microphone is not opened on its own', await requests() === 0 && await phase() === 'idle');
+        check('axe: voice bar', (await t.axe('[data-brailled-zone="voice"]')).length === 0,
+            (await t.axe('[data-brailled-zone="voice"]')).join('; '));
+
+        await t.sample();
+        await key('Alt+Shift+KeyO', 900);
+        await toItem('move 10 steps');
+        await will('Where am I?');
+        await page.keyboard.down('F2');
+        await pause(600);
+        check('holding F2 listens', await phase() === 'listening' &&
+            await button.getAttribute('aria-pressed') === 'true' && /^Listening\. Let go/.test(await status()));
+        await page.keyboard.up('F2');
+        await pause(1100);
+        check('letting go stops listening', await phase() === 'idle' &&
+            await page.evaluate(() => window.speech.requests.at(-1).stopped));
+        check('a spoken command is echoed and answered',
+            /^I heard: Where am I\. You are in the scripts area, on move 10 steps/.test(await t.said()), await t.said());
+        check('what was heard is shown large', await transcript() === 'I heard: Where am I.' &&
+            await bar.locator('[data-voice-transcript]').evaluate(el => parseFloat(getComputedStyle(el).fontSize) >= 24));
+        check('the reply is shown', await status() === await t.said());
+
+        await say('next');
+        check('spoken "next" moves in the outline', await onItem() === 'wait 1 second', await onItem());
+        await toItem('say Hello!');
+        let answer = await say('delete block');
+        check('spoken edit command', answer.startsWith('I heard: delete block. Deleted: say Hello!') &&
+            !(await t.items()).some(item => item.includes('say Hello!')), answer);
+        answer = await say('undo');
+        check('spoken undo', /^I heard: undo\. Undone\./.test(answer) &&
+            (await t.items()).some(item => item.includes('say Hello!')), answer);
+
+        // The button, with a mouse.
+        await toItem('move 10 steps');
+        await will('next');
+        await button.hover();
+        await page.mouse.down();
+        await pause(600);
+        check('holding the button listens', await phase() === 'listening');
+        check('pressing the button leaves focus where it was', await onItem() === 'move 10 steps');
+        await page.mouse.up();
+        await pause(1100);
+        check('letting go of the button runs the command', await onItem() === 'wait 1 second', await onItem());
+
+        await will('next');
+        await button.click();
+        await pause(500);
+        check('a tap listens for one phrase', await phase() === 'listening' && /Speak now/.test(await status()));
+        await page.evaluate(() => window.speech.requests.at(-1).phrase());
+        await pause(1100);
+        check('the phrase ends listening and runs', await phase() === 'idle' && await onItem() === 'say Hello!',
+            await onItem());
+
+        await button.evaluate(el => el.click());
+        await pause(300);
+        check('a click with no press, as screen readers send, listens', await phase() === 'listening');
+        await key('Escape', 500);
+        check('Escape stops listening', await phase() === 'idle' && /Stopped listening/.test(await status()) &&
+            await page.evaluate(() => window.speech.requests.at(-1).aborted));
+
+        // The button, with the keyboard: commands act where focus was before.
+        await toItem('move 10 steps');
+        await button.focus();
+        await will('next');
+        await page.keyboard.down('Space');
+        await pause(600);
+        check('holding Space on the button listens', await phase() === 'listening');
+        await page.keyboard.up('Space');
+        await pause(1100);
+        check('and acts where focus was before', await onItem() === 'wait 1 second' && await phase() === 'idle',
+            `${await onItem()} / ${await t.said()} / ${await page.evaluate(() => document.activeElement.tagName)}`);
+
+        await toItem('say Hello!');
+        await button.focus();
+        await will('delete block');
+        await page.keyboard.down('Space');
+        await pause(600);
+        await page.keyboard.up('Space');
+        await pause(1100);
+        check('after an edit from the button, focus is back in the outline',
+            !(await t.items()).some(item => item.includes('say Hello!')) && await onItem() === 'wait 1 second',
+            `${await onItem()} / ${await t.said()}`);
+        await say('undo');
+
+        const before = await requests();
+        await will('next');
+        await key('F2', 600);
+        check('a short press of F2 explains holding', /Hold F2 down while you speak/.test(await t.said()) &&
+            await requests() === before + 1, await t.said());
+
+        // Doubtful words are confirmed first.
+        await toItem('say Hello!');
+        const program = await t.data();
+        await say('delete block', 0.4);
+        const dialog = page.locator('dialog');
+        check('low confidence asks first', await dialog.count() === 1 &&
+            /I heard: delete block\. I am not sure/.test(await dialog.locator('h2').textContent()));
+        check('"No" has focus', (await t.focused()).text.trim() === 'No', (await t.focused()).text);
+        check('nothing has changed while asking', await t.data() === program);
+        check('axe: voice question', (await t.axe()).length === 0, (await t.axe()).join('; '));
+        await key('Enter', 900);
+        check('"No" does nothing and returns focus', await dialog.count() === 0 && await t.data() === program &&
+            await onItem() === 'say Hello!' && await t.said() === 'Nothing was done.', await t.said());
+        await say('delete block', 0);
+        check('unmeasured confidence asks too', await dialog.count() === 1);
+        await will('maybe', 0.9);
+        await page.keyboard.down('F2');
+        await pause(600);
+        check('nothing in the question is announced while listening',
+            await dialog.locator('[role="status"]').textContent() === '');
+        await page.keyboard.up('F2');
+        await pause(900);
+        await say('maybe', 0.9);
+        check('other words keep the question', await dialog.count() === 1 &&
+            /Say yes or no/.test(await dialog.locator('[role="status"]').textContent()) && await t.data() === program);
+        await say('yes', 0.95);
+        await pause(500);
+        check('a spoken "yes" carries it out', await dialog.count() === 0 &&
+            !(await t.items()).some(item => item.includes('say Hello!')), await t.said());
+        await say('undo', 0.5);
+        await dialog.getByRole('button', {name: 'Yes, go ahead'}).click();
+        await pause(1100);
+        check('the "Yes" button carries it out', (await t.items()).some(item => item.includes('say Hello!')));
+        await say('delete block', 0.5);
+        await key('Escape', 900);
+        check('Escape answers no', await dialog.count() === 0 && await t.data() === program);
+
+        answer = await say('make me a sandwich');
+        check('other words get an answer and change nothing', /not a command I know.*AI helper is not available/
+            .test(answer) && await t.data() === program, answer);
+
+        for (const [error, message] of [
+            ['not-allowed', /The microphone is blocked.*Alt\+Shift\+K/],
+            ['audio-capture', /No microphone was found/],
+            ['no-speech', /I did not hear anything/],
+            ['network', /speech service cannot be reached/]
+        ]) {
+            await page.evaluate(value => {
+                window.speech.error = value;
+            }, error);
+            await page.keyboard.down('F2');
+            await pause(600);
+            await page.keyboard.up('F2');
+            await pause(500);
+            check(`${error} is explained, aloud and on screen`, message.test(await status()) &&
+                message.test(await t.said()) && await phase() === 'idle', await status());
+        }
+        await page.evaluate(() => {
+            window.speech.error = null;
+        });
+
+        const count = await requests();
+        await key('Alt+Shift+KeyK', 500);
+        await key('F2', 400);
+        check('F2 does nothing while another dialog is open', await requests() === count);
+        await t.type('go to voice bar');
+        await key('Enter', 900);
+        check('go to voice bar', await button.evaluate(el => el === document.activeElement) &&
+            await t.said() === 'Voice bar.', await t.said());
+        await key('Alt+Shift+KeyH', 600);
+        check('what can I do here lists talking', /talk \(hold F2\)/.test(await t.said()), await t.said());
+
+        await will(null);
+        await page.keyboard.down('F2');
+        await pause(500);
+        await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+        await pause(500);
+        check('leaving the window stops listening', await phase() === 'idle' &&
+            /left the window/.test(await status()));
+        await page.keyboard.up('F2');
+
+        await toItem('move 10 steps');
+        answer = await say('run');
+        check('spoken "run"', answer === 'I heard: run. Project started.', answer);
+    }, {init: fakeSpeech});
+
+    await group('voice unavailable', async t => {
+        const {page, key} = t;
+        const bar = page.locator('[data-brailled-zone="voice"]');
+        const status = () => bar.locator('[data-voice-status]').textContent();
+        check('an unsupported browser is told at once', /cannot turn speech into text.*Alt\+Shift\+K/
+            .test(await status()) && await bar.locator('button').getAttribute('aria-disabled') === 'true');
+        await key('F2', 700);
+        check('pressing F2 says so aloud', /cannot turn speech into text/.test(await t.said()), await t.said());
+        await bar.locator('button').click({force: true});
+        await t.pause(500);
+        check('pressing the button listens to nothing', await bar.getAttribute('data-voice-phase') === 'idle');
+        await key('Alt+Shift+KeyK', 500);
+        await t.type('go to menu');
+        await key('Enter', 900);
+        check('typed commands still work', await t.said() === 'Menu bar.', await t.said());
+    }, {init: noSpeech});
 
     check('no page, workspace or Brailled errors', errors.length === 0, errors.slice(0, 4).join(' || '));
     console.log(`\n${results.filter(Boolean).length}/${results.length} checks passed; screenshots in ${out}`);

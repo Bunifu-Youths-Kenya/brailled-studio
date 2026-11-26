@@ -2,6 +2,7 @@
 
 const ZONES = [
     ['dialog', 'dialog[open], .ReactModal__Content'],
+    ['voice', '[data-brailled-zone="voice"]'],
     ['palette', '[data-brailled-zone="palette"]'],
     ['menu', 'header'],
     ['stage', 'aside'],
@@ -83,6 +84,9 @@ const zoneOf = element => {
     return found ? found[0] : null;
 };
 
+// Whether a dialog is open, which keeps the keyboard and screen reader to itself.
+const hasOpenDialog = document => !!document?.querySelector('.ReactModal__Overlay, dialog[open]');
+
 const zoneElement = (document, zone) => document.querySelector(ZONES.find(([name]) => name === zone)[1]);
 
 const isShown = element => {
@@ -97,6 +101,7 @@ const focusableWithin = (container, shown = isShown) => Array.from(container.que
 export {
     accessibleName,
     focusableWithin,
+    hasOpenDialog,
     roleOf,
     tidy,
     zoneElement,

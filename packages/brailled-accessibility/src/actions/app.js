@@ -12,6 +12,8 @@ import {buildSnapshot} from './snapshot.js';
 const BLOCKS_TAB = 0;
 // A closing dialog needs a moment before screen readers hear the live region again.
 const ANNOUNCE_DELAY_MS = 150;
+// How long a preface waits for a reply before being said on its own.
+const PREFACE_WAIT_MS = 2500;
 
 const ARRIVALS = {
     menu: speech.atMenu,
@@ -19,6 +21,7 @@ const ARRIVALS = {
     devices: speech.atDevices,
     sprites: speech.atSprites,
     background: speech.atBackground,
+    voice: speech.atVoice,
     palette: speech.atPalette,
     scripts: speech.atScripts
 };
@@ -52,6 +55,8 @@ const createApp = vm => {
     const listeners = new Set();
     let intl = createIntl({locale: 'en', defaultLocale: 'en', onError: () => {}});
     let announceTimer = null;
+    let preface = null;
+    let prefaceTimer = null;
 
     const app = {
         vm,
@@ -73,6 +78,10 @@ const createApp = vm => {
         outline: () => parts.get('outline') || null,
         // `{openLibrary}`
         sprites: () => parts.get('sprites') || null,
+        // The voice controller, see `voice/controller.js`.
+        voice: () => parts.get('voice') || null,
+        // `{handle(text, {source})}`: takes what is not a local command.
+        assistant: () => parts.get('assistant') || null,
 
         subscribe: listener => {
             listeners.add(listener);
@@ -81,7 +90,21 @@ const createApp = vm => {
         // Say something through the live region. A newer message replaces one not yet said.
         announce: text => {
             clearTimeout(announceTimer);
-            announceTimer = setTimeout(() => listeners.forEach(listener => listener(text)), ANNOUNCE_DELAY_MS);
+            announceTimer = setTimeout(() => {
+                const full = preface ? `${preface} ${text}` : text;
+                preface = null;
+                clearTimeout(prefaceTimer);
+                listeners.forEach(listener => listener(full));
+            }, ANNOUNCE_DELAY_MS);
+        },
+        // Say this before the next announcement, or on its own if none follows.
+        preface: text => {
+            preface = text;
+            clearTimeout(prefaceTimer);
+            prefaceTimer = setTimeout(() => {
+                preface = null;
+                app.announce(text);
+            }, PREFACE_WAIT_MS);
         },
 
         outlineIsShown: () => {
@@ -122,6 +145,8 @@ const createApp = vm => {
                 }, arrive);
             } else if (zone === 'stage') {
                 focusWhenReady(() => zoneElement(document, 'stage'), arrive);
+            } else if (zone === 'voice') {
+                focusWhenReady(() => document.querySelector('[data-brailled-zone="voice"] button'), arrive);
             } else {
                 const find = () => document.querySelector(`[data-brailled-stage-tab="${zone}"]`);
                 find()?.click();
@@ -187,8 +212,9 @@ const createApp = vm => {
 
         // Act on a key press if it is a shortcut of this scope.
         handleKey: (event, scope) => {
+            // Keys that are held down are handled where holding is noticed.
             const found = ACTIONS.filter(action => action.scope === scope &&
-                action.shortcuts.some(shortcut => matches(shortcut, event)));
+                action.shortcuts.some(shortcut => !shortcut.hold && matches(shortcut, event)));
             return found.some(action => app.perform(action.id, {fromKey: true}));
         },
 

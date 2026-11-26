@@ -32,6 +32,8 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-25 | `packages/scratch-gui/src/components/library/library.jsx` | The scrolling list is a named group. | Missing accessible name. |
 | 2026-11-25 | `packages/scratch-paint/src/components/mode-tools/mode-tools.jsx` | Brush and eraser size inputs are labelled. | Missing accessible name. |
 | 2026-11-25 | `packages/scratch-paint/src/components/stroke-width-indicator.jsx` | The outline width input is labelled. | Missing accessible name. |
+| 2026-11-25 | `packages/scratch-gui/src/components/gui/gui.jsx` | Renders the voice bar below the editor, and gives the editor area a class so that it shares the height. | Voice input. |
+| 2026-11-25 | `AGENTS.md` | Lists the `brailled-accessibility` package. | The guide asks for the layout to stay current. |
 
 ## Files added by Brailled
 
@@ -119,6 +121,14 @@ These are new files, not edits to Scratch's own.
 | 2026-11-25 | `packages/brailled-accessibility/src/views.js` |
 | 2026-11-25 | `packages/brailled-accessibility/test/actions.test.js` |
 | 2026-11-25 | `packages/brailled-accessibility/test/snapshot.test.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/actions/route.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/voice/controller.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/voice/messages.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/voice/provider.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/voice/tone.js` |
+| 2026-11-25 | `packages/brailled-accessibility/src/voice/voice-bar.css` |
+| 2026-11-25 | `packages/brailled-accessibility/src/voice/voice-bar.jsx` |
+| 2026-11-25 | `packages/brailled-accessibility/test/voice.test.js` |
 | 2026-11-25 | `packages/logos/Braille bot  Bio.svg` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

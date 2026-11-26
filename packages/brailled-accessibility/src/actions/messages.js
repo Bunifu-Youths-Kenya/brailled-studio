@@ -17,6 +17,8 @@ const ACTION_TEXTS = {
     go_background: ['go to background', 'Shows the Background tab.'],
     go_palette: ['go to block palette', 'Moves to the block categories.'],
     go_scripts: ['go to scripts', 'Moves to the scripts area.'],
+    go_voice: ['go to voice bar', 'Moves to the microphone button.'],
+    voice_talk: ['talk', 'Listens for one spoken command.'],
     view_blocks: ['show blocks', 'Shows the scripts as blocks.'],
     view_outline: ['show outline', 'Shows the scripts as an outline.'],
     view_python: ['show Python', 'Shows the scripts as Python code.'],
@@ -56,6 +58,10 @@ const speech = fromTexts('brailled.speech', 'Spoken answer in the editor', {
     pythonSoon: 'The Python view is coming soon.',
     needsSprite: 'No sprite is selected.',
     notReady: 'That part of the editor is not available right now.',
+    voiceUnsupported: 'This browser cannot turn speech into text.',
+    closeDialog: 'Close the open window first.',
+    noAssistant: 'That is not a command I know, and the AI helper is not available yet. Try "what can I do here".',
+    atVoice: 'Voice bar.',
     paletteMissing: 'The block palette is not available.',
     atMenu: 'Menu bar.',
     atStage: 'Stage area.',
@@ -101,6 +107,7 @@ const zoneNames = fromTexts('brailled.zone', 'Name of a part of the editor', {
     menu: 'menu bar',
     stage: 'stage area',
     palette: 'block palette',
+    voice: 'voice bar',
     scripts: 'scripts area',
     dialog: 'dialog'
 });

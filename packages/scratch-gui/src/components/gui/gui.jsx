@@ -31,6 +31,8 @@ import {
     ScriptsViewToggle,
     ScriptsViews,
     SkipLinks,
+    VoiceBar,
+    shellBodyClassName,
     shellClassName,
     useKeptState
 } from '../../../../brailled-accessibility/src/index.js';
@@ -403,7 +405,7 @@ const GUIComponent = props => {
                         />
                     </MenuRefProvider>
                     }
-                    <Box className={classNames(boxStyles, styles.flexWrapper)}>
+                    <Box className={classNames(boxStyles, styles.flexWrapper, shellBodyClassName)}>
                         <Box
                             role="complementary"
                             id={STAGE_ZONE_ID}
@@ -625,6 +627,7 @@ const GUIComponent = props => {
                             ) : null}
                         </Box>
                     </Box>
+                    <VoiceBar vm={vm} />
                     <DragLayer />
                 </Box>
             </ModalFocusProvider>

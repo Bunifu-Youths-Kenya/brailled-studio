@@ -1,4 +1,4 @@
-export {SkipLinks, SCRIPTS_ZONE_ID, STAGE_ZONE_ID, shellClassName} from './shell.jsx';
+export {SkipLinks, SCRIPTS_ZONE_ID, STAGE_ZONE_ID, shellBodyClassName, shellClassName} from './shell.jsx';
 export {BrandName, LanguageControl, SaveButton, HelpAndExamples} from './menu-bar-items.jsx';
 export {default as StageTabs} from './stage-tabs.jsx';
 export {default as DevicesPanel} from './devices-panel.jsx';
@@ -7,6 +7,7 @@ export {default as PaletteArea} from './palette-area.jsx';
 export {default as OutlineView} from './outline/outline-view.jsx';
 export {default as BrailledActions} from './actions/actions-host.jsx';
 export {getApp} from './actions/app.js';
+export {default as VoiceBar} from './voice/voice-bar.jsx';
 export {default as useKeptState} from './use-kept-state.js';
 export {createEditor, getEditor} from './commands/editor.js';
 export {default as commandSchema} from './commands/schema.json';

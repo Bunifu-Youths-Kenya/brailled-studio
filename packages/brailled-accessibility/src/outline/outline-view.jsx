@@ -175,7 +175,14 @@ const OutlineView = ({vm, active}) => {
         return {...current, places: {...current.places, [targetId]: {...current.places[targetId], ...change}}};
     }), []);
 
-    const handleSelect = useCallback(currentId => updatePlace({currentId}), [updatePlace]);
+    // Focusing the current item changes nothing. A render here would take the request to move focus that an
+    // action made at the same moment, before the action's own change is drawn.
+    const handleSelect = useCallback(currentId => setState(current => {
+        const {targetId} = current.program;
+        const selected = current.places[targetId];
+        if (selected.currentId === currentId) return current;
+        return {...current, places: {...current.places, [targetId]: {...selected, currentId}}};
+    }), []);
 
     const handleToggle = useCallback(id => {
         focusCurrentRef.current = true;

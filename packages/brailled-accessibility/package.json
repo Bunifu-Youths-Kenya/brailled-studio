@@ -6,8 +6,8 @@
   "license": "AGPL-3.0-only",
   "main": "src/index.js",
   "scripts": {
-    "lint": "eslint",
     "audit:names": "node e2e/audit-names.cjs",
+    "lint": "eslint",
     "test": "jest",
     "test:e2e": "node e2e/editor.e2e.cjs"
   },
