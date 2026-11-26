@@ -3,8 +3,12 @@
  * changes it.
  *
  *   safe  moving about and reading: done at once
- *   edit  a change that undo can take back: asked about, unless the student chose to be asked about big ones only
+ *   edit  a change that can be taken back: asked about, unless the school's configuration says to ask about big
+ *         ones only
  *   big   hard to undo, or unknown: always asked about
+ *
+ * Deleting a sprite, uploading to a device and running a robot do not exist yet. When they are added they must
+ * always be asked about: never list them in `SAFE_ACTIONS` or `EDITS`, and give none of them a lower risk.
  */
 const SAFE_ACTIONS = new Set([
     'help.whereAmI', 'help.whatCanIDo',
@@ -50,13 +54,31 @@ const proposalRisk = risks => {
     return risks.includes('edit') ? 'edit' : 'safe';
 };
 
-// `level` is the student's setting: `every` change is asked about, or only `big` ones.
-const needsApproval = (risk, level) => risk === 'big' || (risk === 'edit' && level !== 'big');
+// Whether "undo" takes a step back. Running a project cannot be undone, and an undo or redo is taken back by its
+// opposite, not by "undo".
+const undoable = step => !!step.sprite ||
+    (!!step.command && EDITS.has(step.command.op) && !['undo', 'redo'].includes(step.command.op));
+
+/**
+ * @param {object} options Options.
+ * @param {object[]} options.steps The steps.
+ * @param {string[]} options.risks Each step's risk.
+ * @param {string} options.level From the configuration: `every` change is asked about, or only `big` ones.
+ * @returns {boolean} Whether the student must approve. Whatever the level, a change that "undo" cannot take back
+ * is asked about.
+ */
+const needsApproval = ({steps, risks, level}) => {
+    const risk = proposalRisk(risks);
+    if (risk === 'safe') return false;
+    if (risk !== 'edit' || level !== 'big') return true;
+    return steps.some((step, index) => risks[index] !== 'safe' && !undoable(step));
+};
 
 export {
     MANY_CHANGES,
     SAFE_ACTIONS,
     needsApproval,
     proposalRisk,
-    stepRisk
+    stepRisk,
+    undoable
 };

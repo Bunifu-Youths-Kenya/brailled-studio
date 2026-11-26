@@ -243,7 +243,7 @@ const describeNode = html => html.replace(/_[A-Za-z0-9+/-]{5}(?=["\s])/g, '');
         {command: {op: 'insert', block: 'motion_turnright'}}];
     await screen('AI suggestion', () => ask({type: 'proposal', summary: 'Add two blocks.', steps}));
     await screen('AI suggestion, one step', () => button('One step at a time').click(), escape);
-    await screen('voice and AI settings', () => button('Voice and AI settings').click(), escape);
+    await screen('settings with the AI helper on', () => button('Voice settings').click(), escape);
 
     console.log(`Screens visited (${visited.length}): ${visited.join(', ')}`);
     console.log(`\nControls with no accessible name: ${unnamed.size}`);

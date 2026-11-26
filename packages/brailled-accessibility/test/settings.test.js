@@ -13,12 +13,9 @@ const memory = (initial = {}) => {
     };
 };
 
-const defaults = {talkKey: 'f2',
-    maxSeconds: 15,
-    readAloud: false,
-    screenReader: null,
-    approval: 'every',
-    questionDismissed: false};
+const defaults = {
+    talkKey: 'f2', maxSeconds: 15, readAloud: false, screenReader: null, questionDismissed: false
+};
 
 describe('settings', () => {
     test('start with reading aloud off and the question unanswered', () => {
@@ -31,15 +28,13 @@ describe('settings', () => {
         expect(createSettings(storage).get()).toEqual({...defaults, talkKey: 'altShiftV', maxSeconds: 30});
     });
 
-    test('ask before every change until told otherwise, and forget that on reset', () => {
-        const settings = createSettings(memory());
-        expect(settings.get().approval).toBe('every');
-        settings.set({approval: 'never'});
-        expect(settings.get().approval).toBe('every');
+    test('hold nothing about when the AI helper asks, whatever was stored', () => {
+        const storage = memory({[STORAGE_KEY]: '{"approval":"big","maxSeconds":30}'});
+        const settings = createSettings(storage);
+        expect(settings.get()).not.toHaveProperty('approval');
         settings.set({approval: 'big'});
-        expect(settings.get().approval).toBe('big');
-        settings.reset();
-        expect(settings.get().approval).toBe('every');
+        expect(settings.get()).not.toHaveProperty('approval');
+        expect(storage.values[STORAGE_KEY]).not.toContain('approval');
     });
 
     test.each([[true, false], [false, true]])(

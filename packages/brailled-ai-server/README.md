@@ -26,6 +26,10 @@ npm start
 }
 ```
 
+Two more keys there are the school's: `"approval"` (`"every time"`, the default, or `"big changes only"`) and
+`"proposalExpirySeconds"` (30 to 900, default 120). See the
+[editor package's notes](../brailled-accessibility/README.md#approval).
+
 The AI helper is on only when `ai` is `true` and `aiEndpoint` is usable: an `https` address, one on the editor's
 own server starting with `/`, or `http` on this computer.
 

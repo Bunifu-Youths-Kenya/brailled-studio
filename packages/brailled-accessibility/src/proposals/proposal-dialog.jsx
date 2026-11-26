@@ -4,7 +4,7 @@ import React, {useEffect, useRef, useSyncExternalStore} from 'react';
 import {useIntl} from 'react-intl';
 
 import Dialog from '../outline/dialog.jsx';
-import proposalMessages from './messages.js';
+import proposalMessages, {timeLimit} from './messages.js';
 
 import dialogStyles from '../outline/dialog.css';
 import styles from './proposal-dialog.css';
@@ -15,7 +15,7 @@ const ARM_MS = 700;
 const Question = ({gate, proposal}) => {
     const intl = useIntl();
     const say = (message, values) => intl.formatMessage(message, values);
-    const {title, values, summary, steps, risk, mode, index, askingChange, note} = proposal;
+    const {title, values, summary, steps, risk, mode, index, askingChange, note, seconds} = proposal;
     const shownAt = useRef(Date.now());
     const changeBox = useRef(null);
     const big = risk === 'big';
@@ -85,7 +85,7 @@ const Question = ({gate, proposal}) => {
                         <ol>{steps.map(sentence)}</ol>}
                     <p className={styles.hint}>
                         {say(stepping || !many ? proposalMessages.howToAnswer : proposalMessages.howToAnswerMany)}
-                        {` ${say(proposalMessages.timeLimit)}`}
+                        {` ${say(...timeLimit(seconds))}`}
                     </p>
                 </div>
                 {stepping ? <ol className={styles.all}>{steps.map(sentence)}</ol> : null}
@@ -181,7 +181,8 @@ Question.propTypes = {
         mode: PropTypes.string,
         index: PropTypes.number.isRequired,
         askingChange: PropTypes.bool.isRequired,
-        note: PropTypes.string
+        note: PropTypes.string,
+        seconds: PropTypes.number.isRequired
     }).isRequired
 };
 

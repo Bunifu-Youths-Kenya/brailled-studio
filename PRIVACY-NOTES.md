@@ -34,11 +34,14 @@ Voice and the AI helper are separate switches in `static/brailled-config.json`:
 {
     "voice": true,
     "ai": false,
-    "aiEndpoint": ""
+    "aiEndpoint": "",
+    "approval": "every time",
+    "proposalExpirySeconds": 120
 }
 ```
 
-`ai` is `false` unless set to `true`, and the helper also needs `aiEndpoint`. While it is on, the bar at the
+`ai` is `false` unless set to `true`, and the helper also needs `aiEndpoint`. `approval` and
+`proposalExpirySeconds` decide [what the helper's suggestions need](#ai-helper). While it is on, the bar at the
 bottom of the editor shows "AI helper is on: text you type or say to it, and your program, are sent to an online
 service" (without "or say" where voice is off), and the command box and the helper's questions say the same.
 
@@ -116,8 +119,8 @@ student wrote, is not sent to an online voice.
 
 ## Stored in the browser
 
-Under `brailled.settings` in local storage: the talk key, the longest listening time, whether to read aloud, when
-to ask before the AI helper changes things, and the answer to "Do you use a screen reader?". The answer can suggest that a student has a disability. It stays in
+Under `brailled.settings` in local storage: the talk key, the longest listening time, whether to read aloud, and
+the answer to "Do you use a screen reader?". The answer can suggest that a student has a disability. It stays in
 that browser and Brailled does not send it.
 
 On a shared computer, **Reset for new student** in the settings removes them all and asks the question again.
@@ -159,8 +162,11 @@ endpoints with zero data retention (`zdr`). Those are OpenRouter's settings and 
 Brailled cannot check. Read the terms of OpenRouter and of the model's provider.
 
 **Control.** The helper can only suggest. The editor checks each suggestion and asks the student before changing
-anything, except where the student chose to be asked about big changes only. Names and block text are marked as
-untrusted data in what the model is told.
+anything. A school can set `"approval": "big changes only"` in the configuration file, so that small changes that
+"undo" can take back are made without asking; students cannot choose this. Every change is announced with how to
+take it back. A suggestion left unanswered is cancelled after `proposalExpirySeconds`. Deleting a sprite, uploading to
+a device and running a robot do not exist yet, and must always require approval when they are added. Names and block
+text are marked as untrusted data in what the model is told.
 
 **Notice and consent.** The notices under [What leaves the device](#what-leaves-the-device) are shown whenever the
 helper is on. What is in

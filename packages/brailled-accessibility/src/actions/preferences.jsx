@@ -4,7 +4,7 @@ import React, {useCallback, useEffect, useState, useSyncExternalStore} from 'rea
 import {useIntl} from 'react-intl';
 
 import Dialog from '../outline/dialog.jsx';
-import {APPROVAL_LEVELS, LISTEN_SECONDS, TALK_KEY_IDS} from '../settings.js';
+import {LISTEN_SECONDS, TALK_KEY_IDS} from '../settings.js';
 import voiceMessages from '../voice/messages.js';
 import preferenceMessages from './preference-messages.js';
 import {TALK_KEYS} from './shortcuts.js';
@@ -15,7 +15,6 @@ const appShape = PropTypes.shape({
     announce: PropTypes.func.isRequired,
     canReadAloud: PropTypes.func.isRequired,
     say: PropTypes.func.isRequired,
-    config: PropTypes.shape({get: PropTypes.func.isRequired}).isRequired,
     silence: PropTypes.func.isRequired,
     speak: PropTypes.func.isRequired,
     settings: PropTypes.shape({
@@ -82,7 +81,6 @@ ScreenReaderQuestion.propTypes = {
 const VoiceSettings = ({app, onClose}) => {
     const intl = useIntl();
     const settings = useSettings(app);
-    const {voice, ai} = app.config.get();
     const [note, setNote] = useState('');
     // Reading stops when the dialog closes.
     useEffect(() => () => app.silence(), [app]);
@@ -100,9 +98,6 @@ const VoiceSettings = ({app, onClose}) => {
         if (readAloud) app.speak(text);
         else app.silence();
     }, [app]);
-    const handleApproval = useCallback(event => app.settings.set({approval: event.target.value}), [app]);
-    let title = preferenceMessages.title;
-    if (ai) title = voice ? preferenceMessages.titleBoth : preferenceMessages.titleAi;
     // The first-visit question follows, so this dialog closes first.
     const handleReset = useCallback(() => {
         onClose();
@@ -112,126 +107,88 @@ const VoiceSettings = ({app, onClose}) => {
 
     return (
         <Dialog
-            title={intl.formatMessage(title)}
+            title={intl.formatMessage(preferenceMessages.title)}
             onCancel={onClose}
         >
-            {ai ? (
-                <fieldset
-                    aria-describedby="brailled-approval-hint"
-                    className={dialogStyles.field}
+            <fieldset
+                aria-describedby="brailled-key-hint"
+                className={dialogStyles.field}
+            >
+                <legend className={dialogStyles.label}>
+                    {intl.formatMessage(preferenceMessages.talkKey)}
+                </legend>
+                {TALK_KEY_IDS.map(id => (
+                    <label
+                        className={dialogStyles.row}
+                        key={id}
+                    >
+                        <input
+                            checked={settings.talkKey === id}
+                            data-autofocus={settings.talkKey === id ? true : null}
+                            name="brailled-talk-key"
+                            type="radio"
+                            value={id}
+                            onChange={handleKey}
+                        />
+                        {TALK_KEYS[id].name}
+                    </label>
+                ))}
+                <p
+                    className={dialogStyles.count}
+                    id="brailled-key-hint"
                 >
-                    <legend className={dialogStyles.label}>
-                        {intl.formatMessage(preferenceMessages.approval)}
-                    </legend>
-                    {APPROVAL_LEVELS.map(level => (
-                        <label
-                            className={dialogStyles.row}
-                            key={level}
+                    {intl.formatMessage(preferenceMessages.talkKeyHint)}
+                </p>
+            </fieldset>
+            <div className={dialogStyles.field}>
+                <label
+                    className={dialogStyles.label}
+                    htmlFor="brailled-listen-seconds"
+                >
+                    {intl.formatMessage(preferenceMessages.longest)}
+                </label>
+                <select
+                    className={dialogStyles.input}
+                    id="brailled-listen-seconds"
+                    value={settings.maxSeconds}
+                    onChange={handleSeconds}
+                >
+                    {LISTEN_SECONDS.map(seconds => (
+                        <option
+                            key={seconds}
+                            value={seconds}
                         >
-                            <input
-                                checked={settings.approval === level}
-                                data-autofocus={!voice && settings.approval === level ? true : null}
-                                name="brailled-approval"
-                                type="radio"
-                                value={level}
-                                onChange={handleApproval}
-                            />
-                            {intl.formatMessage(level === 'big' ?
-                                preferenceMessages.approvalBig :
-                                preferenceMessages.approvalEvery)}
-                        </label>
+                            {intl.formatMessage(preferenceMessages.seconds, {seconds})}
+                        </option>
                     ))}
-                    <p
-                        className={dialogStyles.count}
-                        id="brailled-approval-hint"
-                    >
-                        {intl.formatMessage(preferenceMessages.approvalHint)}
-                    </p>
-                </fieldset>
-            ) : null}
-            {voice ? (
-                <React.Fragment>
-                    <fieldset
-                        aria-describedby="brailled-key-hint"
-                        className={dialogStyles.field}
-                    >
-                        <legend className={dialogStyles.label}>
-                            {intl.formatMessage(preferenceMessages.talkKey)}
-                        </legend>
-                        {TALK_KEY_IDS.map(id => (
-                            <label
-                                className={dialogStyles.row}
-                                key={id}
-                            >
-                                <input
-                                    checked={settings.talkKey === id}
-                                    data-autofocus={settings.talkKey === id ? true : null}
-                                    name="brailled-talk-key"
-                                    type="radio"
-                                    value={id}
-                                    onChange={handleKey}
-                                />
-                                {TALK_KEYS[id].name}
-                            </label>
-                        ))}
-                        <p
-                            className={dialogStyles.count}
-                            id="brailled-key-hint"
-                        >
-                            {intl.formatMessage(preferenceMessages.talkKeyHint)}
-                        </p>
-                    </fieldset>
-                    <div className={dialogStyles.field}>
-                        <label
-                            className={dialogStyles.label}
-                            htmlFor="brailled-listen-seconds"
-                        >
-                            {intl.formatMessage(preferenceMessages.longest)}
-                        </label>
-                        <select
-                            className={dialogStyles.input}
-                            id="brailled-listen-seconds"
-                            value={settings.maxSeconds}
-                            onChange={handleSeconds}
-                        >
-                            {LISTEN_SECONDS.map(seconds => (
-                                <option
-                                    key={seconds}
-                                    value={seconds}
-                                >
-                                    {intl.formatMessage(preferenceMessages.seconds, {seconds})}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className={dialogStyles.field}>
-                        <label className={dialogStyles.row}>
-                            <input
-                                aria-describedby="brailled-read-hint"
-                                checked={settings.readAloud}
-                                type="checkbox"
-                                onChange={handleReadAloud}
-                            />
-                            {intl.formatMessage(preferenceMessages.readAloud)}
-                        </label>
-                        <p
-                            className={dialogStyles.count}
-                            id="brailled-read-hint"
-                        >
-                            {intl.formatMessage(preferenceMessages.readAloudHint)}
-                        </p>
-                        <p
-                            className={dialogStyles.count}
-                            role="status"
-                        >
-                            {note}
-                        </p>
-                    </div>
-                    <p className={dialogStyles.field}>
-                        {intl.formatMessage(voiceMessages.privacy)}
-                    </p>
-                </React.Fragment>
-            ) : null}
+                </select>
+            </div>
+            <div className={dialogStyles.field}>
+                <label className={dialogStyles.row}>
+                    <input
+                        aria-describedby="brailled-read-hint"
+                        checked={settings.readAloud}
+                        type="checkbox"
+                        onChange={handleReadAloud}
+                    />
+                    {intl.formatMessage(preferenceMessages.readAloud)}
+                </label>
+                <p
+                    className={dialogStyles.count}
+                    id="brailled-read-hint"
+                >
+                    {intl.formatMessage(preferenceMessages.readAloudHint)}
+                </p>
+                <p
+                    className={dialogStyles.count}
+                    role="status"
+                >
+                    {note}
+                </p>
+            </div>
+            <p className={dialogStyles.field}>
+                {intl.formatMessage(voiceMessages.privacy)}
+            </p>
             <button
                 className={dialogStyles.button}
                 type="button"

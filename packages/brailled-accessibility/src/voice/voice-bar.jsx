@@ -203,10 +203,6 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     // While a question is open the bar says how to answer it.
     const barStatus = state.pending && !status ? hint : status;
     const handleSettings = () => app.perform('voice.settings');
-    const settingsLabel = (() => {
-        if (!aiEndpoint) return voiceMessages.settings;
-        return off ? voiceMessages.settingsAi : voiceMessages.settingsBoth;
-    })();
     // What leaves the computer is shown whenever it can: by voice, to the AI helper, or both.
     let notice = off ? null : voiceMessages.privacy;
     if (aiEndpoint) notice = off ? voiceMessages.aiNotice : voiceMessages.aiNoticeWithVoice;
@@ -283,14 +279,14 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
             </div>
             {notice ? (
                 <div className={styles.side}>
-                    {off && !aiEndpoint ? null : (
+                    {off ? null : (
                         <button
                             className={styles.settings}
                             type="button"
                             // eslint-disable-next-line react/jsx-no-bind
                             onClick={handleSettings}
                         >
-                            {intl.formatMessage(settingsLabel)}
+                            {intl.formatMessage(voiceMessages.settings)}
                         </button>
                     )}
                     <p

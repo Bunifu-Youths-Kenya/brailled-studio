@@ -18,22 +18,33 @@ const failure = (status, error) => ({ok: false, status, json: () => Promise.reso
 /**
  * @param {object} [options] Options.
  * @param {Function} [options.respond] The AI server: given the request's body and number, returns a response.
+ * @param {object} [options.school] What the configuration file says besides turning voice and the helper on.
  * @returns {object} The parts, with helpers.
  */
-const setUp = ({respond = () => answer({type: 'explanation', text: 'Hello.'})} = {}) => {
+const setUp = ({respond = () => answer({type: 'explanation', text: 'Hello.'}), school = {}} = {}) => {
     const project = makeProject({program: sample});
     const {vm} = project;
     const {runtime} = vm;
     vm.start = jest.fn();
     vm.greenFlag = jest.fn();
     vm.stopAll = jest.fn();
+    vm.setEditingTarget = jest.fn(id => {
+        vm.editingTarget = runtime.targets.find(target => target.id === id);
+    });
     vm.deleteSprite = jest.fn(id => {
         runtime.targets = runtime.targets.filter(target => target.id !== id);
-        vm.editingTarget = project.target;
+        // The virtual machine picks another sprite, not always the one that was selected before.
+        vm.editingTarget = runtime.targets.at(-1);
     });
 
     const reader = {speak: jest.fn(() => true), stop: jest.fn(), isAvailable: () => true};
-    const config = {get: () => ({voice: true, ai: true, aiEndpoint: '/api/assistant'}), subscribe: () => () => {}};
+    const configured = {voice: true,
+        ai: true,
+        aiEndpoint: '/api/assistant',
+        approval: 'every',
+        proposalExpirySeconds: 120,
+        ...school};
+    const config = {get: () => configured, subscribe: () => () => {}};
     const settings = createSettings(null);
     const app = createApp(vm, {config, reader, settings});
     const device = {name: null, connected: false, mode: 'live'};
@@ -73,7 +84,12 @@ const setUp = ({respond = () => answer({type: 'explanation', text: 'Hello.'})} =
     const highlight = jest.fn();
     const queue = createProposalQueue();
     let assistant = null;
-    const gate = createGate({app, executor: createExecutor(app), revise: r => assistant.revise(r), highlight});
+    const windows = {open: false};
+    const gate = createGate({app,
+        executor: createExecutor(app),
+        revise: r => assistant.revise(r),
+        highlight,
+        windowOpen: () => windows.open});
     queue.connect(gate.take);
     const requests = [];
     const fetch = jest.fn((url, options) => {
@@ -123,7 +139,8 @@ const setUp = ({respond = () => answer({type: 'explanation', text: 'Hello.'})} =
         settings,
         settle,
         sprites,
-        vm};
+        vm,
+        windows};
 };
 
 export {

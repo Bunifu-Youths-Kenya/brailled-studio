@@ -4,9 +4,17 @@
  */
 const CONFIG_URL = 'static/brailled-config.json';
 
+// How long a suggestion from the AI helper waits for an answer, in seconds.
+const EXPIRY_SECONDS = Object.freeze({least: 30, usual: 120, most: 900});
+// The one value of `approval` that lets small changes be made without asking.
+const BIG_CHANGES_ONLY = 'big changes only';
+
+// What applies until the file says otherwise.
+const SAFEST = Object.freeze(
+    {ai: false, aiEndpoint: null, approval: 'every', proposalExpirySeconds: EXPIRY_SECONDS.usual});
 // `voice` is null until the file has been read.
-const LOADING = Object.freeze({voice: null, ai: false, aiEndpoint: null, unreadable: false});
-const UNREADABLE = Object.freeze({voice: false, ai: false, aiEndpoint: null, unreadable: true});
+const LOADING = Object.freeze({...SAFEST, voice: null, unreadable: false});
+const UNREADABLE = Object.freeze({...SAFEST, voice: false, unreadable: true});
 
 // Hosts where an unencrypted address stays on this computer.
 const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
@@ -24,12 +32,25 @@ const endpointFrom = value => {
     }
 };
 
+// A number of seconds, brought within what is allowed; anything else means the usual time.
+const expiryFrom = value => (Number.isFinite(value) ?
+    Math.min(Math.max(Math.round(value), EXPIRY_SECONDS.least), EXPIRY_SECONDS.most) :
+    EXPIRY_SECONDS.usual);
+
 // Voice and the AI helper are separate switches, and only a plain `true` turns either on. The helper also needs
-// a safe address: `aiEndpoint` is null whenever it is off.
+// a safe address: `aiEndpoint` is null whenever it is off. Every change is asked about unless the file says
+// exactly otherwise.
 const interpret = file => {
     if (!file || typeof file !== 'object' || Array.isArray(file)) return UNREADABLE;
     const aiEndpoint = file.ai === true ? endpointFrom(file.aiEndpoint) : null;
-    return {voice: file.voice === true, ai: !!aiEndpoint, aiEndpoint, unreadable: false};
+    return {
+        voice: file.voice === true,
+        ai: !!aiEndpoint,
+        aiEndpoint,
+        approval: file.approval === BIG_CHANGES_ONLY ? 'big' : 'every',
+        proposalExpirySeconds: expiryFrom(file.proposalExpirySeconds),
+        unreadable: false
+    };
 };
 
 /**
@@ -61,7 +82,9 @@ const fetchConfig = scope => async () => {
 };
 
 export {
+    BIG_CHANGES_ONLY,
     CONFIG_URL,
+    EXPIRY_SECONDS,
     createConfig,
     fetchConfig
 };

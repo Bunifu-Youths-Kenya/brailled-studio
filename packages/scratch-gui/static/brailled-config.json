@@ -1,5 +1,7 @@
 {
     "voice": true,
     "ai": false,
-    "aiEndpoint": ""
+    "aiEndpoint": "",
+    "approval": "every time",
+    "proposalExpirySeconds": 120
 }

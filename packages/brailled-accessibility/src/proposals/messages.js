@@ -11,7 +11,9 @@ const proposalMessages = defineMessages(Object.fromEntries(Object.entries({
     howToAnswer: 'Say yes or go ahead, say no, or say change it, and what to change.',
     howToAnswerMany: 'Say yes to do all the steps, step by step to approve each one, no, or change it, and what ' +
         'to change.',
-    timeLimit: 'If there is no answer in two minutes, it is cancelled.',
+    timeLimitMinutes: 'If there is no answer in {minutes, plural, one {# minute} other {# minutes}}, it is ' +
+        'cancelled.',
+    timeLimitSeconds: 'If there is no answer in {seconds} seconds, it is cancelled.',
     yes: 'Yes, go ahead',
     yesAll: 'Yes, do all',
     yesStep: 'Yes, do this step',
@@ -48,4 +50,12 @@ const proposalMessages = defineMessages(Object.fromEntries(Object.entries({
     description: 'Approving a suggestion from the AI helper'
 }])));
 
+// The message, and its values, that says how long there is to answer.
+const timeLimit = seconds => (seconds % 60 === 0 ?
+    [proposalMessages.timeLimitMinutes, {minutes: seconds / 60}] :
+    [proposalMessages.timeLimitSeconds, {seconds}]);
+
+export {
+    timeLimit
+};
 export default proposalMessages;

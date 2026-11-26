@@ -3,11 +3,16 @@ import {routeCommand} from '../src/actions/route.js';
 import {withBlockIds} from '../src/ai/refs.js';
 import {parseAnswer} from '../src/proposals/answers.js';
 import {checkSteps} from '../src/proposals/check.js';
-import {EXPIRY_MS, SETTLE_MS} from '../src/proposals/gate.js';
+import {SETTLE_MS} from '../src/proposals/gate.js';
 import {createMachine, FINISHED} from '../src/proposals/machine.js';
-import {needsApproval, proposalRisk, stepRisk} from '../src/proposals/risk.js';
+import {needsApproval, proposalRisk, SAFE_ACTIONS, stepRisk, undoable} from '../src/proposals/risk.js';
 import {stepRef} from '../src/proposals/steps.js';
 import {setUp} from './proposal-setup.js';
+
+// The usual time a proposal waits.
+const EXPIRY_MS = 120000;
+// The school's configuration asking about big changes only.
+const bigOnly = {school: {approval: 'big'}};
 
 describe('the state machine', () => {
     const path = (...events) => {
@@ -118,14 +123,43 @@ describe('risk', () => {
         expect(proposalRisk(['safe', 'big'])).toBe('big');
     });
 
+    const insert = {command: {op: 'insert'}};
+    const asks = (steps, risks, level) => needsApproval({steps, risks, level});
+
     test.each([
         ['safe', 'every', false], ['safe', 'big', false],
         ['edit', 'every', true], ['edit', 'big', false],
         ['big', 'every', true], ['big', 'big', true],
         ['edit', 'nonsense', true]
-    ])('%s at level %s asks: %s', (level, setting, asks) => {
-        expect(needsApproval(level, setting)).toBe(asks);
+    ])('%s at level %s asks: %s', (given, level, expected) => {
+        expect(asks([insert], [given], level)).toBe(expected);
     });
+
+    test.each([
+        ['running the project', {action: 'project.run'}],
+        ['an undo', {command: {op: 'undo'}}],
+        ['a redo', {command: {op: 'redo'}}]
+    ])('%s is asked about even when only big changes are, as "undo" cannot take it back', (_, step) => {
+        expect(undoable(step)).toBe(false);
+        expect(asks([step], ['edit'], 'big')).toBe(true);
+        expect(asks([insert, step], ['edit', 'edit'], 'big')).toBe(true);
+    });
+
+    test('adding a sprite and editing commands can be taken back', () => {
+        const edits = ['insert', 'delete', 'set-value', 'move', 'wrap', 'create', 'rename'];
+        for (const step of [{sprite: {name: 'Dragon'}}, ...edits.map(op => ({command: {op}}))]) {
+            expect(undoable(step)).toBe(true);
+        }
+    });
+
+    test.each(['sprite.delete', 'device.upload', 'robot.run'])(
+        'deleting a sprite, uploading and running a robot must always be asked about: %s', action => {
+            const step = {action};
+            for (const level of ['every', 'big']) {
+                expect(asks([step], [stepRisk({step, device: {mode: 'live'}})], level)).toBe(true);
+            }
+            expect(SAFE_ACTIONS.has(action)).toBe(false);
+        });
 });
 
 describe('answers', () => {
@@ -262,7 +296,8 @@ describe('the approval gate', () => {
         expect(context.reader.speak.mock.calls.at(-1)[0]).toBe(
             'The AI helper suggests a change. Approve it? The AI says: Wait a bit. ' +
             '1. Add wait 5 seconds, after move 10 steps. ' +
-            'Say yes or go ahead, say no, or say change it, and what to change.');
+            'Say yes or go ahead, say no, or say change it, and what to change. ' +
+            'If there is no answer in 2 minutes, it is cancelled.');
     });
 
     test.each(['yes', 'Go ahead.'])('"%s" approves: it is done, read back and can be undone', async words => {
@@ -519,9 +554,9 @@ describe('the approval gate', () => {
         expect(gate.getState().status).toBe('expired');
     });
 
-    test('a deleted script is marked hard to undo, whatever the setting', async () => {
-        const context = setUp();
-        context.settings.set({approval: 'big', readAloud: true});
+    test('a deleted script is marked hard to undo, whatever the school allows', async () => {
+        const context = setUp(bigOnly);
+        context.settings.set({readAloud: true});
         const before = context.data();
         context.gate.take({summary: 'Tidy up.',
             steps: [
@@ -533,28 +568,93 @@ describe('the approval gate', () => {
         expect(context.data()).toBe(before);
     });
 
-    test('asked about big changes only, small ones are done and can be undone', async () => {
+    test('a student cannot choose to be asked less', async () => {
         const context = setUp();
         context.settings.set({approval: 'big'});
-        const before = context.data();
-        const taken = context.gate.take({steps: [wait]});
+        expect(context.settings.get()).not.toHaveProperty('approval');
+        context.gate.take({steps: [wait]});
         await context.settle();
-        expect(await taken).toEqual({accepted: true, asked: false});
-        expect(context.program()).toHaveLength(4);
-        expect(context.heard.at(-1)).toMatch(/To take it back, say undo/);
+        expect(context.gate.getState().status).toBe('proposed');
+        expect(context.program()).toHaveLength(3);
+    });
+
+    test.each([
+        ['an inserted block', {op: 'insert', block: 'control_wait', after: 'move'}],
+        ['a changed value', {op: 'set-value', block: 'move', name: 'STEPS', value: 7}],
+        ['a deleted block', {op: 'delete', block: 'wait'}],
+        ['a moved block', {op: 'move', block: 'wait', before: 'move'}],
+        ['a wrapped block', {op: 'wrap', block: 'move', in: 'control_repeat'}],
+        ['a new variable', {op: 'create', kind: 'variable', name: 'speed'}],
+        ['a renamed variable', {op: 'rename', kind: 'variable', name: 'my variable', to: 'score'}]
+    ])('where the school asks about big changes only, %s is made, said, and can be undone',
+        async (_, command) => {
+            const context = setUp(bigOnly);
+            const before = context.data();
+            const taken = context.gate.take({steps: [{command}]});
+            await context.settle();
+            expect(await taken).toEqual({accepted: true, asked: false});
+            expect(context.data()).not.toBe(before);
+            expect(context.heard.at(-1)).toMatch(/^Done\. .+To take it back, say undo\.$/);
+            context.app.perform('edit.undo');
+            await context.settle();
+            expect(context.data()).toBe(before);
+        });
+
+    test('an added sprite is said and can be undone, going back to the sprite before', async () => {
+        const context = setUp(bigOnly);
+        const before = context.data();
+        context.gate.take({steps: [{command: {op: 'create', kind: 'variable', name: 'speed'}},
+            {sprite: {name: 'Dragon'}}]});
+        await context.settle();
+        expect(context.heard.at(-1)).toMatch(/Added the Dragon sprite.*To take it back, say undo 2 times\.$/);
+        context.app.perform('edit.undo');
+        // Removing the sprite goes back to where the student was, so the second undo works there.
+        expect(context.vm.editingTarget).toBe(context.project.target);
         context.app.perform('edit.undo');
         await context.settle();
         expect(context.data()).toBe(before);
     });
 
-    test('asked about big changes only, more than three changes are still asked about', async () => {
-        const context = setUp();
-        context.settings.set({approval: 'big'});
-        context.gate.take({steps: [wait, turn, wait, turn]});
+    test('where the school asks about big changes only, more than three changes are still asked about',
+        async () => {
+            const context = setUp(bigOnly);
+            context.gate.take({steps: [wait, turn, wait, turn]});
+            await context.settle();
+            expect(context.gate.getState()).toMatchObject({status: 'proposed', proposal: {risk: 'big'}});
+            expect(context.program()).toHaveLength(3);
+        });
+
+    test('and so is a change that arrives while another window is open', async () => {
+        const context = setUp(bigOnly);
+        context.windows.open = true;
+        context.gate.take({steps: [wait]});
         await context.settle();
-        expect(context.gate.getState()).toMatchObject({status: 'proposed', proposal: {risk: 'big'}});
+        expect(context.gate.getState().status).toBe('proposed');
         expect(context.program()).toHaveLength(3);
     });
+
+    test('and running the project, which cannot be undone', async () => {
+        const context = setUp(bigOnly);
+        context.gate.take({steps: [{action: 'project.run'}]});
+        await context.settle();
+        expect(context.gate.getState().status).toBe('proposed');
+        expect(context.vm.start).not.toHaveBeenCalled();
+    });
+
+    test.each([[30, '30 seconds'], [300, '5 minutes'], [60, '1 minute'], [90, '90 seconds']])(
+        'waits the %i seconds the configuration gives, and says so', async (seconds, words) => {
+            const context = setUp({school: {proposalExpirySeconds: seconds}});
+            context.settings.set({readAloud: true});
+            context.gate.take({steps: [wait]});
+            await context.settle();
+            expect(context.gate.getState().proposal.seconds).toBe(seconds);
+            expect(context.reader.speak.mock.calls.at(-1)[0])
+                .toContain(`If there is no answer in ${words}, it is cancelled.`);
+            await context.settle((seconds * 1000) - 5000);
+            expect(context.gate.getState().status).toBe('proposed');
+            await context.settle(6000);
+            expect(context.gate.getState().status).toBe('expired');
+        });
 
     test('moving about is done at once', async () => {
         const context = setUp();
@@ -565,20 +665,19 @@ describe('the approval gate', () => {
         expect(context.gate.getState()).toEqual({status: 'done', proposal: null});
     });
 
-    test.each([[[wait]], [[{action: 'project.run'}]], [[{sprite: {name: 'Dragon'}}]]])(
-        'nothing but moving about is done with a question, even when small changes need no asking: %j',
-        async steps => {
-            const context = setUp();
-            context.settings.set({approval: 'big'});
+    test.each([['wait'], ['run'], ['sprite']])(
+        'nothing but moving about is done with a question, even where small changes need no asking: %s',
+        async kind => {
+            const steps = {wait: [wait], run: [{action: 'project.run'}], sprite: [{sprite: {name: 'Dragon'}}]};
+            const context = setUp(bigOnly);
             const before = context.data();
-            expect((await context.gate.take({steps, immediateOnly: true})).accepted).toBe(false);
+            expect((await context.gate.take({steps: steps[kind], immediateOnly: true})).accepted).toBe(false);
             expect(context.data()).toBe(before);
             expect(context.vm.start).not.toHaveBeenCalled();
         });
 
     test('running in Upload mode is always asked about', async () => {
-        const context = setUp();
-        context.settings.set({approval: 'big'});
+        const context = setUp(bigOnly);
         context.device.mode = 'upload';
         context.gate.take({steps: [{action: 'project.run'}]});
         await context.settle();

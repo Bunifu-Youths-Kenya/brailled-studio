@@ -209,8 +209,8 @@ describe('which actions are available', () => {
 
     test('voice actions follow the switch and the browser', () => {
         expect(available({voice: false})).toEqual(without(usual, 'voice.'));
-        // The settings also hold the AI helper's.
-        expect(available({voice: false, ai: true})).toEqual(without(usual, 'voice.talk'));
+        // The AI helper has no settings for students.
+        expect(available({voice: false, ai: true})).toEqual(without(usual, 'voice.'));
         expect(available({supported: false})).toEqual(without(usual, 'voice.talk'));
     });
 

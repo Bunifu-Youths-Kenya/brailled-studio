@@ -1,6 +1,7 @@
 /*
  * The approval gate. Proposals arrive through the queue. Nothing that changes the project is carried out until
- * the student approves it, except where the student has chosen to be asked about big changes only.
+ * the student approves it, except where the school's configuration says to ask about big changes only. Whatever
+ * is carried out is said, with how to take it back.
  *
  * Only the student's own input reaches `approve`: the dialog's buttons and what they say or type.
  */
@@ -8,11 +9,9 @@ import {parseAnswer} from './answers.js';
 import {checkSteps} from './check.js';
 import {fingerprint as fingerprintOf} from './fingerprint.js';
 import {createMachine} from './machine.js';
-import proposalMessages from './messages.js';
+import proposalMessages, {timeLimit} from './messages.js';
 import {needsApproval, proposalRisk, stepRisk} from './risk.js';
 
-// An unanswered proposal is cancelled after this long. Going step by step, each step gets this long.
-const EXPIRY_MS = 120000;
 const CHECK_MS = 1000;
 // The interface redraws after a change; where the student is cannot be recorded until it has.
 const SETTLE_MS = 500;
@@ -23,9 +22,14 @@ const SETTLE_MS = 500;
  * @param {object} options.executor See `executor.js`.
  * @param {function({change: string, previous: object})} options.revise Asks the AI for a changed proposal.
  * @param {function(string[])} [options.highlight] Marks changed blocks for those who look at them.
+ * @param {function(): boolean} [options.windowOpen] Whether another window is open, which would keep what is
+ * said from being heard.
  * @returns {object} The gate. `getState` gives `{status, proposal}`.
  */
-const createGate = ({app, executor, revise, highlight = () => {}}) => {
+const createGate = ({
+    app, executor, revise, highlight = () => {},
+    windowOpen = () => !!globalThis.document?.querySelector('dialog[open]')
+}) => {
     const machine = createMachine();
     const listeners = new Set();
     let state = {status: 'idle', proposal: null};
@@ -52,12 +56,13 @@ const createGate = ({app, executor, revise, highlight = () => {}}) => {
             ...(view.mode === 'steps' ? [`${view.steps[view.index].sentence}.`] : list),
             say(view.mode === 'steps' || view.steps.length === 1 ?
                 proposalMessages.howToAnswer :
-                proposalMessages.howToAnswerMany)
+                proposalMessages.howToAnswerMany),
+            say(...timeLimit(view.seconds))
         ].filter(Boolean).join(' ');
     };
 
     const viewOf = () => {
-        const {summary, steps, risks, mode, index, askingChange, note, serial} = current;
+        const {summary, steps, risks, mode, index, askingChange, note, serial, seconds} = current;
         const many = steps.length > 1;
         const risk = mode === 'steps' ? risks[index] : proposalRisk(risks);
         let title = many ? proposalMessages.titleMany : proposalMessages.title;
@@ -72,6 +77,8 @@ const createGate = ({app, executor, revise, highlight = () => {}}) => {
             index,
             askingChange,
             note,
+            // How long there is to answer.
+            seconds,
             // Changes when something new is asked, so that the dialog starts afresh.
             serial
         };
@@ -88,7 +95,8 @@ const createGate = ({app, executor, revise, highlight = () => {}}) => {
             note: null,
             askingChange: false,
             serial: current.serial + 1,
-            deadline: Date.now() + EXPIRY_MS,
+            // Going step by step, each step gets the whole time.
+            deadline: Date.now() + (current.seconds * 1000),
             fingerprint: fingerprintOf(app)
         });
         show();
@@ -207,7 +215,10 @@ const createGate = ({app, executor, revise, highlight = () => {}}) => {
         const risks = checked.steps.map(step => stepRisk({step, detail: step.detail, device}));
         const risk = proposalRisk(risks);
         if (immediateOnly && risk !== 'safe') return refuse('only moving about may come with a question');
-        const asks = needsApproval(risk, app.settings.get().approval);
+        const {approval, proposalExpirySeconds} = app.config.get();
+        // A change made under another window might not be heard, so then it is asked about instead.
+        const asks = needsApproval({steps: checked.steps, risks, level: approval}) ||
+            (risk !== 'safe' && windowOpen());
         machine.send('propose', {needsApproval: asks});
         current = {
             summary,
@@ -219,7 +230,8 @@ const createGate = ({app, executor, revise, highlight = () => {}}) => {
             index: 0,
             serial: 0,
             askingChange: false,
-            note: null
+            note: null,
+            seconds: proposalExpirySeconds
         };
         if (!asks) {
             machine.send('proceed');
@@ -328,7 +340,6 @@ const createGate = ({app, executor, revise, highlight = () => {}}) => {
 
 export {
     CHECK_MS,
-    EXPIRY_MS,
     SETTLE_MS,
     createGate
 };

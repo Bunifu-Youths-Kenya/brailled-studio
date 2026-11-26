@@ -21,6 +21,7 @@ const createExecutor = app => {
         const item = app.library()?.find(name);
         if (!sprites || !item) return app.say(proposalMessages.noSprite, {name});
         const {vm} = app;
+        const before = vm.editingTarget?.id;
         try {
             await withTimeout(sprites.add(item), SPRITE_TIMEOUT_MS);
         } catch {
@@ -35,7 +36,11 @@ const createExecutor = app => {
             // Removing the sprite must not take away anything made since.
             unchanged: () => vm.runtime.targets.includes(target) &&
                 JSON.stringify(target.blocks._blocks) === asAdded,
-            undo: () => vm.deleteSprite(target.id)
+            undo: () => {
+                vm.deleteSprite(target.id);
+                // Back to where the student was, so that "undo" goes on to what was done there.
+                if (vm.runtime.targets.some(other => other.id === before)) vm.setEditingTarget(before);
+            }
         });
         outcome.sentences.push(app.say(proposalMessages.spriteAdded, {name: added}));
         outcome.undos += 1;

@@ -1107,7 +1107,8 @@ const startAiServer = async (env = {}) => {
     }
 
     const ai = await startAiServer();
-    const aiConfig = (endpoint, voice = true) => ({json: {voice, ai: true, aiEndpoint: endpoint}});
+    const aiConfig = (endpoint, voice = true, school = {}) =>
+        ({json: {voice, ai: true, aiEndpoint: endpoint, ...school}});
     const helper = page => page.locator('dialog');
     const failed = 'I couldn\'t work that out, please try again.';
 
@@ -1358,28 +1359,73 @@ const startAiServer = async (env = {}) => {
         check('Enter alone does not delete it', await dialog.count() === 0 &&
             (await t.items()).join() === original.join());
 
-        await typed(t, 'ai settings');
-        const settings = page.getByRole('dialog', {name: 'Voice and AI settings'});
-        check('the setting starts at "Every time"', await settings.getByRole('radio', {name: 'Every time'})
-            .isChecked());
-        check('axe: AI settings', (await t.axe()).length === 0, (await t.axe()).join('; '));
-        await settings.getByRole('radio', {name: 'Only for big changes'}).check();
-        await settings.getByRole('button', {name: 'Done'}).click();
-        await pause();
+        await typed(t, 'voice settings');
+        const settings = page.getByRole('dialog', {name: 'Voice settings'});
+        check('students have no setting for being asked less', await settings.isVisible() &&
+            !/big changes|Every time/i.test(await settings.textContent()) &&
+            await settings.getByRole('radio').count() === 2);
+        await key('Escape', 500);
+        await page.evaluate(() => localStorage.setItem('brailled.settings',
+            JSON.stringify({screenReader: true, approval: 'big'})));
+        await t.reload();
+        await startOutline(t);
         ai.model.reply = two;
-        await t.goTo('move 10 steps');
         await ask('wait then turn');
-        check('then small changes are made without asking, and read back', await dialog.count() === 0 &&
-            (await t.items()).length === original.length + 2 && /To take it back, say undo/.test(await t.said()),
-        await t.said());
+        check('nor does editing what the browser stored', await dialog.count() === 1 &&
+            (await t.items()).join() === original.join());
+        check('the question says how long there is', /no answer in 2 minutes/.test(await dialog.textContent()));
+    }, {init: [fakeSpeech, fakeVoice], config: aiConfig(ai.endpoint)});
+
+    const bigOnly = {approval: 'big changes only', proposalExpirySeconds: 30};
+    await group('approval: the school asks about big changes only', async t => {
+        const {page, pause} = t;
+        const {dialog, ask, say, sprites} = helpers(t);
+        await standInAssets(page);
+        await startOutline(t);
+        const original = await t.items();
+        ai.model.reply = examples;
+        await ask('add a wait of 2 seconds after the move block');
+        check('a small change is made without asking', await dialog.count() === 0 &&
+            (await t.items()).length === original.length + 1);
+        check('and is announced with how to undo it', await t.said() ===
+            'Done. Added: wait 2 seconds, after move 10 steps. To take it back, say undo.', await t.said());
         await typed(t, 'undo');
+        check('and can be undone', (await t.items()).join() === original.join());
+
+        // With the library open, the announcement must still reach screen readers.
+        ai.model.reply = user => (user.request === 'Dragon' ? examples(user) :
+            {type: 'question', question: 'Which sprite?', steps: [{action: 'sprite.library'}]});
+        await ask('add a sprite');
+        check('what is said is not hidden while a library is open', await page.locator('.ReactModal__Content')
+            .count() === 1 && await page.locator('[data-brailled-announcer]')
+            .evaluate(el => !el.closest('[aria-hidden="true"]')));
+        await say('Dragon');
+        await pause(1500);
+        check('an added sprite is announced too', (await sprites()).join() === 'Sprite1,Dragon' &&
+            /Done\. Added the Dragon sprite.*To take it back, say undo\./.test(await t.said()), await t.said());
+        await typed(t, 'undo');
+        await pause(900);
+        check('and undone, back on the sprite before', (await sprites()).join() === 'Sprite1' &&
+            await page.evaluate(() => window.vm.editingTarget.getName()) === 'Sprite1');
+
         ai.model.reply = user => ({type: 'proposal', summary: 'Start again.', steps: [{command:
             {op: 'delete', block: refOf(user, 'event_whenflagclicked'), withFollowing: true}}]});
-        await t.goTo('move 10 steps');
         await ask('delete everything');
-        check('big ones are still asked about', await dialog.count() === 1 &&
-            (await t.items()).join() === original.join());
-    }, {init: [fakeSpeech, fakeVoice], config: aiConfig(ai.endpoint)});
+        check('a big change is still asked about', await dialog.count() === 1 &&
+            /hard to undo/.test(await dialog.textContent()) && (await t.items()).join() === original.join());
+        check('for the time the school set', /no answer in 30 seconds/.test(await dialog.textContent()));
+        await pause(24000);
+        check('still waiting before then', await dialog.count() === 1);
+        await pause(8000);
+        check('and expiring after it', await dialog.count() === 0 &&
+            /The suggestion expired/.test(await t.said()) && (await t.items()).join() === original.join(),
+        await t.said());
+
+        ai.model.reply = {type: 'proposal', summary: 'Run it.', steps: [{action: 'project.run'}]};
+        await ask('start it for me');
+        check('running the project is still asked about', await dialog.count() === 1 &&
+            !await page.evaluate(() => window.brailledApp.snapshot().project.running));
+    }, {init: [fakeSpeech, fakeVoice], config: aiConfig(ai.endpoint, true, bigOnly)});
 
     await group('AI helper', async t => {
         const {page, key} = t;
@@ -1488,7 +1534,7 @@ const startAiServer = async (env = {}) => {
         const bar = t.page.locator('[data-brailled-zone="voice"]');
         check('the notice is shown with voice off, about typed text', /^AI helper is on: text you type for it/
             .test(await bar.locator('[data-voice-notice]').textContent()) &&
-            await bar.getByRole('button', {name: 'AI settings'}).count() === 1);
+            await bar.getByRole('button').count() === 1);
         ai.model.reply = {type: 'question', question: 'Which one?'};
         await typed(t, 'help me with this');
         await t.pause(900);

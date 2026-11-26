@@ -81,8 +81,7 @@ const ACTIONS = [
     }),
     define('voice.settings', {
         proposable: false,
-        // The same window holds the AI helper's settings.
-        available: app => (withVoice(app) === true || app.config.get().ai ? withGui(app) : 'voiceOff'),
+        available: app => (withVoice(app) === true ? withGui(app) : 'voiceOff'),
         run: app => app.gui().openSettings()
     }),
 

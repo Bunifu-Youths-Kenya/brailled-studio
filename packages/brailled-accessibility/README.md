@@ -102,7 +102,7 @@ off the device.
 | `project.run`, `project.stop` | | "run", "stop" |
 | `sprite.library` | | "open sprite library" |
 | `voice.talk`, `go.voice` | Hold the talk key | "talk", "go to voice bar" |
-| `voice.settings` | | "voice settings", "AI settings" |
+| `voice.settings` | | "voice settings" |
 
 - **Typed commands** go in the command box, and spoken ones come from the voice bar. Both are matched against
   fixed English phrases and the action names in the user's language. Anything else goes to the
@@ -232,11 +232,25 @@ Each step has a risk that the editor works out; nothing the AI says changes it.
 | Risk | Steps | Asked about |
 | - | - | - |
 | Safe | Moving about and reading: help, "go to", views, next and previous, reading the program, stop, opening the sprite library | Never |
-| Edit | Insert, change a value, move, wrap, create, rename, undo, redo, delete one block, add a sprite, run the project | By default. Not if the student chose "Only for big changes" |
+| Edit | Insert, change a value, move, wrap, create, rename, delete one block, add a sprite | By default. Not where the school's configuration says "big changes only" |
+| Edit that "undo" cannot take back | Running the project, undo, redo | Always |
 | Big, "hard to undo" | Deleting a whole script or more than one block, running with a device attached or in Upload mode, more than three changes at once, and anything not listed (so any future delete-sprite, overwrite, upload or robot action) | Always, with a warning |
 
-The setting is under **Voice and AI settings**: "Every time" (default) or "Only for big changes". It is kept in the
-browser and removed by "Reset for new student".
+**The school's options** are in `static/brailled-config.json`. Students have no setting for either.
+
+| Key | Values | Default |
+| - | - | - |
+| `approval` | `"every time"`: every change is approved. `"big changes only"`: changes marked "Edit" above that "undo" can take back are made without asking | `"every time"`, also for any other value |
+| `proposalExpirySeconds` | 30 to 900. Numbers outside that become the nearest limit | 120, also for anything that is not a number |
+
+With either approval level, every change is announced with how to take it back. Where changes are made without
+asking, one that arrives while another window is open is asked about after all, so that it cannot go unheard. Undo is
+kept for each sprite: it takes back changes to the sprite that is selected.
+
+**Actions to come.** Deleting a sprite, uploading to a device and running a robot do not exist yet. **When they are
+added they must always require approval**, at either level. The gate treats anything it does not know as hard to
+undo; do not add them to `SAFE_ACTIONS` or `EDITS` in `src/proposals/risk.js`, and extend the test there that names
+them.
 
 **Asking.** The proposal is shown in large type, each step described by the editor itself, with the AI's one
 sentence labelled "The AI says". A screen reader reads it from the dialog; with reading aloud on, the editor reads
@@ -254,8 +268,9 @@ Nothing else approves. A press in the first 0.7 seconds is ignored. For a change
 focus, so Enter alone rejects it.
 
 **It is cancelled** if, before approval, any program or name in the project, the selected sprite, the tab, the view
-or the place in the outline changes (running the project changes none of these), and **expires** after two minutes
-without an answer (each step has its own two minutes). It is validated again at approval and between steps.
+or the place in the outline changes (running the project changes none of these), and **expires** after the school's
+time without an answer, two minutes unless set otherwise (each step has the whole time). It is validated again at
+approval and between steps.
 
 **Afterwards** the editor says what was done and how to undo it, and outlines the changed blocks in yellow for
 15 seconds, on the canvas and in the Outline. Edits approved together are one undo. An added sprite is removed by

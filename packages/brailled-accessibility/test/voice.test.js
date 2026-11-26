@@ -432,8 +432,12 @@ describe('the configuration', () => {
     test.each([
         [{voice: true}, true], [{voice: false}, false], [{voice: 'true'}, false], [{}, false]
     ])('%o turns voice on: %s', async (file, voice) => {
-        expect(await loaded(() => Promise.resolve(file)))
-            .toEqual({voice, ai: false, aiEndpoint: null, unreadable: false});
+        expect(await loaded(() => Promise.resolve(file))).toEqual({voice,
+            ai: false,
+            aiEndpoint: null,
+            approval: 'every',
+            proposalExpirySeconds: 120,
+            unreadable: false});
     });
 
     test.each([
@@ -441,7 +445,12 @@ describe('the configuration', () => {
         ['something else', () => Promise.resolve('voice')],
         ['a list', () => Promise.resolve([true])]
     ])('is off for %s', async (_, load) => {
-        expect(await loaded(load)).toEqual({voice: false, ai: false, aiEndpoint: null, unreadable: true});
+        expect(await loaded(load)).toEqual({voice: false,
+            ai: false,
+            aiEndpoint: null,
+            approval: 'every',
+            proposalExpirySeconds: 120,
+            unreadable: true});
     });
 
     test.each([
@@ -474,6 +483,28 @@ describe('the configuration', () => {
             .toMatchObject({voice, ai});
     });
 
+    test.each([
+        ['big changes only', 'big'], ['every time', 'every'], ['big', 'every'], ['never', 'every'],
+        ['Big Changes Only', 'every'], [true, 'every'], [null, 'every']
+    ])('"approval": %j means asking at level %s', async (approval, level) => {
+        expect((await loaded(() => Promise.resolve({approval}))).approval).toBe(level);
+    });
+
+    test.each([
+        [120, 120], [30, 30], [600, 600], [900, 900], [5, 30], [0, 30], [-1, 30], [100000, 900], [90.6, 91],
+        ['300', 120], [null, 120], [Infinity, 120]
+    ])('"proposalExpirySeconds": %j gives %i', async (proposalExpirySeconds, seconds) => {
+        const config = await loaded(() => Promise.resolve({proposalExpirySeconds}));
+        expect(config.proposalExpirySeconds).toBe(seconds);
+    });
+
+    test('asks every time, for the usual time, when it says nothing or cannot be read', async () => {
+        for (const load of [() => Promise.resolve({}), () => Promise.reject(new Error('404'))]) {
+            expect(await loaded(load)).toMatchObject({approval: 'every', proposalExpirySeconds: 120});
+        }
+        expect(createConfig().get()).toMatchObject({approval: 'every', proposalExpirySeconds: 120});
+    });
+
     test('is off when there is nothing to load', () => {
         expect(createConfig().get().voice).toBe(false);
     });
@@ -496,12 +527,9 @@ describe('reset for a new student', () => {
         settings.subscribe(listener);
         settings.reset();
         expect(values[STORAGE_KEY]).toBeUndefined();
-        expect(settings.get()).toEqual({talkKey: 'f2',
-            maxSeconds: 15,
-            readAloud: false,
-            screenReader: null,
-            approval: 'every',
-            questionDismissed: false});
+        expect(settings.get()).toEqual({
+            talkKey: 'f2', maxSeconds: 15, readAloud: false, screenReader: null, questionDismissed: false
+        });
         expect(listener).toHaveBeenCalled();
         expect(createSettings(storage).get().screenReader).toBeNull();
     });

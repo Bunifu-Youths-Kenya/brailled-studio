@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import React, {useCallback, useEffect, useRef, useState, useSyncExternalStore} from 'react';
 import {useIntl} from 'react-intl';
+import {createPortal} from 'react-dom';
 
 import Dialog from '../outline/dialog.jsx';
 import {dialogMessages} from '../outline/messages.js';
@@ -183,15 +184,18 @@ const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
 
     return (
         <React.Fragment>
-            <div
-                aria-atomic="true"
-                aria-live="polite"
-                className={styles.announcer}
-                data-brailled-announcer
-            >
-                {/* A new element each time, so that a repeated message is announced again. */}
-                <span key={notice.serial}>{notice.text}</span>
-            </div>
+            {/* In the page's body: an open library hides the rest of the editor from screen readers. */}
+            {createPortal((
+                <div
+                    aria-atomic="true"
+                    aria-live="polite"
+                    className={styles.announcer}
+                    data-brailled-announcer
+                >
+                    {/* A new element each time, so that a repeated message is announced again. */}
+                    <span key={notice.serial}>{notice.text}</span>
+                </div>
+            ), document.body)}
             <AssistantHost app={app} />
             {asking ? <ScreenReaderQuestion app={app} /> : null}
             {settingsOpen ? (
