@@ -1,4 +1,6 @@
 // Settings from environment variables. See `.env.example`.
+import { fileURLToPath } from 'node:url'
+
 export interface Config {
   apiKey: string
   model: string
@@ -24,8 +26,12 @@ export interface Config {
   speakPerAddressPerMinute: number
   // Characters read aloud a day, if set here. The editor's configuration file may allow fewer.
   charactersPerDay: number | null
+  // The file the record of costs is kept in, and the most it may add up to in a day, in US dollars.
+  costLog: string | null
+  costPerDayUsd: number
 }
 
+const COST_LOG = fileURLToPath(new URL('../logs/cost.jsonl', import.meta.url))
 const AUDIO_MODELS = 'google/gemini-3.5-flash-lite,google/gemini-3.8-flash-lite-tts,openai/gpt-audio-mini'
 
 type Env = Record<string, string | undefined>
@@ -45,6 +51,14 @@ const count = (env: Env, name: string, fallback: number, minimum = 1): number =>
 
 // On unless clearly switched off.
 const unlessFalse = (env: Env, name: string): boolean => env[name]?.trim().toLowerCase() !== 'false'
+
+const amount = (env: Env, name: string, fallback: number): number => {
+  const given = env[name]?.trim()
+  if (!given) return fallback
+  const value = Number(given)
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${name} must be a number of at least 0, not "${given}"`)
+  return value
+}
 
 // A variable left empty counts as unset.
 const text = (env: Env, name: string): string => env[name]?.trim() ?? ''
@@ -78,4 +92,6 @@ export const readConfig = (env: Env): Config => ({
   voicePerDay: optional(env, 'VOICE_REQUESTS_PER_DAY'),
   speakPerAddressPerMinute: count(env, 'SPEAK_REQUESTS_PER_MINUTE_PER_ADDRESS', 90),
   charactersPerDay: optional(env, 'VOICE_CHARACTERS_PER_DAY'),
+  costLog: text(env, 'AI_COST_LOG') === 'off' ? null : text(env, 'AI_COST_LOG') || COST_LOG,
+  costPerDayUsd: amount(env, 'AI_DAILY_COST_CAP_USD', 1),
 })

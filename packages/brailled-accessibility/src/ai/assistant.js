@@ -186,9 +186,11 @@ const createAssistant = ({ports, endpoint, fetch}) => {
      * @param {{data: string, format: string}} turn.audio The recording.
      * @param {boolean} turn.pending Whether something waits for an answer: then only the words are asked for.
      * @param {string} turn.model The model to ask.
+     * @param {string} turn.provider The voice provider in use, and
+     * @param {number} turn.cacheHits the sentences played from shipped sound, both for the record of costs.
      * @returns {Promise<object>} `{transcript, clear, use}` or `{error}`. `use` is null when there is no reply.
      */
-    const hear = async ({audio, pending, model}) => {
+    const hear = async ({audio, pending, model, provider, cacheHits}) => {
         // Only the newest recording matters.
         listening?.abort();
         const controller = new AbortController();
@@ -206,6 +208,8 @@ const createAssistant = ({ports, endpoint, fetch}) => {
                     pending: transcribe,
                     language: ports.language(),
                     model,
+                    provider,
+                    cacheHits,
                     ...(sent ? {request: context} : {})
                 }),
                 credentials: 'omit',

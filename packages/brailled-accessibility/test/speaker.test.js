@@ -106,7 +106,8 @@ describe('the queue of sentences', () => {
         const {speaker, state, settle} = speakerFor();
         speaker.speak('One.', {online: true});
         await settle();
-        expect(state.asked).toEqual([{text: 'One.', model: school.ttsModel, voice: 'Kore'}]);
+        expect(state.asked).toEqual(
+            [{text: 'One.', model: school.ttsModel, voice: 'Kore', provider: 'gemini-pair', cacheHits: 0}]);
     });
 
     test('plays at the school\'s speed, keeping the pitch', async () => {
@@ -148,6 +149,18 @@ describe('the queue of sentences', () => {
         expect(state.asked).toEqual([]);
         expect(state.fetched).toContain(`static/brailled-voice/${keptKey('Hello.')}.wav`);
         expect(state.played).toHaveLength(2);
+    });
+
+    test('counts the sentences played from shipped sound, and tells the server once', async () => {
+        const {speaker, state, settle, finish} = speakerFor({kept: ['Done.', 'Hello.']});
+        await speaker.load();
+        speaker.speak('Done. Hello. One. Two.', {online: true});
+        await settle();
+        for (let i = 0; i < 3; i++) await finish();
+        expect(state.asked.map(body => body.cacheHits)).toEqual([2, 0]);
+        speaker.speak('Done.');
+        await settle();
+        expect([speaker.takeHits(), speaker.takeHits()]).toEqual([1, 0]);
     });
 
     test('mixes shipped and asked-for sentences', async () => {

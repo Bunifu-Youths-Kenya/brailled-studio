@@ -242,11 +242,14 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         set({status: {message: voiceMessages.working}});
         app.announce(app.say(voiceMessages.working));
         const {speech} = app.config.get();
+        const service = app.online.provider();
         const spoken = assistant ?
             await assistant.hear({
                 audio: {data: audio.data, format: audio.format},
                 pending: answering,
-                model: app.online.provider() === 'openai-audio' ? speech.compareModel : speech.listenModel
+                model: service === 'openai-audio' ? speech.compareModel : speech.listenModel,
+                provider: service === 'browser' ? '' : service,
+                cacheHits: app.takeCacheHits()
             }) :
             {error: 'unreachable'};
         // The student has spoken again since.

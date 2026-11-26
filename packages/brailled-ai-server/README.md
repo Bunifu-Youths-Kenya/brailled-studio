@@ -72,6 +72,7 @@ sprites) and the model is told what is wrong so it can try again; the editor the
 | `pending` | Whether something waits for the student's answer |
 | `language`, `model` | The editor's language, and the model to ask, which must be in `AI_AUDIO_MODELS` |
 | `request` | The fields of `/api/assistant` without `transcript`. Left out when `pending` |
+| `provider`, `cacheHits` | Optional, for the [record of costs](#costs) |
 
 The reply is `{transcript, clear, result}`: the words heard, whether the model is sure of them, and a proposal,
 question or explanation, or `null`.
@@ -83,18 +84,44 @@ question or explanation, or `null`.
 - **While something waits for an answer, nothing of the project is sent** and the only tool is `report_heard`, so
   that text in a project cannot say what the student said. The editor decides what the words mean.
 - `no_endpoint` (OpenRouter's 404) means no provider of the model can keep to the privacy settings.
-- Limits: `VOICE_REQUESTS_PER_MINUTE_PER_ADDRESS`, and a day's total that is the lower of
-  `VOICE_REQUESTS_PER_DAY` and `voice.dailyRequestCap` in the editor's configuration file, read at start.
+- Limits: `VOICE_REQUESTS_PER_MINUTE_PER_ADDRESS`, and the [daily caps](#costs).
 - Neither the recording nor the words are stored or logged.
 
 ## Speech
 
-`POST /api/speak` takes `{text, model, voice}`: at most 600 characters, a model in `AI_AUDIO_MODELS`, and a voice
-name. It asks OpenRouter's speech endpoint for PCM under the privacy settings and passes the sound on as it arrives:
-16 bit, one channel, 24 kHz. A model named `openai/gpt-audio…` is asked through Chat Completions to say the words,
-and its stream of events is turned into the same sound. Nothing is cached or logged but the number of characters and the time. The day's
-characters are the lower of `VOICE_CHARACTERS_PER_DAY` and `voice.dailyCharacterCap` in the editor's configuration
-file.
+`POST /api/speak` takes `{text, model, voice}`, with optional `provider` and `cacheHits` for the record of costs:
+at most 600 characters, a model in `AI_AUDIO_MODELS`, and a voice name. It asks OpenRouter's speech endpoint for
+PCM under the privacy settings and passes the sound on as it arrives: 16 bit, one channel, 24 kHz. A model named
+`openai/gpt-audio…` is asked through Chat Completions to say the words, and its stream of events is turned into the
+same sound. The [daily caps](#costs) apply. Nothing is cached, and neither the words nor the sound is logged.
+
+## Costs
+
+The server keeps a record of what each request used, one JSON line each, in `logs/cost.jsonl` (`AI_COST_LOG`
+changes the place; `off` keeps none). Git ignores it. A line holds the time, the kind of request, the voice
+provider, the model, whether it succeeded, the number of model calls, tokens, seconds of sound, characters read,
+sentences the editor played from its own sound, the time of each stage, the cost, and the day's totals. **It holds
+nothing said, written or heard.**
+
+```sh
+npm run cost       # a line for each day, kind and model, and each day's total
+```
+
+**Costs are estimates.** For the models that hear and answer, OpenRouter reports each call's cost and the server
+adds them up. For speech it reports none, so the cost is worked out from the characters and the seconds of sound
+with the prices in `src/cost.ts`, which were copied on 2026-11-26 and can go out of date. OpenRouter's activity page
+is the record of what was charged. Making the shipped sound (`voice:phrases`) and `eval` are not recorded.
+
+Daily caps, measured by the record and kept through restarts:
+
+| Cap | Set by | Default |
+| - | - | - |
+| Cost, all requests | `AI_DAILY_COST_CAP_USD` | $1 |
+| Voice requests | `voice.dailyRequestCap` in the editor's configuration, or `VOICE_REQUESTS_PER_DAY` if lower | 300 |
+| Characters read | `voice.dailyCharacterCap`, or `VOICE_CHARACTERS_PER_DAY` if lower | 50000 |
+
+The cost cap is checked before a request, so the requests under way when it is reached, and a request's own several
+calls, can pass it. Set a limit on the OpenRouter key too. The configuration file is read when the server starts.
 
 ## Evaluating a model
 
@@ -172,6 +199,6 @@ That needs a proxy on the same computer that passes requests to it.
 ## Privacy
 
 The server logs only whether a request succeeded, how long it took, the number of model calls and the names of
-the tools used. By default it asks OpenRouter to use only
+the tools used, and keeps the [record of costs](#costs). By default it asks OpenRouter to use only
 providers that do not collect data and have zero data retention. What is sent is described in
 [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md).

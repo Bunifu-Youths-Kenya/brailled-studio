@@ -115,6 +115,20 @@ export interface VoiceTurn {
   language: string
   model: string
   request: AssistantRequest | null
+  // For the record of costs.
+  provider: string
+  cacheHits: number
+}
+
+const PROVIDERS = ['gemini-pair', 'openai-audio']
+const MOST_HITS = 10_000
+
+// What the editor may say of itself for the record: its provider, and the sentences it played from its own sound.
+export const readUse = (body: Record<string, unknown>): { provider: string; cacheHits: number } | null => {
+  const { provider = '', cacheHits = 0 } = body
+  const known = provider === '' || (typeof provider === 'string' && PROVIDERS.includes(provider))
+  const counted = Number.isInteger(cacheHits) && (cacheHits as number) >= 0 && (cacheHits as number) <= MOST_HITS
+  return known && counted ? { provider: provider, cacheHits: cacheHits as number } : null
 }
 
 // A recording and, unless something waits for an answer, what would go with typed words.
@@ -123,7 +137,11 @@ export const readVoiceTurn = (
   { maxAudioSeconds, audioModels }: { maxAudioSeconds: number; audioModels: string[] },
 ): { turn: VoiceTurn } | { problem: string } => {
   if (!isObject(body)) return { problem: 'body' }
-  if (!hasOnly(body, ['audio', 'pending', 'language', 'model', 'request'])) return { problem: 'unknown field' }
+  if (!hasOnly(body, ['audio', 'pending', 'language', 'model', 'request', 'provider', 'cacheHits'])) {
+    return { problem: 'unknown field' }
+  }
+  const use = readUse(body)
+  if (!use) return { problem: 'provider' }
   const audio = readRecording(body.audio, maxAudioSeconds)
   if (!audio) return { problem: 'audio' }
   const { pending, model } = body
@@ -132,12 +150,14 @@ export const readVoiceTurn = (
   if (language === null) return { problem: 'language' }
   if (typeof model !== 'string' || !audioModels.includes(model)) return { problem: 'model' }
   if (pending) {
-    return body.request === undefined ? { turn: { audio, pending, language, model, request: null } } : { problem: 'request' }
+    return body.request === undefined
+      ? { turn: { audio, pending, language, model, request: null, ...use } }
+      : { problem: 'request' }
   }
   if (!isObject(body.request) || Object.hasOwn(body.request, 'transcript')) return { problem: 'request' }
   // The words are in the recording.
   const read = readRequest({ ...body.request, transcript: '(spoken)' })
-  return 'problem' in read ? read : { turn: { audio, pending, language, model, request: read.request } }
+  return 'problem' in read ? read : { turn: { audio, pending, language, model, request: read.request, ...use } }
 }
 
 // The request, or the name of the first thing wrong with it.

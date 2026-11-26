@@ -26,6 +26,13 @@ const createOnlineSpeaker = ({scope, address, settings, onFail}) => {
     let playing = null;
     let fetching = [];
     let busy = false;
+    // Sentences played from the shipped sound since the server was last told, for its record of costs.
+    let hits = 0;
+    const takeHits = () => {
+        const taken = hits;
+        hits = 0;
+        return taken;
+    };
 
     const load = () => {
         loading = loading || Promise.resolve()
@@ -55,14 +62,16 @@ const createOnlineSpeaker = ({scope, address, settings, onFail}) => {
             if (file) {
                 const response = await scope.fetch(`${FOLDER}${file}`, {signal: controller.signal});
                 if (!response.ok) throw new Error(`no kept sound: ${response.status}`);
+                hits += 1;
                 return new Uint8Array(await response.arrayBuffer());
             }
-            const {ttsVoice, ttsModel} = settings();
+            const {provider, ttsVoice, ttsModel} = settings();
             if (!online || !address()) throw new Error('offline');
             const response = await scope.fetch(address(), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({text: sentence, model: ttsModel, voice: ttsVoice}),
+                body: JSON.stringify(
+                    {text: sentence, model: ttsModel, voice: ttsVoice, provider, cacheHits: takeHits()}),
                 credentials: 'omit',
                 referrerPolicy: 'no-referrer',
                 signal: controller.signal
@@ -147,7 +156,8 @@ const createOnlineSpeaker = ({scope, address, settings, onFail}) => {
             read(sentences(text), online, turn);
         },
         stop,
-        speaking: () => busy
+        speaking: () => busy,
+        takeHits
     };
 };
 

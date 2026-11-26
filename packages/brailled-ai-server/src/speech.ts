@@ -3,6 +3,7 @@
  */
 import type { Config } from './config.ts'
 import type { Failure } from './openrouter.ts'
+import { readUse } from './request.ts'
 
 const URL = 'https://openrouter.ai/api/v1/audio/speech'
 const CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions'
@@ -20,14 +21,16 @@ export interface SpeechRequest {
 export const readSpeechRequest = (
   body: unknown,
   { audioModels }: { audioModels: string[] },
-): { speech: SpeechRequest } | { problem: string } => {
+): { speech: SpeechRequest; use: { provider: string; cacheHits: number } } | { problem: string } => {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return { problem: 'body' }
-  const { text, model, voice, ...rest } = body as Record<string, unknown>
+  const { text, model, voice, provider, cacheHits, ...rest } = body as Record<string, unknown>
   if (Object.keys(rest).length > 0) return { problem: 'unknown field' }
+  const use = readUse({ provider, cacheHits })
+  if (!use) return { problem: 'provider' }
   if (typeof text !== 'string' || !text.trim() || text.length > MOST_CHARACTERS) return { problem: 'text' }
   if (typeof model !== 'string' || !audioModels.includes(model)) return { problem: 'model' }
   if (typeof voice !== 'string' || !VOICE.test(voice)) return { problem: 'voice' }
-  return { speech: { text, model, voice } }
+  return { speech: { text, model, voice }, use }
 }
 
 export type Spoken = { sound: Response } | { failure: Failure; detail: string }

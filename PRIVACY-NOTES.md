@@ -256,6 +256,7 @@ for children, and ask students not to include names or personal details. To turn
 | Audio | Brailled does not record, store or upload audio. Its code only starts and stops the browser's speech recognition, which in Chrome **does upload the sound to Google** |
 | Transcripts (what was heard) and typed requests | Kept in memory only: shown until replaced, and gone when the page is closed. There is no setting that saves them |
 | Suggestions and the helper's replies | In memory only |
+| The server's record of costs | A file on the AI server: times, model names, counts, durations and costs. Nothing said, written or heard, and no addresses |
 | The recent conversation | In memory only: cleared by reloading, "forget our conversation" and "Reset for new student" |
 | The project | Saved only when the student saves it, as before |
 

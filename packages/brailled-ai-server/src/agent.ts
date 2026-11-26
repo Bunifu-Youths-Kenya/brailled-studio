@@ -14,8 +14,8 @@ type Outcome = { reply: Record<string, unknown> | null; heard?: Heard } | { fail
 export type Answer = Outcome & {
   rounds: number
   tools: string[]
-  // What each call to the model used.
-  usage: Usage[]
+  // What each call to the model used, and how long it took.
+  usage: (Usage & { ms: number })[]
 }
 
 // A request that is a recording: what to do with it, and the model that hears it.
@@ -53,7 +53,7 @@ export const runAgent = async (request: AssistantRequest, dependencies: Dependen
   const messages = opening()
   const deadline = now() + config.turnTimeoutMs
   const used: string[] = []
-  const usage: Usage[] = []
+  const usage: Answer['usage'] = []
   let nudged = false
 
   for (let round = 1; round <= config.maxRounds; round++) {
@@ -61,6 +61,7 @@ export const runAgent = async (request: AssistantRequest, dependencies: Dependen
     const left = deadline - now()
     if (left <= 0) return done({ failure: 'upstream_timeout', detail: 'out of time' })
 
+    const asked = now()
     const answer = await complete(
       config,
       messages,
@@ -71,7 +72,7 @@ export const runAgent = async (request: AssistantRequest, dependencies: Dependen
     )
     if ('failure' in answer) return done(answer)
     const { message } = answer
-    if (answer.usage) usage.push(answer.usage)
+    usage.push({ ...answer.usage, ms: now() - asked })
     // Sent back exactly as received: some models need what came with their tool calls.
     messages.push(message)
 

@@ -235,7 +235,6 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `packages/brailled-accessibility/src/voice/online.js` |
 | 2026-11-26 | `packages/brailled-accessibility/src/voice/providers.js` |
 | 2026-11-26 | `packages/brailled-accessibility/test/spoken.test.js` |
-| 2026-11-26 | `packages/brailled-ai-server/src/allowance.ts` |
 | 2026-11-26 | `packages/brailled-ai-server/src/speech.ts` |
 | 2026-11-26 | `packages/brailled-ai-server/test/speak.test.ts` |
 | 2026-11-26 | `packages/brailled-accessibility/src/speech/fixed-phrases.json` |
@@ -247,5 +246,9 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `packages/brailled-ai-server/src/phrases.ts` |
 | 2026-11-26 | `packages/brailled-ai-server/test/phrases.test.ts` |
 | 2026-11-26 | `packages/scratch-gui/static/brailled-voice/ (manifest.json and generated speech)` |
+| 2026-11-26 | `packages/brailled-ai-server/scripts/cost.ts` |
+| 2026-11-26 | `packages/brailled-ai-server/src/cost.ts` |
+| 2026-11-26 | `packages/brailled-ai-server/test/cost.test.ts` |
+| 2026-11-26 | `packages/brailled-ai-server/test/wav.ts` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

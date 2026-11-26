@@ -91,9 +91,12 @@ describe('a spoken request', () => {
         await say('what is a loop', {result: {type: 'explanation', text: 'It repeats.'}});
         const [{url, body}] = sent();
         expect(url).toBe('/api/voice-turn');
-        expect(Object.keys(body).sort()).toEqual(['audio', 'language', 'model', 'pending', 'request']);
+        expect(Object.keys(body).sort())
+            .toEqual(['audio', 'cacheHits', 'language', 'model', 'pending', 'provider', 'request']);
         expect(body).toMatchObject({pending: false,
             model: 'google/gemini-3.5-flash-lite',
+            provider: 'gemini-pair',
+            cacheHits: 0,
             audio: {data: audio.data, format: 'wav'}});
         expect(body.request.program.length).toBeGreaterThan(0);
         expect(body.request).not.toHaveProperty('transcript');
@@ -186,7 +189,8 @@ describe('while a suggestion waits', () => {
         const {suggest, say, sent} = editor();
         await suggest();
         await say('maybe');
-        expect(Object.keys(sent()[0].body).sort()).toEqual(['audio', 'language', 'model', 'pending']);
+        expect(Object.keys(sent()[0].body).sort())
+            .toEqual(['audio', 'cacheHits', 'language', 'model', 'pending', 'provider']);
         expect(sent()[0].body.pending).toBe(true);
     });
 

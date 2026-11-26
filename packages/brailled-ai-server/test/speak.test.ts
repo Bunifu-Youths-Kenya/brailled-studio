@@ -2,7 +2,6 @@
 import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createAllowance } from '../src/allowance.ts'
 import { createApp, type Options } from '../src/app.ts'
 import { readConfig } from '../src/config.ts'
 import { USUAL_CAPS } from '../src/editor-config.ts'
@@ -135,13 +134,5 @@ describe('reading words aloud', () => {
     const { post } = await start(() => events(piece([1, 2]), 'data: {"error":{"code":500}}'))
     const body = post({ text: 'a', model: 'openai/gpt-audio-mini', voice: 'alloy' }).then((r) => r.arrayBuffer())
     await expect(body).rejects.toThrow()
-  })
-
-  it('gives the allowance back after a day', () => {
-    let time = 0
-    const allowance = createAllowance(10, () => time)
-    expect([allowance.take(6), allowance.take(6), allowance.take(4)]).toEqual([true, false, true])
-    time = 24 * 60 * 60 * 1000
-    expect(allowance.take(10)).toBe(true)
   })
 })

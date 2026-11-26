@@ -161,6 +161,7 @@ const createApp = (vm, {
             speaker.stop();
         },
         reading: () => !!reader.speaking?.() || speaker.speaking(),
+        takeCacheHits: () => speaker.takeHits?.() ?? 0,
         canReadAloud: () => reader.isAvailable(intl.locale),
         intl: () => intl,
         setIntl: next => {
