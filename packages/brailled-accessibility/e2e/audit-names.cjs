@@ -32,7 +32,8 @@ const describeNode = html => html.replace(/_[A-Za-z0-9+/-]{5}(?=["\s])/g, '');
     const browser = await chromium.launch({executablePath});
     const page = await browser.newPage({viewport: {width: 1366, height: 768}});
     page.setDefaultTimeout(8000);
-    page.on('dialog', d => d.dismiss());
+    // Leaving the page is allowed, as it is reloaded below; other prompts are turned down.
+    page.on('dialog', d => (d.type() === 'beforeunload' ? d.accept() : d.dismiss()));
     const cdp = await page.context().newCDPSession(page);
     const pause = (ms = 800) => page.waitForTimeout(ms);
 
@@ -216,13 +217,41 @@ const describeNode = html => html.replace(/_[A-Za-z0-9+/-]{5}(?=["\s])/g, '');
 
     await screen('voice settings', () => button('Voice settings').click(), escape);
 
+    // The AI helper, switched on, with replies supplied here.
+    let reply = null;
+    await page.route('**/brailled-config.json', route => route.fulfill(
+        {json: {voice: true, ai: true, aiEndpoint: '/audit-assistant'}}));
+    await page.route('**/audit-assistant', route => route.fulfill({json: {reply}}));
+    await page.reload({waitUntil: 'load', timeout: 200000});
+    await page.waitForFunction(() => window.vm && window.vm.editingTarget && window.brailled, null,
+        {timeout: 150000});
+    await page.waitForSelector('[data-brailled-workspace] .blocklyToolbox');
+    await pause(2000);
+    const ask = async value => {
+        reply = value;
+        await page.keyboard.press('Alt+Shift+KeyK');
+        await pause(500);
+        await page.keyboard.type('tell me about loops');
+        await page.keyboard.press('Enter');
+        await page.waitForSelector('dialog [data-brailled-voice-dialog]');
+        await pause(900);
+    };
+    await screen('AI notice', async () => {});
+    await screen('AI question', () => ask({type: 'question', question: 'Which?', choices: ['One', 'Two']}), escape);
+    await screen('AI explanation', () => ask({type: 'explanation', text: 'A loop repeats.'}), escape);
+    const steps = [{command: {op: 'insert', block: 'motion_movesteps'}},
+        {command: {op: 'insert', block: 'motion_turnright'}}];
+    await screen('AI suggestion', () => ask({type: 'proposal', summary: 'Add two blocks.', steps}));
+    await screen('AI suggestion, one step', () => button('One step at a time').click(), escape);
+    await screen('voice and AI settings', () => button('Voice and AI settings').click(), escape);
+
     console.log(`Screens visited (${visited.length}): ${visited.join(', ')}`);
     console.log(`\nControls with no accessible name: ${unnamed.size}`);
     for (const [key, where] of unnamed) console.log(`- [${where}] ${key}`);
     const unexpected = Array.from(unnamed.keys()).filter(key => !EXPECTED.some(known => key.includes(known)));
     console.log(`\nUnexpected: ${unexpected.length}`);
     unexpected.forEach(key => console.log(`- ${key}`));
-    if (unexpected.length > 0 || visited.length < 34) process.exitCode = 1;
+    if (unexpected.length > 0 || visited.length < 40) process.exitCode = 1;
     console.log(`\nClickable elements with no role or keyboard access: ${mouseOnly.size}`);
     for (const [key, where] of mouseOnly) console.log(`- [${where}] ${key}`);
     await browser.close();
