@@ -39,10 +39,10 @@ export const complete = async (
     messages,
     tools,
     tool_choice: 'auto',
-    temperature: 0.2,
     max_tokens: MAX_REPLY_TOKENS,
     provider: {
-      // Only providers that honour every parameter, tools among them.
+      // Only providers that honour every parameter, tools among them. So send no parameter that is not needed: some
+      // providers that keep no data accept no `temperature`, and asking for one would leave none.
       require_parameters: true,
       data_collection: config.denyDataCollection ? 'deny' : 'allow',
       ...(config.zeroDataRetention ? { zdr: true } : {}),
