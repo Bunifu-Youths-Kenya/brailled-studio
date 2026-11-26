@@ -1,6 +1,7 @@
 // The school's voice settings. No real service is used.
 import {createConfig} from '../src/config.js';
-import {PROVIDERS, RANGES, SPEECH_DEFAULTS, speechFrom, voiceIsOn} from '../src/voice/speech-config.js';
+import {PROVIDERS, RANGES, SPEECH_DEFAULTS, speakingWith, speechFrom, voiceIsOn}
+    from '../src/voice/speech-config.js';
 
 const read = async file => {
     const config = createConfig(() => Promise.resolve(file));
@@ -54,6 +55,15 @@ describe('the voice settings', () => {
         expect(speechFrom({[key]: least - 100})[key]).toBe(least);
         expect(speechFrom({[key]: most + 100})[key]).toBe(most);
         expect(speechFrom({[key]: '3'})[key]).toBe(usual);
+    });
+
+    test('read with the comparison model, in its own voice, only for the comparison provider', () => {
+        expect(speakingWith(speechFrom({provider: 'openai-audio'})))
+            .toMatchObject({ttsModel: 'openai/gpt-audio-mini', ttsVoice: 'alloy'});
+        expect(speakingWith(speechFrom({provider: 'openai-audio', compareModel: 'a/b', compareVoice: 'verse'})))
+            .toMatchObject({ttsModel: 'a/b', ttsVoice: 'verse'});
+        expect(speakingWith(speechFrom({provider: 'gemini-pair'})))
+            .toMatchObject({ttsModel: SPEECH_DEFAULTS.ttsModel, ttsVoice: 'Kore'});
     });
 
     test('wait one to four seconds of silence', () => {

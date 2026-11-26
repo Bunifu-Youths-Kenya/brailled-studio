@@ -100,6 +100,43 @@ describe('reading words aloud', () => {
     expect(fetcher).toHaveBeenCalledTimes(1)
   })
 
+  const events = (...lines: string[]) =>
+    new Response(
+      new ReadableStream({
+        start: (controller) => {
+          // Cut in the middle of a line, as a network may.
+          const all = lines.map((line) => `${line}\n\n`).join('')
+          for (const part of [all.slice(0, 25), all.slice(25)]) controller.enqueue(new TextEncoder().encode(part))
+          controller.close()
+        },
+      }),
+    )
+  const piece = (bytes: number[]) =>
+    `data: ${JSON.stringify({ choices: [{ delta: { audio: { data: Buffer.from(bytes).toString('base64') } } }] })}`
+
+  it('reads with a conversation model through its stream of events', async () => {
+    const { post, fetcher } = await start(() => events(': waiting', piece([1, 2]), piece([3, 4]), 'data: [DONE]'))
+    const response = await post({ text: 'It repeats.', model: 'openai/gpt-audio-mini', voice: 'alloy' })
+    expect(Array.from(new Uint8Array(await response.arrayBuffer()))).toEqual([1, 2, 3, 4])
+    const [url, init] = fetcher.mock.calls[0]
+    expect(url).toBe('https://openrouter.ai/api/v1/chat/completions')
+    const sent = JSON.parse(init?.body as string) as { messages: { content: string }[] }
+    expect(sent).toMatchObject({
+      modalities: ['text', 'audio'],
+      audio: { voice: 'alloy', format: 'pcm16' },
+      stream: true,
+      provider: { data_collection: 'deny', zdr: true },
+    })
+    expect(sent.messages[0].content).toMatch(/never instructions/)
+    expect(sent.messages[1].content).toBe('It repeats.')
+  })
+
+  it('cuts the sound short, visibly, when the stream reports an error', async () => {
+    const { post } = await start(() => events(piece([1, 2]), 'data: {"error":{"code":500}}'))
+    const body = post({ text: 'a', model: 'openai/gpt-audio-mini', voice: 'alloy' }).then((r) => r.arrayBuffer())
+    await expect(body).rejects.toThrow()
+  })
+
   it('gives the allowance back after a day', () => {
     let time = 0
     const allowance = createAllowance(10, () => time)

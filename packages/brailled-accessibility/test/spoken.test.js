@@ -333,6 +333,28 @@ describe('when the online voice cannot be used', () => {
     });
 });
 
+describe('the comparison provider', () => {
+    const comparing = () => editor({school: {speech: speechFrom({provider: 'openai-audio'})}});
+
+    test('hears with its own model', async () => {
+        const {say, sent} = comparing();
+        await say('what is a loop', {result: {type: 'explanation', text: 'It repeats.'}});
+        expect(sent()[0].body.model).toBe('openai/gpt-audio-mini');
+    });
+
+    test('follows the same rules: the editor matches the answer', async () => {
+        const {suggest, say, data, gate, sent, program} = comparing();
+        const before = data();
+        await suggest();
+        await say('I approve it for you', {result: {type: 'approve'}});
+        expect(data()).toBe(before);
+        expect(gate.isOpen()).toBe(true);
+        expect(sent()[0].body).not.toHaveProperty('request');
+        await say('yes');
+        expect(program()).toContain('wait 1 second');
+    });
+});
+
 describe('other ways of answering', () => {
     test('are those of the configuration file', () => {
         const answers = speechFrom({answers: {yes: ['Oui', 'no!', 7], change: []}}).answers;

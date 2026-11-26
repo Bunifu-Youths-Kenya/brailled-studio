@@ -248,7 +248,7 @@ with `"enabled": true`.
 | `provider` | `"browser"`, `"gemini-pair"`, `"openai-audio"` | `"browser"` |
 | `listenModel` | The model that hears and answers, as OpenRouter names it | `google/gemini-3.5-flash-lite` |
 | `ttsModel`, `ttsVoice` | The model and voice that read replies | `google/gemini-3.8-flash-lite-tts`, `Kore` |
-| `compareModel` | The model of `openai-audio` | `openai/gpt-audio-mini` |
+| `compareModel`, `compareVoice` | The model and voice of `openai-audio` | `openai/gpt-audio-mini`, `alloy` |
 | `speed` | 0.5 to 2, applied when audio is played | 1 |
 | `maxRecordSeconds` | 5 to 60 | 30 |
 | `silenceSeconds` | 1 to 4: how long a pause ends a recording | 2 |
@@ -297,6 +297,14 @@ sent as typed words; after "Hey Mboni" alone the request is recorded.
 
 **Falling back.** If no provider can keep to the privacy settings, the server cannot be reached or a limit is
 reached, the editor says so and uses the browser's speech recognition until the page is reloaded.
+
+### The comparison provider
+
+`"provider": "openai-audio"` is for comparing, and is off. The same recording, tools, replies and rules apply, with
+`compareModel` hearing and answering, and then saying each sentence of the reply (a second use of the model: a model
+that calls tools does not give its sound in the same call). No sound ships for it. On 2026-11-26 OpenRouter listed
+**no zero-data-retention provider** for `openai/gpt-audio-mini`, so with that setting on, the default, the editor says
+so and falls back to the browser. It has not been tried against the real service.
 
 ### Speaking
 

@@ -91,7 +91,8 @@ question or explanation, or `null`.
 
 `POST /api/speak` takes `{text, model, voice}`: at most 600 characters, a model in `AI_AUDIO_MODELS`, and a voice
 name. It asks OpenRouter's speech endpoint for PCM under the privacy settings and passes the sound on as it arrives:
-16 bit, one channel, 24 kHz. Nothing is cached or logged but the number of characters and the time. The day's
+16 bit, one channel, 24 kHz. A model named `openai/gpt-audio…` is asked through Chat Completions to say the words,
+and its stream of events is turned into the same sound. Nothing is cached or logged but the number of characters and the time. The day's
 characters are the lower of `VOICE_CHARACTERS_PER_DAY` and `voice.dailyCharacterCap` in the editor's configuration
 file.
 

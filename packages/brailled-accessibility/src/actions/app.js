@@ -13,6 +13,7 @@ import {createReader} from '../speech/read-aloud.js';
 import {SCRIPTS_VIEWS} from '../views.js';
 import voiceMessages from '../voice/messages.js';
 import {createOnlineVoice} from '../voice/online.js';
+import {speakingWith} from '../voice/speech-config.js';
 import {SWAHILI} from '../proposals/answers.js';
 import {accessibleName, focusableWithin, roleOf, zoneElement, zoneOf} from './dom.js';
 import {roleNames, speech} from './messages.js';
@@ -361,7 +362,7 @@ const createApp = (vm, {
     speaker = createSpeaker({
         scope: globalThis,
         address: () => config.get().aiEndpoint?.replace(/(?:\/assistant)?\/?(?=$|\?)/, '/speak') ?? null,
-        settings: () => config.get().speech,
+        settings: () => speakingWith(config.get().speech),
         onFail: rest => {
             speakerFailed = true;
             app.announce(`${app.say(voiceMessages.speakerFailed)} ${rest}`);

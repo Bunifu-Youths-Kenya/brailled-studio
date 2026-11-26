@@ -38,6 +38,7 @@ const SPEECH_DEFAULTS = Object.freeze({
     ttsVoice: 'Kore',
     // The model of the `openai-audio` provider, which is there for comparison.
     compareModel: 'openai/gpt-audio-mini',
+    compareVoice: 'alloy',
     // Whether saying "done" ends a recording, which needs the browser's speech recognition to run beside it.
     doneWord: false,
     // Words besides the English ones that say yes, no or "change it", matched in the editor.
@@ -62,6 +63,7 @@ const speechFrom = value => {
         ttsModel: model('ttsModel'),
         compareModel: model('compareModel'),
         ttsVoice: matching(given.ttsVoice, VOICE_NAME, SPEECH_DEFAULTS.ttsVoice),
+        compareVoice: matching(given.compareVoice, VOICE_NAME, SPEECH_DEFAULTS.compareVoice),
         doneWord: given.doneWord === true,
         answers: answersFrom(given.answers),
         ...Object.fromEntries(Object.entries(RANGES).map(([key, range]) => [key, numberIn(given[key], range)]))
@@ -69,12 +71,18 @@ const speechFrom = value => {
 };
 
 // Voice is on for a plain `true`, or for settings whose `enabled` is a plain `true`.
+// Who reads replies: with the comparison provider, the model that also hears, in a voice of its own.
+const speakingWith = speech => (speech?.provider === 'openai-audio' ?
+    {...speech, ttsModel: speech.compareModel, ttsVoice: speech.compareVoice} :
+    speech);
+
 const voiceIsOn = value => value === true || value?.enabled === true;
 
 export {
     PROVIDERS,
     RANGES,
     SPEECH_DEFAULTS,
+    speakingWith,
     speechFrom,
     voiceIsOn
 };
