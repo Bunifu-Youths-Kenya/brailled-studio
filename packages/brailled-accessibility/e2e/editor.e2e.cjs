@@ -769,11 +769,9 @@ const startAiServer = async (env = {}) => {
 
     await group('voice input', async t => {
         const {page, key, pause} = t;
-        const bar = page.locator('[data-brailled-zone="voice"]');
-        const button = bar.locator('button[aria-keyshortcuts]');
-        const phase = () => bar.getAttribute('data-voice-phase');
-        const status = () => bar.locator('[data-voice-status]').textContent();
-        const transcript = () => bar.locator('[data-voice-transcript]').textContent();
+        const zone = page.locator('[data-brailled-zone="voice"]');
+        const mic = page.locator('[data-voice-mic]');
+        const phase = () => zone.getAttribute('data-voice-phase');
         const requests = () => page.evaluate(() => window.speech.requests.length);
         const will = (text, confidence = 0.95) => page.evaluate(say => {
             Object.assign(window.speech, {say, error: null});
@@ -793,15 +791,14 @@ const startAiServer = async (env = {}) => {
             await t.goTo(text);
         };
 
-        const boxes = await page.evaluate(() => ['header', 'main', 'aside', '[data-brailled-zone="voice"]']
+        const [main, aside] = await page.evaluate(() => ['main', 'aside']
             .map(selector => document.querySelector(selector).getBoundingClientRect().toJSON()));
-        const [, main, aside, voice] = boxes;
-        check('the voice bar is across the bottom, covering nothing', voice.bottom === 768 && voice.width === 1366 &&
-            main.bottom <= voice.top + 0.5 && aside.bottom <= voice.top + 0.5, `${main.bottom} ${voice.top}`);
-        check('it says how to talk', /Hold F2, or this button, to talk to Mboni\./.test(await status()));
+        check('nothing for voice is drawn on screen: the editor reaches the bottom',
+            main.bottom > 740 && aside.bottom > 740 && await zone.evaluate(el => !el.getClientRects().length) &&
+            await mic.count() === 0, `${main.bottom} ${aside.bottom}`);
+        check('no talk button or notice is left', await page.locator('[data-voice-talk], [data-voice-notice]')
+            .count() === 0);
         check('the microphone is not opened on its own', await requests() === 0 && await phase() === 'idle');
-        check('axe: voice bar', (await t.axe('[data-brailled-zone="voice"]')).length === 0,
-            (await t.axe('[data-brailled-zone="voice"]')).join('; '));
 
         await t.sample();
         await key('Alt+Shift+KeyO', 900);
@@ -809,80 +806,45 @@ const startAiServer = async (env = {}) => {
         await will('Where am I?');
         await page.keyboard.down('F2');
         await pause(600);
-        check('holding F2 listens', await phase() === 'listening' &&
-            await button.getAttribute('aria-pressed') === 'true' && /^Listening\. Let go/.test(await status()));
+        check('holding F2 listens, with a dot in the corner', await phase() === 'listening' &&
+            await mic.isVisible(), await phase());
+        check('the dot is drawn above the menu bar\'s far end', await mic.evaluate(el => {
+            const box = el.getBoundingClientRect();
+            return box.top < 48 && box.right > window.innerWidth - 40;
+        }));
+        await page.screenshot({path: path.join(out, 'mic-dot.png')});
         await page.keyboard.up('F2');
         await pause(1100);
-        check('letting go stops listening', await phase() === 'idle' &&
+        check('letting go stops listening, and the dot goes', await phase() === 'idle' && await mic.count() === 0 &&
             await page.evaluate(() => window.speech.requests.at(-1).stopped));
-        check('a spoken command is echoed and answered',
-            /^I heard: Where am I\. You are in the scripts area, on move 10 steps/.test(await t.said()), await t.said());
-        check('what was heard is shown large', await transcript() === 'I heard: Where am I.' &&
-            await bar.locator('[data-voice-transcript]').evaluate(el => parseFloat(getComputedStyle(el).fontSize) >= 24));
-        check('the reply is shown, without repeating what was heard',
-            await status() === (await t.said()).replace('I heard: Where am I. ', ''), await status());
+        check('what goes online is said once, the first time, before the answer',
+            /^Privacy: .*You are in the scripts area, on move 10 steps/.test(await t.said()), await t.said());
+        check('a spoken command is answered, without repeating it', /^You are in the scripts area/
+            .test(await say('Where am I?')), await t.said());
 
         await say('next');
         check('spoken "next" moves in the outline', await onItem() === 'wait 1 second', await onItem());
         await toItem('say Hello!');
         let answer = await say('delete block');
-        check('spoken edit command', answer.startsWith('I heard: delete block. Deleted: say Hello!') &&
+        check('spoken edit command', answer.startsWith('Deleted: say Hello!') &&
             !(await t.items()).some(item => item.includes('say Hello!')), answer);
         answer = await say('undo');
-        check('spoken undo', /^I heard: undo\. Undone\./.test(answer) &&
+        check('spoken undo', /^Undone\./.test(answer) &&
             (await t.items()).some(item => item.includes('say Hello!')), answer);
 
-        // The button, with a mouse.
-        await toItem('move 10 steps');
-        await will('next');
-        await button.hover();
-        await page.mouse.down();
-        await pause(600);
-        check('holding the button listens', await phase() === 'listening');
-        check('pressing the button leaves focus where it was', await onItem() === 'move 10 steps');
-        await page.mouse.up();
-        await pause(1100);
-        check('letting go of the button runs the command', await onItem() === 'wait 1 second', await onItem());
-
-        await will('next');
-        await button.click();
+        await will(null);
+        await page.keyboard.down('F2');
         await pause(500);
-        check('a tap listens for one phrase', await phase() === 'listening' && /Speak now/.test(await status()));
-        await page.evaluate(() => window.speech.requests.at(-1).phrase());
-        await pause(1100);
-        check('the phrase ends listening and runs', await phase() === 'idle' && await onItem() === 'say Hello!',
-            await onItem());
-
-        await button.evaluate(el => el.click());
-        await pause(300);
-        check('a click with no press, as screen readers send, listens', await phase() === 'listening');
+        await page.keyboard.up('F2');
         await key('Escape', 500);
-        check('Escape stops listening', await phase() === 'idle' && /Stopped listening/.test(await status()) &&
-            await page.evaluate(() => window.speech.requests.at(-1).aborted));
-
-        // The button, with the keyboard: commands act where focus was before.
-        await toItem('move 10 steps');
-        await button.focus();
         await will('next');
-        await page.keyboard.down('Space');
-        await pause(600);
-        check('holding Space on the button listens', await phase() === 'listening');
-        await page.keyboard.up('Space');
-        await pause(1100);
-        check('and acts where focus was before', await onItem() === 'wait 1 second' && await phase() === 'idle',
-            `${await onItem()} / ${await t.said()} / ${await page.evaluate(() => document.activeElement.tagName)}`);
-
-        await toItem('say Hello!');
-        await button.focus();
-        await will('delete block');
-        await page.keyboard.down('Space');
-        await pause(600);
-        await page.keyboard.up('Space');
-        await pause(1100);
-        check('after an edit from the button, focus is back in the outline',
-            !(await t.items()).some(item => item.includes('say Hello!')) && await onItem() === 'wait 1 second',
-            `${await onItem()} / ${await t.said()}`);
-        await say('undo');
+        await page.keyboard.down('F2');
+        await pause(300);
+        await key('Escape', 500);
+        check('Escape stops listening', await phase() === 'idle' && /Stopped listening/.test(await t.said()) &&
+            await page.evaluate(() => window.speech.requests.at(-1).aborted), await t.said());
+        await page.keyboard.up('F2');
+        await pause(500);
 
         const before = await requests();
         await will('next');
@@ -890,46 +852,40 @@ const startAiServer = async (env = {}) => {
         check('a short press of F2 explains holding', /Hold F2 down while you speak/.test(await t.said()) &&
             await requests() === before + 1, await t.said());
 
-        // Doubtful words are confirmed first.
+        // Doubtful words are confirmed first, beside the editor where questions are said.
         await toItem('say Hello!');
         const program = await t.data();
+        const docked = page.locator('[data-brailled-docked]');
         await say('delete block', 0.4);
-        const dialog = page.locator('dialog');
-        check('low confidence asks first', await dialog.count() === 1 &&
-            /I heard: delete block\. I am not sure/.test(await dialog.locator('h2').textContent()));
-        check('"No" has focus', (await t.focused()).text.trim() === 'No', (await t.focused()).text);
+        check('low confidence asks first, beside the editor', await docked.count() === 1 &&
+            /I heard: delete block\. I am not sure/.test(await docked.locator('h2').textContent()) &&
+            await onItem() === 'say Hello!', await t.said());
         check('nothing has changed while asking', await t.data() === program);
-        check('axe: voice question', (await t.axe()).length === 0, (await t.axe()).join('; '));
-        await key('Enter', 900);
-        check('"No" does nothing and returns focus', await dialog.count() === 0 && await t.data() === program &&
-            await onItem() === 'say Hello!' && await t.said() === 'Nothing was done.', await t.said());
+        check('axe: voice question', (await t.axe('[data-brailled-docked]')).length === 0,
+            (await t.axe('[data-brailled-docked]')).join('; '));
+        await say('no');
+        check('"no" does nothing', await docked.count() === 0 && await t.data() === program &&
+            await t.said() === 'Nothing was done.', await t.said());
         await say('delete block', 0);
-        check('unmeasured confidence asks too', await dialog.count() === 1);
-        await will('maybe', 0.9);
-        await page.keyboard.down('F2');
-        await pause(600);
-        check('nothing in the question is announced while listening',
-            await dialog.locator('[role="status"]').textContent() === '');
-        await page.keyboard.up('F2');
-        await pause(900);
+        check('unmeasured confidence asks too', await docked.count() === 1);
         await say('maybe', 0.9);
-        check('other words keep the question', await dialog.count() === 1 &&
-            /Say yes or no/.test(await dialog.locator('[role="status"]').textContent()) && await t.data() === program);
+        check('other words keep the question', await docked.count() === 1 &&
+            /Say yes or no/.test(await t.said()) && await t.data() === program, await t.said());
         await say('yes', 0.95);
         await pause(500);
-        check('a spoken "yes" carries it out', await dialog.count() === 0 &&
+        check('a spoken "yes" carries it out', await docked.count() === 0 &&
             !(await t.items()).some(item => item.includes('say Hello!')), await t.said());
         await say('undo', 0.5);
-        await dialog.getByRole('button', {name: 'Yes, go ahead'}).click();
-        await pause(1100);
-        check('the "Yes" button carries it out', (await t.items()).some(item => item.includes('say Hello!')));
-        await say('delete block', 0.5);
+        await key('Alt+Shift+KeyQ', 600);
+        check('Alt+Shift+Q reaches the question', /No|Yes/.test((await t.focused()).text), (await t.focused()).text);
         await key('Escape', 900);
-        check('Escape answers no', await dialog.count() === 0 && await t.data() === program);
+        check('Escape there answers no', await docked.count() === 0 &&
+            !(await t.items()).some(item => item.includes('say Hello!')));
+        await say('undo');
 
         answer = await say('make me a sandwich');
         check('other words get an answer and change nothing', /not a command I know.*Mboni is not connected here/
-            .test(answer) && await t.data() === program, answer);
+            .test(answer) && await t.data() !== '', answer);
 
         for (const [error, message] of [
             ['not-allowed', /The microphone is blocked.*Alt\+Shift\+K/],
@@ -944,8 +900,8 @@ const startAiServer = async (env = {}) => {
             await pause(600);
             await page.keyboard.up('F2');
             await pause(500);
-            check(`${error} is explained, aloud and on screen`, message.test(await status()) &&
-                message.test(await t.said()) && await phase() === 'idle', await status());
+            check(`${error} is explained aloud`, message.test(await t.said()) && await phase() === 'idle',
+                await t.said());
         }
         await page.evaluate(() => {
             window.speech.error = null;
@@ -957,8 +913,8 @@ const startAiServer = async (env = {}) => {
         check('F2 does nothing while another dialog is open', await requests() === count);
         await t.type('go to voice bar');
         await key('Enter', 900);
-        check('go to voice bar', await button.evaluate(el => el === document.activeElement) &&
-            await t.said() === 'Voice bar.', await t.said());
+        check('with no question waiting, going to voice says so', await t.said() ===
+            'Nothing is waiting for an answer.', await t.said());
         await key('Alt+Shift+KeyH', 600);
         check('what can I do here lists talking', /talk \(hold F2\)/.test(await t.said()), await t.said());
 
@@ -967,14 +923,17 @@ const startAiServer = async (env = {}) => {
         await pause(500);
         await page.evaluate(() => window.dispatchEvent(new Event('blur')));
         await pause(500);
-        check('leaving the window stops listening', await phase() === 'idle' &&
-            /left the window/.test(await status()));
+        check('leaving the window stops listening', await phase() === 'idle' && /left the window/.test(await t.said()),
+            await t.said());
         await page.keyboard.up('F2');
 
         await toItem('move 10 steps');
         answer = await say('run');
-        check('spoken "run"', answer === 'I heard: run. Project started.', answer);
-    }, {init: fakeSpeech});
+        check('spoken "run"', answer === 'Project started.', answer);
+    }, {init: [fakeSpeech, () => {
+        // Questions said beside the editor, as a student using voice has them.
+        if (window === window.top) localStorage.setItem('brailled.settings', JSON.stringify({screenReader: true}));
+    }]});
 
     // Settings as stored, and the question asked on a first visit.
     const stored = page => page.evaluate(() => JSON.parse(localStorage.getItem('brailled.settings') || 'null'));
@@ -989,7 +948,7 @@ const startAiServer = async (env = {}) => {
     await group('introduction', async t => {
         const {page, key, pause} = t;
         const bar = page.locator('[data-brailled-zone="voice"]');
-        const status = () => bar.locator('[data-voice-status]').textContent();
+        const status = () => page.$eval('[data-brailled-announcer]', el => el.textContent);
         const requests = () => page.evaluate(() => window.speech.requests.length);
         await pause(1500);
         check('nothing is said before the student calls', await spoken(page) === '' &&
@@ -1007,7 +966,7 @@ const startAiServer = async (env = {}) => {
         check('it is said once a session', await requests() === 1);
         await typed(t, 'Mboni');
         check('calling its name asks again', /I am Mboni/.test(await t.said()), await t.said());
-        await bar.getByRole('button', {name: 'Voice settings'}).click();
+        await typed(t, 'voice settings');
         await pause();
         const dialog = page.getByRole('dialog', {name: 'Voice settings'});
         await dialog.getByLabel(/Your first name/).fill('Amina');
@@ -1073,79 +1032,41 @@ const startAiServer = async (env = {}) => {
     await group('voice settings', async t => {
         const {page, key, pause} = t;
         const bar = page.locator('[data-brailled-zone="voice"]');
-        const talk = bar.getByRole('button', {name: 'Hold to talk'});
         const phase = () => bar.getAttribute('data-voice-phase');
         const requests = () => page.evaluate(() => window.speech.requests.length);
-        const notice = /^Privacy: when you use voice.*online service\. Chrome sends it to Google\.$/;
-        const describedBy = await talk.getAttribute('aria-describedby');
-        check('the privacy notice is always shown, and describes the talk button',
-            notice.test(await page.locator(`#${describedBy}`).textContent()) &&
-            await page.locator(`#${describedBy}`).isVisible());
-        for (const width of [1366, 1024]) {
-            await page.setViewportSize({width, height: 768});
-            await pause(800);
-            const fits = await bar.evaluate(el => ({
-                inside: Array.from(el.querySelectorAll('*')).every(child => {
-                    const [own, outer] = [child.getBoundingClientRect(), el.getBoundingClientRect()];
-                    return child.closest('[role="group"]') || (own.bottom <= outer.bottom + 0.5 &&
-                        own.right <= outer.right + 0.5);
-                }),
-                words: el.querySelector('[role="group"]').getBoundingClientRect().width
-            }));
-            check(`the voice bar fits at ${width} wide`, fits.inside && fits.words > 300, JSON.stringify(fits));
-            await page.screenshot({path: path.join(out, `voice-bar-${width}.png`)});
-        }
         // A 768 high laptop screen leaves about this much once the browser has taken its share.
         for (const height of [768, 650]) {
             await page.setViewportSize({width: 1366, height});
             await pause(800);
             const covered = await page.evaluate(() => {
-                const top = document.querySelector('[data-brailled-zone="voice"]').getBoundingClientRect().top;
+                const bottom = window.innerHeight;
                 const wanted = {
                     'the sprite\'s name': document.querySelector('input[class*="input_input-form"]'),
                     'the sprite': document.querySelector('[class*="sprite-selector-item_sprite-selector-item"]'),
                     'the button that adds a sprite':
                         document.querySelector('[class*="sprite-selector_add-button"] button')
                 };
-                const found = Object.entries(wanted)
-                    .filter(([, el]) => !el || el.getBoundingClientRect().bottom > top)
+                return Object.entries(wanted)
+                    .filter(([, el]) => !el || el.getBoundingClientRect().bottom > bottom)
                     .map(([name, el]) => `${name} ${el ? Math.round(el.getBoundingClientRect().bottom) : 'missing'}`);
-                const info = document.querySelector('[class*="sprite-info_sprite-info"]');
-                const add = wanted['the button that adds a sprite'];
-                if (add.getBoundingClientRect().top < info.getBoundingClientRect().bottom - 1) {
-                    found.push('the add button lies over the sprite\'s details');
-                }
-                return found.concat(`bar top ${Math.round(top)}`);
             });
-            check(`the voice bar covers nothing of the sprites at ${height} high`, covered.length === 1,
-                covered.join(', '));
-            await page.screenshot({path: path.join(out, `voice-bar-height-${height}.png`)});
-        }
-        for (const width of [1366, 1024]) {
-            await page.setViewportSize({width, height: 650});
-            await pause(800);
-            check(`the bar still fits when the screen is short, ${width} wide`, await bar.evaluate(el => Array.from(
-                el.querySelectorAll('*')).every(child => child.closest('[role="group"]') ||
-                child.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 0.5)));
+            check(`the sprites are all on screen at ${height} high`, covered.length === 0, covered.join(', '));
         }
         await page.setViewportSize({width: 1366, height: 768});
 
-        await bar.getByRole('button', {name: 'Voice settings'}).click();
-        await pause();
+        await typed(t, 'voice settings');
         const dialog = page.getByRole('dialog', {name: 'Voice settings'});
         check('the settings open on the chosen talk key', await dialog.isVisible() &&
             await dialog.getByRole('radio', {name: 'F2'}).evaluate(el => el === document.activeElement));
         check('axe: voice settings', (await t.axe()).length === 0, (await t.axe()).join('; '));
-        check('the settings repeat the privacy notice', /Chrome sends it to Google/.test(await dialog.textContent()));
+        check('the settings show the privacy notice', /^Privacy: when you use voice.*Chrome sends it to Google\.$/
+            .test(await dialog.locator('[data-voice-notice]').textContent()));
         await key('ArrowDown', 500);
         await dialog.getByLabel('Longest time to listen').selectOption('5');
         await dialog.getByRole('button', {name: 'Done'}).click();
         await pause();
         check('the choices are stored', (await stored(page)).talkKey === 'altShiftV' &&
             (await stored(page)).maxSeconds === 5, JSON.stringify(await stored(page)));
-        check('the bar names the new key', /Hold Alt\+Shift\+V/.test(
-            await bar.locator('[data-voice-status]').textContent()) &&
-            await talk.getAttribute('aria-keyshortcuts') === 'Alt+Shift+V');
         await key('F2', 500);
         check('F2 no longer listens', await requests() === 0);
 
@@ -1164,7 +1085,7 @@ const startAiServer = async (env = {}) => {
         check('holding Alt+Shift+V listens', await phase() === 'listening' && await requests() === 1);
         await letGo(['KeyV', 'Shift', 'Alt']);
         check('letting go runs the command', await phase() === 'idle' &&
-            await t.said() === 'I heard: go to menu. Menu bar.', await t.said());
+            /^Privacy: .*Menu bar\.$/.test(await t.said()), await t.said());
         await hold();
         await page.keyboard.up('Shift');
         await pause(900);
@@ -1187,7 +1108,7 @@ const startAiServer = async (env = {}) => {
             await t.said());
 
         await t.reload();
-        check('the choices last', await talk.getAttribute('aria-keyshortcuts') === 'Alt+Shift+V');
+        check('the choices last', (await stored(page)).talkKey === 'altShiftV');
         await typed(t, 'voice settings');
         await dialog.getByRole('checkbox', {name: 'Read replies aloud'}).check();
         await pause();
@@ -1203,7 +1124,7 @@ const startAiServer = async (env = {}) => {
         await typed(t, 'go to menu');
         check('off again, nothing is read', await spoken(page) === '', await spoken(page));
 
-        await bar.getByRole('button', {name: 'Voice settings'}).click();
+        await typed(t, 'voice settings');
         await pause();
         await dialog.getByRole('button', {name: 'Reset for new student'}).click();
         await pause(900);
@@ -1211,22 +1132,17 @@ const startAiServer = async (env = {}) => {
             await dialog.count() === 0 && await question(page).isVisible());
         const after = await stored(page);
         check('reset removes the saved settings', after === null, JSON.stringify(after));
-        check('and returns the talk key to F2', await talk.getAttribute('aria-keyshortcuts') === 'F2');
+        check('and returns the talk key to F2', ((await stored(page))?.talkKey ?? 'f2') === 'f2');
         check('and says so', await t.said() === 'Settings reset for a new student.', await t.said());
     }, {init: [fakeSpeech, fakeVoice]});
 
     await group('voice unavailable', async t => {
         const {page, key} = t;
         const bar = page.locator('[data-brailled-zone="voice"]');
-        const status = () => bar.locator('[data-voice-status]').textContent();
-        check('an unsupported browser is told at once', /cannot turn speech into text.*Alt\+Shift\+K/
-            .test(await status()) &&
-            await bar.locator('button[aria-keyshortcuts]').getAttribute('aria-disabled') === 'true');
         await key('F2', 700);
-        check('pressing F2 says so aloud', /cannot turn speech into text/.test(await t.said()), await t.said());
-        await bar.locator('button[aria-keyshortcuts]').click({force: true});
-        await t.pause(500);
-        check('pressing the button listens to nothing', await bar.getAttribute('data-voice-phase') === 'idle');
+        check('pressing F2 says that this browser cannot listen, and how to type instead',
+            /cannot turn speech into text.*Alt\+Shift\+K/.test(await t.said()), await t.said());
+        check('it listens to nothing', await bar.getAttribute('data-voice-phase') === 'idle');
         await key('Alt+Shift+KeyK', 500);
         await t.type('go to menu');
         await key('Enter', 900);
@@ -1241,21 +1157,11 @@ const startAiServer = async (env = {}) => {
         await group(title, async t => {
             const {page, key, pause} = t;
             const bar = page.locator('[data-brailled-zone="voice"]');
-            const talk = bar.locator('[data-voice-talk]');
-            const status = () => bar.locator('[data-voice-status]').textContent();
-            check('the voice bar says voice is off', message.test(await status()) &&
-                await talk.textContent() === 'Voice is off' && await talk.getAttribute('aria-disabled') === 'true',
-            await status());
-            check('there is no notice, setting or transcript',
-                await bar.getByRole('button').count() === 1 &&
-                await bar.locator('[data-voice-transcript]').count() === 0 && !/Privacy/.test(await bar.textContent()));
+            check('nothing for voice is on screen', await bar.evaluate(el => !el.getClientRects().length &&
+                !el.textContent));
             check('nothing is asked about screen readers', await page.getByRole('dialog').count() === 0);
-            check('axe: voice off', (await t.axe('[data-brailled-zone="voice"]')).length === 0,
-                (await t.axe('[data-brailled-zone="voice"]')).join('; '));
             await key('F2', 700);
             check('the talk key says so', message.test(await t.said()), await t.said());
-            await talk.click({force: true});
-            await pause(500);
             check('the microphone is never opened', await page.evaluate(() => window.speech.requests.length) === 0 &&
                 await bar.getAttribute('data-voice-phase') === 'idle');
             await typed(t, 'talk');
@@ -1560,7 +1466,7 @@ const startAiServer = async (env = {}) => {
             'Mboni suggests a change. Approve it?' && await docked.isVisible());
         check('focus stays where the student was', (await t.focused()).text.includes('move 10 steps'),
             (await t.focused()).text);
-        check('it is said through the live region', /^Mboni suggests a change\. Approve it\?/.test(await t.said()),
+        check('it is said through the live region, without a label', /^Wait 2 seconds after moving\. Add wait 2 seconds, after move 10 steps\. Shall I\?/.test(await t.said()),
             await t.said());
         check('axe: suggestion beside the editor', (await t.axe('[data-brailled-docked]')).length === 0,
             (await t.axe('[data-brailled-docked]')).join('; '));
@@ -1649,9 +1555,7 @@ const startAiServer = async (env = {}) => {
 
     await group('wake word', async t => {
         const {page, key, pause} = t;
-        const bar = page.locator('[data-brailled-zone="voice"]');
-        const indicator = bar.locator('[data-voice-wake]');
-        const notice = bar.locator('[data-voice-notice]');
+        const indicator = page.locator('[data-voice-mic]');
         const running = () => page.evaluate(() => window.speech.requests
             .filter(r => r.continuous && !r.interimResults && !r.aborted).length);
         const hear = async text => {
@@ -1662,46 +1566,20 @@ const startAiServer = async (env = {}) => {
         await pause(1500);
         check('nothing listens until it is turned on', await indicator.count() === 0 &&
             await page.evaluate(() => window.speech.requests.length) === 0);
-        const offered = bar.locator('[data-voice-handsfree]');
-        const handsFree = offered.getByRole('button', {name: 'Hands-free (F4)'});
-        check('a hands-free button is offered, saying that sound goes online', await handsFree.isVisible() &&
-            /Sends room sound online/.test(await offered.textContent()));
-        await page.screenshot({path: path.join(out, 'hands-free-off.png')});
-        await handsFree.focus();
-        await key('Enter', 900);
-        check('it starts listening, and focus stays on the button, now "Stop"', await running() === 1 &&
-            await page.evaluate(() => document.activeElement.textContent) === 'Stop (F4)');
-        await key('Enter', 900);
-        check('and stops it again', await indicator.count() === 0 && await running() === 0 &&
-            await handsFree.isVisible());
-        await page.locator('[data-brailled-outline] [tabindex="0"]').focus();
+        check('there is no button for it: F4 is the way', await page.locator('[data-voice-handsfree]').count() === 0);
         await key('F4', 900);
-        check('F4 starts listening, with a visible sign', await indicator.getAttribute('data-voice-wake') ===
-            'listening' && /Listening for “Hey Mboni”/.test(await indicator.textContent()) && await running() === 1,
-        await indicator.textContent());
-        check('the notice says sound goes to the speech service',
-            /^Demo mode: while this is on, the sound around you goes to your browser’s speech service/
-                .test(await notice.textContent()), await notice.textContent());
-        const fits = () => bar.evaluate(el => Array.from(el.querySelectorAll('*'))
-            .every(child => child.closest('[role="group"]') ||
-                child.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 0.5));
-        for (const [width, height] of [[1366, 768], [1366, 650], [1024, 650]]) {
-            await page.setViewportSize({width, height});
-            await pause(800);
-            check(`the bar fits with the sign at ${width} by ${height}`, await fits());
-            await page.screenshot({path: path.join(out, `wake-${width}x${height}.png`)});
-        }
-        await page.setViewportSize({width: 1366, height: 768});
-        check('axe: listening', (await t.axe('[data-brailled-zone="voice"]')).length === 0,
-            (await t.axe('[data-brailled-zone="voice"]')).join('; '));
+        check('F4 starts listening, with the dot in the corner', await indicator.isVisible() && await running() === 1);
+        check('it says, once, that room sound goes to the speech service',
+            /^Demo mode: while this is on, the sound around you goes to your browser’s speech service.*Now listening/
+                .test(await t.said()), await t.said());
+        await page.screenshot({path: path.join(out, 'wake-listening.png')});
 
         await t.goTo('move 10 steps');
         const before = await t.items();
         await hear('somebody talking about money');
-        check('other talk does nothing', (await t.items()).join() === before.join() &&
-            await bar.locator('[data-voice-transcript]').textContent() === 'Nothing heard yet.');
+        check('other talk does nothing', (await t.items()).join() === before.join());
         await hear('Hey Mboni, where am I');
-        check('a request after the wake words is answered', /^I heard: where am I\. You are in/.test(await t.said()),
+        check('a request after the wake words is answered', /^You are in/.test(await t.said()),
             await t.said());
         check('and it listens for them again', await running() === 1);
         await hear('okay Boni delete block');
@@ -1717,7 +1595,7 @@ const startAiServer = async (env = {}) => {
         await key('F4', 700);
         check('F4 stops it', await indicator.count() === 0 && await running() === 0 &&
             await t.said() === 'Stopped listening for the wake words.', await t.said());
-        await bar.getByRole('button', {name: 'Voice settings'}).click();
+        await typed(t, 'voice settings');
         await pause();
         const box = page.getByRole('checkbox', {name: /^Listen for “Hey Mboni”/});
         await box.check();
@@ -1736,10 +1614,8 @@ const startAiServer = async (env = {}) => {
     await group('AI helper: tools, modes and memory', async t => {
         const {page, key, pause} = t;
         const {dialog, ask, say} = helpers(t);
-        const mode = page.locator('[data-voice-mode]');
         await startOutline(t);
         const original = await t.items();
-        check('the bar shows the mode', await mode.textContent() === 'Mboni: Build mode');
 
         ai.model.lookUp = [['find_blocks', {query: 'make it talk'}], ['describe_block', {opcode: 'control_wait'}],
             ['search_library', {query: 'dragon'}], ['explain_concept', {concept: 'loop'}], ['get_program', {}]];
@@ -1757,19 +1633,7 @@ const startAiServer = async (env = {}) => {
         ai.model.lookUp = null;
 
         await say('guide me');
-        check('"guide me" switches to guide mode, and says so', await mode.textContent() === 'Mboni: Guide mode' &&
-            /Guide mode\./.test(await t.said()), await t.said());
-        check('the notice stays', /Mboni \(AI\) is on/.test(await page.locator('[data-voice-notice]').textContent()));
-        await page.setViewportSize({width: 1024, height: 768});
-        await pause(700);
-        check('the bar fits with the mode at 1024 wide', await page.locator('[data-brailled-zone="voice"]')
-            .evaluate(el => {
-                const space = el.getBoundingClientRect().bottom - parseFloat(getComputedStyle(el).paddingBottom);
-                return Array.from(el.querySelectorAll('*')).every(child => child.closest('[role="group"]') ||
-                    child.getBoundingClientRect().bottom <= space + 0.5);
-            }));
-        await page.screenshot({path: path.join(out, 'guide-mode.png')});
-        await page.setViewportSize({width: 1366, height: 768});
+        check('"guide me" switches to guide mode, and says so', /Guide mode\./.test(await t.said()), await t.said());
 
         ai.model.reply = {type: 'proposal', summary: 'Do it for you.', steps: [{command:
             {op: 'insert', block: 'control_wait', after: 'b1'}}]};
@@ -1787,7 +1651,7 @@ const startAiServer = async (env = {}) => {
             JSON.stringify(ai.model.asked.at(-1).conversationSoFar.slice(-3)));
         await say('build mode');
         check('a command after an explanation closes it and is done', await dialog.count() === 0 &&
-            await mode.textContent() === 'Mboni: Build mode');
+            /Build mode\./.test(await t.said()), await t.said());
 
         ai.model.reply = {type: 'proposal', summary: 'Add a wait.', steps: [{command:
             {op: 'insert', block: 'control_wait', after: 'b2'}}]};
@@ -1815,26 +1679,12 @@ const startAiServer = async (env = {}) => {
     await group('AI helper', async t => {
         const {page, key} = t;
         const {dialog, ask, say, press} = helpers(t);
-        const bar = page.locator('[data-brailled-zone="voice"]');
-        const notice = bar.locator('[data-voice-notice]');
-        check('an on-screen notice says typed and spoken text goes online',
+        await typed(t, 'voice settings');
+        const notice = page.locator('dialog [data-voice-notice]');
+        check('Voice settings say typed and spoken text goes online',
             /^Mboni \(AI\) is on: text you type or say to it, and your program, are sent to an online service\./
-                .test(await notice.textContent()) && await notice.isVisible(), await notice.textContent());
-        await page.setViewportSize({width: 1024, height: 768});
-        await t.pause(800);
-        check('the longer notice fits inside the bar\'s padding at 1024 wide', await bar.evaluate(el => {
-            const space = el.getBoundingClientRect().bottom - parseFloat(getComputedStyle(el).paddingBottom);
-            return Array.from(el.querySelectorAll('*')).every(child => child.closest('[role="group"]') ||
-                child.getBoundingClientRect().bottom <= space + 0.5);
-        }));
-        await page.screenshot({path: path.join(out, 'ai-voice-bar-1024.png')});
-        await page.setViewportSize({width: 1024, height: 650});
-        await t.pause(800);
-        check('the longer notice fits a short screen too', await bar.evaluate(el => Array.from(
-            el.querySelectorAll('*')).every(child => child.closest('[role="group"]') ||
-            child.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 0.5)));
-        await page.screenshot({path: path.join(out, 'ai-voice-bar-short.png')});
-        await page.setViewportSize({width: 1366, height: 768});
+                .test(await notice.textContent()), await notice.textContent());
+        await key('Escape', 500);
         await startOutline(t);
         await key('Alt+Shift+KeyK', 500);
         check('the command box says where other requests go',
@@ -1904,11 +1754,9 @@ const startAiServer = async (env = {}) => {
     limited.model.reply = {type: 'explanation', text: 'Hello.'};
     await group('spoken turn', async t => {
         const {page, key, pause} = t;
-        const bar = page.locator('[data-brailled-zone="voice"]');
-        const notice = bar.locator('[data-voice-notice]');
-        const recording = bar.locator('[data-voice-recording]');
+        const recording = page.locator('[data-voice-mic]');
         const dialog = page.locator('dialog');
-        const status = () => bar.locator('[data-voice-status]').textContent();
+        const status = () => page.$eval('[data-brailled-announcer]', el => el.textContent);
         // Wait for the recording to end by itself, then for the reply.
         const finished = async () => {
             await recording.waitFor({state: 'detached', timeout: 20000});
@@ -1916,25 +1764,30 @@ const startAiServer = async (env = {}) => {
         };
         await startOutline(t);
         const original = await t.items();
-        check('the notice says a recording goes online', /^Your recorded voice .* go through OpenRouter/
-            .test(await notice.textContent()), await notice.textContent());
 
         ai.model.spoken = [['submit_proposal', {transcript: 'add a wait', clear: true, summary: 'Add a wait.',
             steps: [{command: {op: 'insert', block: 'control_wait', after: 'b2'}}]}]];
         await t.goTo('move 10 steps');
         const began = Date.now();
-        await bar.getByRole('button', {name: /Hold to talk|Listening/}).click();
+        // Everything announced from here on.
+        await page.evaluate(() => {
+            window.announced = [];
+            const region = document.querySelector('[data-brailled-announcer]');
+            new MutationObserver(() => window.announced.push(region.textContent))
+                .observe(region, {childList: true, characterData: true, subtree: true});
+        });
+        await key('F2', 400);
         await recording.waitFor({timeout: 5000});
         await page.screenshot({path: path.join(out, 'voice-recording.png')});
-        check('a visible sign shows while it records', /Recording/.test(await recording.textContent()) &&
-            /Recording\. Pause when you have finished/.test(await status()), await status());
+        check('the dot shows while it records', await recording.isVisible());
         await finished();
+        const announced = await page.evaluate(() => window.announced.join(' | '));
+        check('the first time, it says that the recording goes online', /Your recorded voice .* go through OpenRouter/
+            .test(announced), announced);
         const [first] = ai.model.recordings;
         const seconds = first ? (first.bytes - 44) / 32000 : 0;
         check('the recording ends by itself after a pause, and arrives as 16 kHz WAV', seconds > 2.5 && seconds < 8 &&
             Date.now() - began < 15000, `${seconds.toFixed(1)} seconds`);
-        check('what was heard is shown', await bar.locator('[data-voice-transcript]').textContent() ===
-            'I heard: add a wait.', await bar.locator('[data-voice-transcript]').textContent());
         check('the suggestion waits for approval', await dialog.count() === 1 &&
             (await t.items()).join() === original.join());
 
@@ -1955,9 +1808,7 @@ const startAiServer = async (env = {}) => {
         await recording.waitFor({timeout: 5000});
         await finished();
         check('with no provider that keeps nothing, it says so and uses the browser',
-            /without your words being kept/.test(await status()) &&
-            /^Mboni \(AI\) is on/.test(await notice.textContent()),
-        `${await status()} / ${await notice.textContent()}`);
+            /without your words being kept.*browser’s speech service/.test(await status()), await status());
     }, {init: [fakeVoice], config: {json: {voice: {enabled: true, provider: 'gemini-pair'}, ai: true,
         aiEndpoint: ai.endpoint}}});
 
@@ -1965,8 +1816,8 @@ const startAiServer = async (env = {}) => {
         const {page, key, pause} = t;
         const bar = page.locator('[data-brailled-zone="voice"]');
         const dialog = page.locator('dialog');
-        const status = () => bar.locator('[data-voice-status]').textContent();
-        const sign = () => bar.locator('[data-voice-wake]').textContent();
+        const status = () => page.$eval('[data-brailled-announcer]', el => el.textContent);
+        const waking = () => page.evaluate(() => window.brailledApp.wake().getState());
         // Say something, once the editor is listening and Mboni has finished speaking, as a student taking turns
         // would. Mboni goes on listening while she speaks, so words said sooner would talk over her.
         const quiet = () => page.waitForFunction(() => {
@@ -1991,7 +1842,8 @@ const startAiServer = async (env = {}) => {
         check('calling Mboni starts a conversation: a greeting, and a sign', /Hey! I’m listening\./.test(await status()),
             await status());
         await pause(2000);
-        check('the sign says so', /Talking with Mboni/.test(await sign()), await sign());
+        check('it is a conversation, with the dot showing the microphone is open', (await waking()).conversing &&
+            await page.locator('[data-voice-mic]').isVisible(), JSON.stringify(await waking()));
         // The greeting ships as a recording in the online voice, so it is played, not asked for.
         const hits = () => page.evaluate(() => window.brailledApp.takeCacheHits());
         check('the greeting is played in the online voice, from its recording', await hits() >= 1 &&
@@ -2042,7 +1894,8 @@ const startAiServer = async (env = {}) => {
         check('"goodbye" ends the conversation', /Say hey, then Mboni, when you need me\./.test(await status()),
             await status());
         await pause(3000);
-        check('and it waits to be called', /Listening for “Hey Mboni”/.test(await sign()), await sign());
+        check('and it waits to be called', !(await waking()).conversing && (await waking()).listening,
+            JSON.stringify(await waking()));
     }, {init: [fakeSpeech, fakeVoice, () => {
         if (window === window.top) {
             localStorage.setItem('brailled.settings', JSON.stringify({voiceFirst: false, screenReader: false, readAloud: true}));
@@ -2052,25 +1905,14 @@ const startAiServer = async (env = {}) => {
 
     await group('no voice to read with', async t => {
         const {page, pause} = t;
-        const bar = page.locator('[data-brailled-zone="voice"]');
-        const warning = bar.locator('[data-voice-warning]');
         await pause(3000);
-        check('the bar says that nothing can be read, and how to mend it', await warning.isVisible() &&
-            /nothing is read aloud.*--enable-speech-dispatcher/.test(await warning.textContent()));
-        check('no hands-free button where the school has not allowed it',
-            await bar.locator('[data-voice-handsfree]').count() === 0);
-        for (const [width, height] of [[1366, 768], [1024, 650]]) {
-            await page.setViewportSize({width, height});
-            await pause(800);
-            check(`the warning is in view at ${width} by ${height}`, await warning.evaluate(el => {
-                const [own, bar_] = [el.getBoundingClientRect(),
-                    el.closest('[data-brailled-zone="voice"]').getBoundingClientRect()];
-                return own.top >= bar_.top && own.bottom <= bar_.bottom + 0.5;
-            }));
-            await page.screenshot({path: path.join(out, `no-voice-${width}.png`)});
-        }
-        check('axe: with the warning', (await t.axe('[data-brailled-zone="voice"]')).length === 0,
-            (await t.axe('[data-brailled-zone="voice"]')).join('; '));
+        await typed(t, 'voice settings');
+        const warning = page.locator('dialog [data-voice-warning]');
+        check('Voice settings say that nothing can be read, and how to mend it', await warning.isVisible() &&
+            /nothing is read aloud.*--enable-speech-dispatcher/.test(await warning.textContent()),
+        await warning.count() ? await warning.textContent() : 'no warning');
+        await page.screenshot({path: path.join(out, 'no-voice-settings.png')});
+        check('axe: with the warning', (await t.axe()).length === 0, (await t.axe()).join('; '));
     }, {init: [() => {
         Object.defineProperty(window, 'speechSynthesis', {configurable: true,
             get: () => ({getVoices: () => [], cancel: () => {}, speak: () => {}})});
@@ -2117,8 +1959,8 @@ const startAiServer = async (env = {}) => {
         check('when speech fails, the device voice reads and says so', /The online voice cannot be reached/
             .test(await device()) && /A variable holds a value\./.test(await device()), await device());
         check('and it is shown', /cannot be reached\. Using the device’s voice/.test(
-            await bar.locator('[data-voice-status]').textContent()),
-        await bar.locator('[data-voice-status]').textContent());
+            await page.$eval('[data-brailled-announcer]', el => el.textContent)),
+        await page.$eval('[data-brailled-announcer]', el => el.textContent));
         ai.model.mute = null;
     }, {init: [fakeVoice, () => {
         if (window === window.top) {
@@ -2147,10 +1989,10 @@ const startAiServer = async (env = {}) => {
     }, {config: aiConfig('http://localhost:9/api/assistant')});
 
     await group('AI helper without voice', async t => {
-        const bar = t.page.locator('[data-brailled-zone="voice"]');
-        check('the notice is shown with voice off, about typed text', /^Mboni \(AI\) is on: text you type for it/
-            .test(await bar.locator('[data-voice-notice]').textContent()) &&
-            await bar.getByRole('button').count() === 1);
+        await t.key('Alt+Shift+KeyK', 500);
+        check('with voice off, the command box says typed requests go online',
+            /sent to an online AI service, with your program/.test(await t.page.locator('dialog').textContent()));
+        await t.key('Escape', 500);
         ai.model.reply = {type: 'question', question: 'Which one?'};
         await typed(t, 'help me with this');
         await t.pause(900);

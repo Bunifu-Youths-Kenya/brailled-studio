@@ -13,11 +13,11 @@
     accent-color: var(--brailled-selected);
 }
 
-/* Above the voice bar, at the side, over the editor without blocking it. */
+/* At the side, over the editor without blocking it. */
 .docked {
     position: fixed;
     inset-inline-end: 1rem;
-    bottom: 5.75rem;
+    bottom: 1rem;
     z-index: 1000;
     box-sizing: border-box;
     width: min(28rem, 92vw);

@@ -5,7 +5,7 @@ import {useIntl} from 'react-intl';
 
 import Dialog from '../outline/dialog.jsx';
 import {INTRODUCTIONS, LISTEN_SECONDS, TALK_KEY_IDS} from '../settings.js';
-import voiceMessages from '../voice/messages.js';
+import {privacyNotice} from '../voice/notice.js';
 import {readsRepliesOnline} from '../voice/speech-config.js';
 import preferenceMessages from './preference-messages.js';
 import {TALK_KEYS} from './shortcuts.js';
@@ -157,11 +157,36 @@ const VoiceSettings = ({app, onClose}) => {
         app.announce(app.say(preferenceMessages.wasReset));
     }, [app, onClose]);
 
+    // What used to be shown beside the editor: why nothing can be read aloud, and what leaves the computer.
+    const {aiEndpoint, speech, voice} = app.config.get();
+    const warning = app.voiceWarning();
+    const notice = privacyNotice({voice: voice === true,
+        aiEndpoint,
+        waking: !!app.wake()?.getState().on,
+        online: app.online.provider() !== 'browser',
+        speech});
+
     return (
         <Dialog
             title={intl.formatMessage(preferenceMessages.title)}
             onCancel={onClose}
         >
+            {warning ? (
+                <p
+                    className={dialogStyles.error}
+                    data-voice-warning
+                >
+                    {warning}
+                </p>
+            ) : null}
+            {notice ? (
+                <p
+                    className={dialogStyles.field}
+                    data-voice-notice
+                >
+                    {intl.formatMessage(notice, {assistant: app.assistantName()})}
+                </p>
+            ) : null}
             <fieldset
                 aria-describedby="brailled-key-hint"
                 className={dialogStyles.field}
@@ -347,11 +372,6 @@ const VoiceSettings = ({app, onClose}) => {
                     wake={app.wake()}
                 />
             ) : null}
-            <p className={dialogStyles.field}>
-                {intl.formatMessage(app.online.provider() === 'browser' ?
-                    voiceMessages.privacy :
-                    voiceMessages.onlineNotice, {assistant: app.assistantName()})}
-            </p>
             <button
                 className={dialogStyles.button}
                 type="button"

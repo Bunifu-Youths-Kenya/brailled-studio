@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import React, {useCallback, useEffect, useRef, useState, useSyncExternalStore} from 'react';
+import React, {useEffect, useRef, useState, useSyncExternalStore} from 'react';
 import {useIntl} from 'react-intl';
 
 import {getApp} from '../actions/app.js';
@@ -14,14 +14,12 @@ import voiceMessages from './messages.js';
 import {createSpeechProvider, speechLanguage} from './provider.js';
 import {createVoiceProviders} from './providers.js';
 import {createRecorderProvider} from './recorder.js';
-import {readsRepliesOnline} from './speech-config.js';
+import {privacyNotice} from './notice.js';
 import createTone from './tone.js';
 
 import dialogStyles from '../outline/dialog.css';
 import styles from './voice-bar.css';
 
-const BUTTON_KEYS = [' ', 'Enter'];
-const VOICES_MS = 2000;
 const ZONE = '[data-brailled-zone="voice"], [data-brailled-voice-dialog]';
 
 // Asks before acting on words that may have been misheard.
@@ -90,7 +88,8 @@ Question.propTypes = {
     onNo: PropTypes.func.isRequired
 };
 
-// The microphone button, what was heard, and what happened. The microphone opens only when asked.
+// Voice input by keys and speech, with nothing on screen but a dot while the microphone is open. It opens only when
+// asked.
 const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = createWakeWord}) => {
     const intl = useIntl();
     const app = getApp(vm);
@@ -129,20 +128,8 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
         useSyncExternalStore(app.config.subscribe, app.config.get);
     const assistant = useSyncExternalStore(app.config.subscribe, app.assistantName);
     const off = allowed !== true;
-    const aiMode = useSyncExternalStore(app.subscribeMode, app.mode);
     const online = useSyncExternalStore(app.online.subscribe, app.online.provider) !== 'browser';
 
-    // A browser lists its voices a moment after it starts: before that, none missing is reported.
-    const [voicesKnown, setVoicesKnown] = useState(0);
-    useEffect(() => {
-        const listed = () => setVoicesKnown(times => times + 1);
-        const timer = setTimeout(listed, VOICES_MS);
-        window.speechSynthesis?.addEventListener?.('voiceschanged', listed);
-        return () => {
-            clearTimeout(timer);
-            window.speechSynthesis?.removeEventListener?.('voiceschanged', listed);
-        };
-    }, []);
     useEffect(() => app.register('voice', voice), [app, voice]);
     useEffect(() => {
         const leave = app.register('wake', wake);
@@ -235,227 +222,38 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
         };
     }, [app, voice, wake]);
 
-    // A click that follows the button's own press and release has been dealt with already. A click on its own,
-    // as some assistive technology sends, listens for one phrase.
-    const handled = useRef(false);
-    const settle = () => setTimeout(() => {
-        handled.current = false;
-    }, 0);
-    const handlePointerDown = useCallback(event => {
-        if (event.button !== 0) return;
-        handled.current = true;
-        event.currentTarget.setPointerCapture?.(event.pointerId);
-        voice.press('button');
-    }, [voice]);
-    const handlePointerUp = useCallback(() => {
-        voice.release('button');
-        settle();
-    }, [voice]);
-    // Pressing the button must not move focus away from what the command is about.
-    const handleMouseDown = useCallback(event => event.preventDefault(), []);
-    const handleButtonKeyDown = useCallback(event => {
-        if (!BUTTON_KEYS.includes(event.key)) return;
-        event.preventDefault();
-        handled.current = true;
-        if (!event.repeat) voice.press('button');
-    }, [voice]);
-    const handleButtonKeyUp = useCallback(event => {
-        if (!BUTTON_KEYS.includes(event.key)) return;
-        event.preventDefault();
-        voice.release('button');
-        settle();
-    }, [voice]);
-    const handleClick = useCallback(() => {
-        if (!handled.current) voice.toggle();
-    }, [voice]);
-
     const handleNo = voice.reject;
     const handleYes = voice.confirm;
 
-    const listening = state.phase === 'listening';
     const words = {assistant, key: talkKey.name, ...state.status.values};
     const status = state.status.text ?? intl.formatMessage(state.status.message, words);
     const hint = intl.formatMessage(voiceMessages.confirmHint, words);
-    const heardLine = intl.formatMessage(voiceMessages.heard, {text: state.heard});
-    // While a question is open the bar says how to answer it. A reply is spoken after what was heard, which the bar
-    // already shows above it.
-    let barStatus = state.pending && !status ? hint : status;
-    if (state.heard && barStatus.startsWith(`${heardLine} `)) barStatus = barStatus.slice(heardLine.length + 1);
-    const handleSettings = () => app.perform('voice.settings');
-    const handleWaking = () => {
-        if (waking.on) wake.stop();
-        else wake.start();
-    };
-    // Offered where the school allows the wake words and this browser can listen for them.
-    const handsFree = !off && wake.available();
-    const warning = voicesKnown ? app.voiceWarning() : null;
-    // What leaves the computer is shown whenever it can: by voice, to the AI helper, or both.
-    let notice = off ? null : voiceMessages.privacy;
-    if (aiEndpoint) notice = off ? voiceMessages.aiNotice : voiceMessages.aiNoticeWithVoice;
-    if (waking.on) notice = aiEndpoint ? voiceMessages.wakeNoticeAi : voiceMessages.wakeNotice;
-    if (online) notice = waking.on ? voiceMessages.onlineNoticeWake : voiceMessages.onlineNotice;
-    else if (aiEndpoint && !off && readsRepliesOnline(chosenSpeech)) {
-        notice = waking.on ? voiceMessages.replyNoticeWake : voiceMessages.replyNotice;
-    }
-    const recordingNow = listening && state.recording;
-    const wakeState = waking.listening ? 'listening' : 'paused';
-    let wakeWords = voiceMessages.handsFreeHint;
-    let wakeClass = styles.handsFreeHint;
-    if (waking.on) {
-        const heardFor = waking.conversing ? voiceMessages.wakeConversing : voiceMessages.wakeListening;
-        wakeWords = waking.listening ? heardFor : voiceMessages.wakePaused;
-        wakeClass = waking.listening ? styles.wakeListening : styles.wakePaused;
-    }
-    const describedBy = [off ? 'brailled-voice-status' : null, notice ? 'brailled-voice-privacy' : null]
-        .filter(Boolean)
-        .join(' ');
-    let buttonText = listening ? voiceMessages.buttonListening : voiceMessages.button;
-    if (off) buttonText = voiceMessages.buttonOff;
+    const micOpen = state.phase === 'listening' || waking.listening;
+
+    // What leaves the computer is said once, the first time the microphone opens, before what follows it. Voice
+    // settings shows it whenever it is wanted.
+    const noticeSaid = useRef(false);
+    const notice = privacyNotice({voice: !off, aiEndpoint, waking: waking.on, online, speech: chosenSpeech});
+    useEffect(() => {
+        if (!micOpen || !notice || noticeSaid.current) return;
+        noticeSaid.current = true;
+        app.preface(intl.formatMessage(notice, {assistant}));
+    }, [app, assistant, intl, micOpen, notice]);
+
+    // Nothing to look at but a dot while the microphone is open: the student uses keys and their voice. The
+    // element holds questions said beside the editor, which going to the voice zone reaches.
     return (
         <div
-            aria-label={intl.formatMessage(voiceMessages.region)}
-            className={styles.bar}
+            className={styles.host}
             data-brailled-zone="voice"
             data-voice-phase={state.phase}
-            role="region"
         >
-            <button
-                aria-describedby={describedBy}
-                aria-disabled={off || !voice.isSupported()}
-                aria-keyshortcuts={off ? null : talkKey.name}
-                data-voice-talk
-                aria-pressed={listening}
-                className={styles.talk}
-                type="button"
-                onClick={handleClick}
-                onContextMenu={handleMouseDown}
-                onKeyDown={handleButtonKeyDown}
-                onKeyUp={handleButtonKeyUp}
-                onMouseDown={handleMouseDown}
-                onPointerCancel={handlePointerUp}
-                onPointerDown={handlePointerDown}
-                onPointerUp={handlePointerUp}
-            >
-                <svg
+            {micOpen ? (
+                <span
                     aria-hidden="true"
-                    className={styles.icon}
-                    viewBox="0 0 24 24"
-                >
-                    <rect
-                        height="12"
-                        rx="4"
-                        width="8"
-                        x="8"
-                        y="2"
-                    />
-                    <path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8" />
-                </svg>
-                {intl.formatMessage(buttonText)}
-            </button>
-            {recordingNow ? (
-                <div
-                    className={styles.wake}
-                    data-voice-recording
-                >
-                    <span className={styles.wakeListening}>{intl.formatMessage(voiceMessages.recording)}</span>
-                </div>
-            ) : null}
-            {(waking.on || handsFree) && !recordingNow ? (
-                <div
-                    className={styles.wake}
-                    data-voice-handsfree={waking.on ? null : true}
-                    data-voice-wake={waking.on ? wakeState : null}
-                >
-                    <span
-                        className={wakeClass}
-                        id="brailled-wake-state"
-                    >
-                        {intl.formatMessage(wakeWords, {assistant})}
-                    </span>
-                    {/* One button for both, so that focus stays on it. */}
-                    <button
-                        aria-describedby="brailled-wake-state"
-                        aria-keyshortcuts={WAKE_KEY.label}
-                        className={styles.settings}
-                        type="button"
-                        // eslint-disable-next-line react/jsx-no-bind
-                        onClick={handleWaking}
-                        onMouseDown={handleMouseDown}
-                    >
-                        {intl.formatMessage(waking.on ? voiceMessages.wakeStop : voiceMessages.handsFree)}
-                    </button>
-                </div>
-            ) : null}
-            {/* Focusable so that a long reply can be scrolled with the keyboard. Said by the live region. */}
-            <div
-                aria-label={intl.formatMessage(voiceMessages.words)}
-                className={styles.words}
-                role="group"
-                tabIndex="0"
-            >
-                {warning ? (
-                    <p
-                        className={styles.warning}
-                        data-voice-warning
-                    >
-                        {/* A command-line switch is kept on one line, to be read and typed as one word. */}
-                        {warning.split(/(--[a-z-]+)/).map((part, index) => (index % 2 ? (
-                            <span
-                                className={styles.flag}
-                                key={part}
-                            >
-                                {part}
-                            </span>
-                        ) : part))}
-                    </p>
-                ) : null}
-                {/* In place of "nothing heard", which says less. */}
-                {off || (warning && !state.heard) ? null : (
-                    <p
-                        className={styles.transcript}
-                        data-voice-transcript
-                    >
-                        {state.heard ? heardLine : intl.formatMessage(voiceMessages.nothingHeard)}
-                    </p>
-                )}
-                <p
-                    className={styles.status}
-                    data-voice-status
-                    id="brailled-voice-status"
-                >
-                    {barStatus}
-                </p>
-            </div>
-            {notice ? (
-                <div className={styles.side}>
-                    <div className={styles.top}>
-                        {aiEndpoint ? (
-                            <span
-                                className={styles.mode}
-                                data-voice-mode={aiMode}
-                            >
-                                {intl.formatMessage(voiceMessages.mode, {assistant, mode: aiMode})}
-                            </span>
-                        ) : null}
-                        {off ? null : (
-                            <button
-                                className={styles.settings}
-                                type="button"
-                                // eslint-disable-next-line react/jsx-no-bind
-                                onClick={handleSettings}
-                            >
-                                {intl.formatMessage(voiceMessages.settings)}
-                            </button>
-                        )}
-                    </div>
-                    <p
-                        className={aiEndpoint ? styles.aiNotice : styles.privacy}
-                        data-voice-notice
-                        id="brailled-voice-privacy"
-                    >
-                        {intl.formatMessage(notice, {assistant})}
-                    </p>
-                </div>
+                    className={styles.mic}
+                    data-voice-mic
+                />
             ) : null}
             {state.pending ? (
                 <Question

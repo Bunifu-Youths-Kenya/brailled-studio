@@ -13,7 +13,7 @@ the editor needs around them.
 | `src/scripts-views.jsx` | Blocks / Outline / Python toggle |
 | `src/palette-area.jsx` | Search placeholder and the block category landmark |
 | `src/actions/` | The action registry, local commands, context snapshot and editor-wide live region |
-| `src/voice/` | The voice bar, the speech-to-text interface and what happens to what was heard |
+| `src/voice/` | Voice input by keys, the speech-to-text interface and what happens to what was heard |
 | `src/wake/` | The wake word: matching it, the engines that listen for it, and when they may |
 | `src/speech/` | Reading replies aloud |
 | `src/ai/` | The AI side: what is sent, checking the form of what comes back, questions and explanations |
@@ -110,11 +110,11 @@ off the device.
 | `project.run`, `project.stop` | | "run", "stop" |
 | `sprite.library` | | "open sprite library" |
 | `voice.talk` | Hold the talk key | "talk" |
-| `go.voice` | Alt+Shift+Q: the voice bar, or a question waiting beside the editor | "go to voice bar" |
+| `go.voice` | Alt+Shift+Q: the question waiting beside the editor, or "Nothing is waiting" | "go to voice bar" |
 | `voice.settings` | | "voice settings" |
 | `mode.build`, `mode.guide`, `memory.forget` | | "build mode", "guide me", "forget our conversation" |
 
-- **Typed commands** go in the command box, and spoken ones come from the voice bar. Both are matched against
+- **Typed commands** go in the command box, and spoken ones come from voice input. Both are matched against
   fixed English phrases and the action names in the user's language, ignoring a greeting such as "hey" or
   "okay" at the start and "please" at either end. Anything else goes to the
   [AI helper](#ai-helper); without one the command box refuses it with a hint.
@@ -137,14 +137,14 @@ It holds sprite names and block text, which students write. Treat it as their da
 
 ## Voice input
 
-A bar at the bottom of the editor has the talk button, what was heard in large type, and a status line. Voice is
-optional: everything it does can be done from the keyboard or by typing the command.
+Voice is keys and speech, with nothing on screen to look at: a blind student presses a key and talks. The only
+thing drawn is a small red dot in the menu bar's far corner while the microphone is open, for a teacher or anyone
+else in the room. Voice is optional: everything it does can be done from the keyboard or by typing the command.
 
 | To talk | What happens |
 | - | - |
 | Hold the **talk key**, F2 unless changed | The microphone is open while the key is down |
-| Hold the button (mouse, touch, or Space or Enter) | The same |
-| Tap the button, or activate it with a screen reader | Listens for one phrase. Tap again to stop sooner |
+| Tap the talk key | Listens for one phrase |
 | Say or type "talk" | The same as a tap |
 | Escape | Stops listening and does nothing |
 
@@ -158,27 +158,27 @@ optional: everything it does can be done from the keyboard or by typing the comm
 No use of either was found in the editor, the block library or the paint editor, and browsers and screen readers
 are not expected to take them on their own. Neither has been tried with NVDA, JAWS, VoiceOver or Orca.
 
-**Room for the editor.** The bar sits below the editor and shares the window's height with it. In a window 740
-pixels high or less, the bar is shorter, with smaller type, and the large stage is drawn at 70% so that the sprites
-stay on screen. Taller windows are unchanged.
+**Room for the editor.** Nothing for voice takes room: the editor reaches the bottom of the window. In a window
+740 pixels high or less the large stage is drawn at 70% so that the sprites stay on screen.
 
 **When the microphone is open.** Only after one of the actions above, unless the student has turned on the
 [wake word](#wake-word). For one request it closes after at
 most 15 seconds, or 5, 10, 30 or 60 as chosen in Voice settings; there is no unlimited choice, and the browser's
 service may stop sooner after silence. It also closes when the window loses focus or the page is hidden. A high
-tone marks it opening and a low tone closing. The voice bar announces and reads nothing while it is open, so that
-neither the screen reader nor the editor is heard as speech.
+tone marks it opening and a low tone closing, and the red dot shows while it is open. Nothing is announced or
+read while it is open, so that neither the screen reader nor the editor is heard as speech.
 
 **What happens to the words.**
 
-1. If the speech service is less than 70% sure, or gives no measure, a dialog asks "Should I go ahead?". "No" has
-   focus. Answer with a button, or hold the talk key and say "yes" or "no". Nothing is done until the answer is
-   yes.
-2. A local command (the typed commands above) runs where focus was, even if you used the button.
+1. If the speech service is less than 70% sure, or gives no measure, the editor asks "Should I go ahead?", beside
+   the editor in voice-first mode or in a dialog otherwise. Hold the talk key and say "yes" or "no", or use its
+   buttons (Alt+Shift+Q reaches them). Nothing is done until the answer is yes.
+2. A local command (the typed commands above) runs where focus was.
 3. Anything else goes to the [AI helper](#ai-helper), if one is set up; if not, the answer says so. A yes or no
    with nothing waiting is not sent anywhere. While a suggestion waits, what is said answers it.
 
-Replies are spoken by the screen reader through the live region and shown in the status line.
+Replies are spoken by the screen reader through the live region, and read aloud where that is on, without
+repeating what was heard.
 
 **Reading aloud.** For students without a screen reader, the editor can read its replies and the question about
 doubtful words with a voice built into the device. It is off until chosen. On a first visit the editor asks "Do
@@ -193,24 +193,24 @@ again next time. It can be changed in Voice settings. Escape also stops what is 
   cannot read aloud.
 
 **Privacy.** The Web Speech API is the browser's service, and Chrome sends the audio to Google's servers. The
-voice bar says so at all times. See [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md), including what a school should
+editor says so once, the first time the microphone opens on a page, and Voice settings show it at all times. See [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md), including what a school should
 do before students use voice.
 
 **Reset for new student**, in Voice settings, forgets the talk key, listening time, reading aloud and the screen
 reader answer, and asks the first question again.
 
 **Turning voice off.** `static/brailled-config.json` with `"voice": false`, or a missing or unreadable file,
-turns off the microphone and reading aloud; the bar says so and everything else works. See
+turns off the microphone and reading aloud; the talk key says so and everything else works. See
 [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md#turning-voice-off).
 
-**Browsers.** Speech recognition is in Chrome, Edge and Safari, and not in Firefox, where the bar says to type
-commands instead. A blocked or missing microphone, silence, no network and an unsupported language each have
+**Browsers.** Speech recognition is in Chrome, Edge and Safari, and not in Firefox, where the talk key says to
+type commands instead. A blocked or missing microphone, silence, no network and an unsupported language each have
 their own message. Commands are understood in English phrases and in the action names of the editor's language.
 
 ### Wake word
 
 Demo mode: say "Hey Mboni" instead of pressing the talk key. It is **off** until the configuration allows it and
-the student turns it on, with the voice bar's **Hands-free** button, **F4** or Voice settings. The talk key keeps
+the student turns it on, with **F4** or Voice settings. The talk key keeps
 working either way. Chrome sends everything heard while it listens to
 Google; read [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md#wake-word-demo-mode) first.
 
@@ -318,7 +318,7 @@ student chooses otherwise in Voice settings, and anything holding the student's 
 key and a new recording stop it. It cannot be interrupted by voice alone: the wake words are not listened for while
 the editor reads.
 
-**No voice.** Where reading aloud is on and cannot read everything, the voice bar says so. **Chrome on Linux**
+**No voice.** Where reading aloud is on and cannot read everything, Voice settings say so. **Chrome on Linux**
 offers no voice unless started with its speech dispatcher, with every Chrome window closed first:
 
 ```sh
@@ -389,14 +389,14 @@ speech goes: follow the checklist in [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md).
 ## Mboni: name and introduction
 
 The assistant is called Mboni. `"assistantName"` in `static/brailled-config.json` changes it: up to 30 letters,
-with spaces, hyphens or apostrophes between them; anything else means Mboni. The name is used on the voice bar, in
-the notice, the dialogs, what is said, and by the AI helper. Saying or typing it before a command is understood
+with spaces, hyphens or apostrophes between them; anything else means Mboni. The name is used in
+the notice, the dialogs, and by the AI helper. What is said does not label replies with it. Saying or typing it before a command is understood
 ("Mboni, where am I?"); on its own it asks who the helper is. Calling it without pressing anything needs the
 [wake word](#wake-word).
 
-**Introduction.** The first time in a browser session that the talk key or button is pressed, the assistant
+**Introduction.** The first time in a browser session that the talk key is pressed, the assistant
 introduces itself instead of listening, and the next press listens. It never speaks before the student does
-something. It is announced to screen readers, shown in the voice bar, and read aloud only if reading aloud is on.
+something. It is announced to screen readers, and read aloud only if reading aloud is on.
 For example:
 
 > Hello Amina. I am Mboni, your coding helper. I can tell you where you are, find blocks, build with you, guide
@@ -563,7 +563,7 @@ These flows depend on the model following its instructions. Tests supply the mod
 `src/theme.css` holds every colour Brailled uses, as `--brailled-*` properties on the page, so that dialogs have
 them too. `useColorMode` (called in `gui.jsx`) puts the editor's colour mode on the page, and the colours follow it:
 
-| Colour mode | Panels | Menu bar and voice bar | Student's place |
+| Colour mode | Panels | Menu bar | Student's place |
 | - | - | - | - |
 | Original | Dark purple text on white | White on deep purple, yellow accents | Yellow on deep purple |
 | High Contrast (also chosen by the computer's "more contrast" setting) | Black on white | White on black, yellow accents | Yellow on black |

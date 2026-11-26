@@ -45,9 +45,10 @@ Voice and the AI helper are separate switches in `static/brailled-config.json`:
 ```
 
 `ai` is `false` unless set to `true`, and the helper also needs `aiEndpoint`. `approval` and
-`proposalExpirySeconds` decide [what the helper's suggestions need](#ai-helper). While it is on, the bar at the
-bottom of the editor shows "AI helper is on: text you type or say to it, and your program, are sent to an online
-service" (without "or say" where voice is off), and the command box and the helper's questions say the same.
+`proposalExpirySeconds` decide [what the helper's suggestions need](#ai-helper). While it is on, Voice settings
+show "Mboni (AI) is on: text you type or say to it, and your program, are sent to an online service", the editor
+says so once when the microphone first opens on a page, and the command box and the helper's questions say the
+same. With voice off, the command box carries it.
 
 ## Online voice (`gemini-pair`, `openai-audio`)
 
@@ -76,7 +77,7 @@ A recording of a child's voice is personal data, and voices can identify people.
 ## Wake word (demo mode)
 
 Calling the assistant by saying "Hey Mboni" is off unless the school allows it (`"wakeWord": {"enabled": true}`)
-**and** a student turns it on, with the Hands-free button, F4 or Voice settings. It is off again after a reload and after "Reset for new
+**and** a student turns it on, with F4 or Voice settings. It is off again after a reload and after "Reset for new
 student", and the choice is not stored.
 
 **While it listens, the sound around the computer goes to the browser's speech service the whole time** (Chrome:
@@ -86,8 +87,8 @@ Google), not only what is said to the assistant. That includes other students, t
 | - | - |
 | When does it listen? | While it is on and the editor is on screen. It pauses when the page is hidden, while the editor reads aloud and while a request is being taken |
 | What happens to what it hears? | A phrase that does not start with the wake words is dropped by the editor: not shown, kept, logged or sent on by Brailled. What the speech service keeps is up to its provider |
-| What shows that it is on? | A red "Listening for Hey Mboni" sign in the voice bar, with a Stop button, and the notice "Demo mode: while this is on, the sound around you goes to your browser's speech service (Chrome: Google)" |
-| How is it stopped? | F4, the Stop button, saying or typing "stop listening", or turning it off in Voice settings |
+| What shows that it is on? | A red dot in the menu bar's far corner, the whole time the microphone is open. When it starts, the editor says once "Demo mode: while this is on, the sound around you goes to your browser's speech service (Chrome: Google)", and Voice settings show it |
+| How is it stopped? | F4, saying or typing "stop listening", or turning it off in Voice settings |
 | What can it do? | Take one request. It never approves a suggestion or answers a question the editor asks. A request that changes the project or runs it needs a yes by the talk key or a button |
 
 **Conversations.** Where the school sets `"conversation": {"enabled": true}`, calling the assistant starts a
@@ -123,12 +124,12 @@ they are.
 | - | - |
 | Microphone input | Never opened, by key, button or command |
 | Reading aloud, and the screen reader question | Off |
-| The voice bar | Says "Voice is turned off for this editor", with no talk key or settings |
+| The talk key | Says "Voice is turned off for this editor" |
 | Everything else, including the keyboard, typed commands and screen reader announcements | Works as before |
 | The AI helper | Not affected: it has its own switch, `ai` |
 
 Voice is on only if the file can be read and says exactly `true`. If it is missing, unreadable or says anything
-else, voice is off and the bar says so. Copy the file with any deployment that should have voice.
+else, voice is off and the talk key says so. Copy the file with any deployment that should have voice.
 
 **Limits of this switch.**
 
@@ -140,10 +141,11 @@ else, voice is off and the bar says so. Copy the file with any deployment that s
 
 ## Notice and consent
 
-**In the editor.** The voice bar always shows: "Privacy: when you use voice, your browser may send the sound of
-your speech to an online service. Chrome sends it to Google." Screen readers read it with the talk button, and
-Voice settings repeat it. The browser also asks before first using the microphone. While the wake word is on, the
-demo mode notice takes its place.
+**In the editor.** Nothing for voice is drawn on screen but a red dot while the microphone is open. The first time
+the microphone opens on a page, the editor says: "Privacy: when you use voice, your browser may send the sound of
+your speech to an online service. Chrome sends it to Google.", or the notice that fits what is in use (the demo
+mode one while the wake word is on, the online voice one, or the AI helper one). Voice settings show it at all
+times. The browser also asks before first using the microphone.
 
 **Not in the editor.** Brailled does not ask for, record or enforce consent. A school that cannot arrange it can
 turn voice off, as above.
@@ -206,8 +208,7 @@ Under `brailled.introduced` in session storage, until the browser session ends: 
 itself.
 
 On a shared computer, **Reset for new student** in the settings removes them all and asks the question again.
-Without it the next person gets the same settings. Reset does not close the project, clear what the voice bar
-last showed, or withdraw the browser's microphone permission; reload the page, and change the permission in the
+Without it the next person gets the same settings. Reset does not close the project or withdraw the browser's microphone permission; reload the page, and change the permission in the
 browser if needed. Clearing the site's data also removes the settings.
 
 ## AI helper

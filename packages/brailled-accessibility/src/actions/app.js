@@ -320,11 +320,10 @@ const createApp = (vm, {
             } else if (zone === 'stage') {
                 focusWhenReady(() => zoneElement(document, 'stage'), arrive);
             } else if (zone === 'voice') {
-                // A question waiting beside the editor comes first.
-                focusWhenReady(() => {
-                    const docked = document.querySelector('[data-brailled-docked]');
-                    return (docked && focusableWithin(docked)[0]) || document.querySelector('[data-voice-talk]');
-                }, arrive);
+                // Voice has nothing on screen to go to but a question waiting beside the editor.
+                const docked = document.querySelector('[data-brailled-docked]');
+                if (docked) focusWhenReady(() => focusableWithin(docked)[0], arrive);
+                else app.announce(app.say(speech.nothingToAnswer));
             } else {
                 const find = () => document.querySelector(`[data-brailled-stage-tab="${zone}"]`);
                 find()?.click();
