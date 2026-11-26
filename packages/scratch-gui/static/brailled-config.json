@@ -1,3 +1,5 @@
 {
-    "voice": true
+    "voice": true,
+    "ai": false,
+    "aiEndpoint": ""
 }

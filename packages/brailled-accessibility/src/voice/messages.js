@@ -18,8 +18,9 @@ const voiceMessages = fromTexts('brailled.voice', 'Voice input', {
     ready: 'Hold {key}, or this button, while you speak.',
     privacy: 'Privacy: when you use voice, your browser may send the sound of your speech to an online ' +
         'service. Chrome sends it to Google.',
-    privacyWithAi: 'Privacy: your speech may go online (Chrome: Google). AI requests send your words and ' +
-        'program to an AI service.',
+    aiNotice: 'AI helper is on: text you type for it, and your program, are sent to an online service.',
+    aiNoticeWithVoice: 'AI helper is on: text you type or say to it, and your program, are sent to an online ' +
+        'service. Chrome sends speech to Google.',
     settings: 'Voice settings',
     starting: 'Opening the microphone.',
     listeningHold: 'Listening. Let go when you have finished.',

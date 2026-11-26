@@ -197,8 +197,10 @@ speech goes: follow the checklist in [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md).
 
 ## AI helper
 
-Optional. It needs the [Brailled AI server](../brailled-ai-server/README.md) and its address as `aiEndpoint` in
-`static/brailled-config.json`: an `https` address, a path starting with `/`, or `http` on this computer.
+Optional, and off by default. It needs the [Brailled AI server](../brailled-ai-server/README.md), and in
+`static/brailled-config.json` both `"ai": true` and its address as `aiEndpoint`: an `https` address, a path
+starting with `/`, or `http` on this computer. `ai` is separate from `voice`. While the helper is on, notices say
+that what is typed or said to it is sent to an online service.
 
 **It never edits.** Anything said, or typed in the command box, that is not a local command is sent with the
 context snapshot, the selected sprite's program, the usable blocks and the actions it may propose. The reply is

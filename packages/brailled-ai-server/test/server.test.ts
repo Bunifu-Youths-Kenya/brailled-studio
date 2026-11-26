@@ -1,9 +1,11 @@
 import type { AddressInfo } from 'node:net'
 import type { Server } from 'node:http'
+import { networkInterfaces } from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, type Options } from '../src/app.ts'
 import { readConfig } from '../src/config.ts'
 import { createRateLimiter } from '../src/limits.ts'
+import { listen } from '../src/listen.ts'
 import { readRequest } from '../src/request.ts'
 
 const KEY = 'sk-test-secret'
@@ -226,12 +228,33 @@ describe('who may call, and how much', () => {
     expect(() => readConfig({ REQUESTS_PER_MINUTE: 'many' })).toThrow(/REQUESTS_PER_MINUTE/)
     expect(() => readConfig({ MAX_REQUEST_BYTES: '0' })).toThrow(/MAX_REQUEST_BYTES/)
     expect(readConfig({})).toMatchObject({
-      host: 'localhost',
       denyDataCollection: true,
       zeroDataRetention: true,
       allowedOrigins: [ORIGIN],
       trustedProxies: 0,
     })
+  })
+})
+
+describe('where it listens', () => {
+  it.each([{}, { HOST: '0.0.0.0' }, { HOST: '::' }])('is this computer only, whatever %o says', async (env) => {
+    const config = readConfig(env)
+    expect(config).not.toHaveProperty('host')
+    const listening = await new Promise<Server>((resolve) => {
+      listen(createApp(config, { log: () => {} }), 0, resolve)
+    })
+    server = listening
+    const { address, port } = listening.address() as AddressInfo
+    expect(address).toBe('127.0.0.1')
+    expect((await fetch(`http://127.0.0.1:${port}/healthz`)).status).toBe(200)
+    // The editor's address for it works too.
+    expect((await fetch(`http://localhost:${port}/healthz`)).status).toBe(200)
+    const outside = Object.values(networkInterfaces())
+      .flat()
+      .find((face) => face?.family === 'IPv4' && !face.internal)
+    if (outside) {
+      await expect(fetch(`http://${outside.address}:${port}/healthz`)).rejects.toThrow()
+    }
   })
 })
 

@@ -93,7 +93,7 @@ const Reply = ({assistant, reply, talkKey}) => {
                             className={dialogStyles.count}
                             id="brailled-ai-answer-hint"
                         >
-                            {say(aiMessages.answerHint, {key: talkKey})}
+                            {say(talkKey ? aiMessages.answerHint : aiMessages.answerHintTyped, {key: talkKey})}
                         </p>
                         <button
                             className={dialogStyles.button}
@@ -129,7 +129,8 @@ Reply.propTypes = {
         choices: PropTypes.arrayOf(PropTypes.string),
         text: PropTypes.string
     }).isRequired,
-    talkKey: PropTypes.string.isRequired
+    // Null where voice is off.
+    talkKey: PropTypes.string
 };
 
 const none = () => () => {};
@@ -153,11 +154,11 @@ Replies.propTypes = {
         getState: PropTypes.func.isRequired,
         subscribe: PropTypes.func.isRequired
     }),
-    talkKey: PropTypes.string.isRequired
+    talkKey: PropTypes.string
 };
 
 const AiHelper = ({app}) => {
-    const {aiEndpoint} = useSyncExternalStore(app.config.subscribe, app.config.get);
+    const {aiEndpoint, voice} = useSyncExternalStore(app.config.subscribe, app.config.get);
     const {talkKey} = useSyncExternalStore(app.settings.subscribe, app.settings.get);
     const [assistant, setAssistant] = useState(null);
 
@@ -176,7 +177,7 @@ const AiHelper = ({app}) => {
     return (
         <Replies
             assistant={assistant}
-            talkKey={TALK_KEYS[talkKey].name}
+            talkKey={voice ? TALK_KEYS[talkKey].name : null}
         />
     );
 };

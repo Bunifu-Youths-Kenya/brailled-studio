@@ -1104,7 +1104,7 @@ const startAiServer = async (env = {}) => {
     }
 
     const ai = await startAiServer();
-    const aiConfig = endpoint => ({json: {voice: true, aiEndpoint: endpoint}});
+    const aiConfig = (endpoint, voice = true) => ({json: {voice, ai: true, aiEndpoint: endpoint}});
     const helper = page => page.locator('dialog');
     const failed = 'I couldn\'t work that out, please try again.';
 
@@ -1118,8 +1118,10 @@ const startAiServer = async (env = {}) => {
         const refOf = (user, opcode) => user.program.find(line => line.includes(` ${opcode}:`)).trim()
             .split(' ')[0];
 
-        check('the notice says what the AI helper receives',
-            /AI requests send your words and program to an AI service\./.test(await bar.textContent()));
+        const notice = bar.locator('[data-voice-notice]');
+        check('an on-screen notice says typed and spoken text goes online',
+            /^AI helper is on: text you type or say to it, and your program, are sent to an online service\./
+                .test(await notice.textContent()) && await notice.isVisible(), await notice.textContent());
         await page.setViewportSize({width: 1024, height: 768});
         await pause(800);
         check('the longer notice fits inside the bar\'s padding at 1024 wide', await bar.evaluate(el => {
@@ -1133,7 +1135,7 @@ const startAiServer = async (env = {}) => {
         await key('Alt+Shift+KeyO', 900);
         await key('Alt+Shift+KeyK', 500);
         check('the command box says where other requests go',
-            /sent to the AI helper, with your program/.test(await page.locator('dialog').textContent()));
+            /sent to an online AI service, with your program/.test(await page.locator('dialog').textContent()));
         await key('Escape', 500);
         await t.goTo('move 10 steps');
         await typed(t, 'read program');
@@ -1263,6 +1265,31 @@ const startAiServer = async (env = {}) => {
         await typed(t, 'go to menu');
         check('and local commands still work', await t.said() === 'Menu bar.');
     }, {config: aiConfig('http://localhost:9/api/assistant')});
+
+    await group('AI helper without voice', async t => {
+        const bar = t.page.locator('[data-brailled-zone="voice"]');
+        check('the notice is shown with voice off, about typed text', /^AI helper is on: text you type for it/
+            .test(await bar.locator('[data-voice-notice]').textContent()) &&
+            await bar.getByRole('button').count() === 1);
+        ai.model.reply = {type: 'question', question: 'Which one?'};
+        await typed(t, 'help me with this');
+        await t.pause(900);
+        check('a reply says the answer is sent online, and offers no talk key',
+            /Type an answer or choose one\. Your answer is sent to an online service\./
+                .test(await t.page.locator('dialog').textContent()));
+    }, {config: aiConfig(ai.endpoint, false)});
+
+    await group('AI switched off', async t => {
+        const bar = t.page.locator('[data-brailled-zone="voice"]');
+        check('with "ai" false there is no notice about it, whatever the address says',
+            !/AI helper/.test(await bar.textContent()));
+        const before = ai.model.asked.length;
+        await t.key('Alt+Shift+KeyK', 500);
+        await t.type('help me with this');
+        await t.key('Enter', 500);
+        check('and nothing is sent', ai.model.asked.length === before &&
+            /I do not understand/.test(await t.page.locator('dialog [role="alert"]').textContent()));
+    }, {config: {json: {voice: true, ai: false, aiEndpoint: ai.endpoint}}});
 
     await group('no AI helper', async t => {
         const before = ai.model.asked.length;

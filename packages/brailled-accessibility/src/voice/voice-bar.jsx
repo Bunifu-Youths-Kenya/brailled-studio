@@ -201,6 +201,12 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     // While a question is open the bar says how to answer it.
     const barStatus = state.pending && !status ? hint : status;
     const handleSettings = () => app.perform('voice.settings');
+    // What leaves the computer is shown whenever it can: by voice, to the AI helper, or both.
+    let notice = off ? null : voiceMessages.privacy;
+    if (aiEndpoint) notice = off ? voiceMessages.aiNotice : voiceMessages.aiNoticeWithVoice;
+    const describedBy = [off ? 'brailled-voice-status' : null, notice ? 'brailled-voice-privacy' : null]
+        .filter(Boolean)
+        .join(' ');
     let buttonText = listening ? voiceMessages.buttonListening : voiceMessages.button;
     if (off) buttonText = voiceMessages.buttonOff;
     return (
@@ -212,7 +218,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
             role="region"
         >
             <button
-                aria-describedby={off ? 'brailled-voice-status' : 'brailled-voice-privacy'}
+                aria-describedby={describedBy}
                 aria-disabled={off || !voice.isSupported()}
                 aria-keyshortcuts={off ? null : talkKey.name}
                 data-voice-talk
@@ -269,24 +275,27 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
                     {barStatus}
                 </p>
             </div>
-            {off ? null : (
+            {notice ? (
                 <div className={styles.side}>
-                    <button
-                        className={styles.settings}
-                        type="button"
-                        // eslint-disable-next-line react/jsx-no-bind
-                        onClick={handleSettings}
-                    >
-                        {intl.formatMessage(voiceMessages.settings)}
-                    </button>
+                    {off ? null : (
+                        <button
+                            className={styles.settings}
+                            type="button"
+                            // eslint-disable-next-line react/jsx-no-bind
+                            onClick={handleSettings}
+                        >
+                            {intl.formatMessage(voiceMessages.settings)}
+                        </button>
+                    )}
                     <p
-                        className={styles.privacy}
+                        className={aiEndpoint ? styles.aiNotice : styles.privacy}
+                        data-voice-notice
                         id="brailled-voice-privacy"
                     >
-                        {intl.formatMessage(aiEndpoint ? voiceMessages.privacyWithAi : voiceMessages.privacy)}
+                        {intl.formatMessage(notice)}
                     </p>
                 </div>
-            )}
+            ) : null}
             {state.pending ? (
                 <Question
                     hint={hint}

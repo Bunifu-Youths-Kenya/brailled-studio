@@ -75,7 +75,7 @@
 
 .side {
     display: flex;
-    flex: 0 1 22rem;
+    flex: 0 1 26rem;
     flex-direction: column;
     align-items: flex-end;
     gap: 0.125rem;
@@ -95,6 +95,19 @@
 .privacy {
     margin: 0;
     font-size: 0.8125rem;
+    line-height: 1.25;
+    text-align: end;
+}
+
+/* Marked out, as it says that what the student writes leaves the computer. */
+.ai-notice {
+    margin: 0;
+    padding: 0 0.375rem;
+    color: #000;
+    background: #ffd500;
+    border-radius: 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: bold;
     line-height: 1.25;
     text-align: end;
 }

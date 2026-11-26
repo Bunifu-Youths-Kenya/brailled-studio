@@ -432,7 +432,8 @@ describe('the configuration', () => {
     test.each([
         [{voice: true}, true], [{voice: false}, false], [{voice: 'true'}, false], [{}, false]
     ])('%o turns voice on: %s', async (file, voice) => {
-        expect(await loaded(() => Promise.resolve(file))).toEqual({voice, aiEndpoint: null, unreadable: false});
+        expect(await loaded(() => Promise.resolve(file)))
+            .toEqual({voice, ai: false, aiEndpoint: null, unreadable: false});
     });
 
     test.each([
@@ -440,7 +441,7 @@ describe('the configuration', () => {
         ['something else', () => Promise.resolve('voice')],
         ['a list', () => Promise.resolve([true])]
     ])('is off for %s', async (_, load) => {
-        expect(await loaded(load)).toEqual({voice: false, aiEndpoint: null, unreadable: true});
+        expect(await loaded(load)).toEqual({voice: false, ai: false, aiEndpoint: null, unreadable: true});
     });
 
     test.each([
@@ -455,7 +456,22 @@ describe('the configuration', () => {
         ['', null],
         [true, null]
     ])('takes %j as the AI helper\'s address: %j', async (aiEndpoint, expected) => {
-        expect((await loaded(() => Promise.resolve({voice: false, aiEndpoint}))).aiEndpoint).toBe(expected);
+        expect(await loaded(() => Promise.resolve({voice: false, ai: true, aiEndpoint})))
+            .toMatchObject({aiEndpoint: expected, ai: expected !== null});
+    });
+
+    test.each([
+        [{aiEndpoint: '/api/assistant'}],
+        [{ai: false, aiEndpoint: '/api/assistant'}],
+        [{ai: 'true', aiEndpoint: '/api/assistant'}],
+        [{voice: true, aiEndpoint: '/api/assistant'}]
+    ])('keeps the AI helper off unless "ai" is true: %j', async file => {
+        expect(await loaded(() => Promise.resolve(file))).toMatchObject({ai: false, aiEndpoint: null});
+    });
+
+    test.each([[true, false], [false, true]])('switches voice (%s) and the AI helper (%s) apart', async (voice, ai) => {
+        expect(await loaded(() => Promise.resolve({voice, ai, aiEndpoint: '/api/assistant'})))
+            .toMatchObject({voice, ai});
     });
 
     test('is off when there is nothing to load', () => {

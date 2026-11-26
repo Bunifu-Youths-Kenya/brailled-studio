@@ -99,7 +99,7 @@ const speech = fromTexts('brailled.speech', 'Spoken answer in the editor', {
     commandTitle: 'Type a command',
     commandLabel: 'Command',
     commandHint: 'For example: where am I, what can I do here, read program, next, undo, go to stage, stop.',
-    commandHintAi: 'Anything else is sent to the AI helper, with your program.',
+    commandHintAi: 'Anything else you type is sent to an online AI service, with your program.',
     commandRun: 'Run',
     commandUnknown: 'I do not understand "{text}". Try "what can I do here".',
     commandEmpty: 'Type a command first.',

@@ -5,8 +5,8 @@
 const CONFIG_URL = 'static/brailled-config.json';
 
 // `voice` is null until the file has been read.
-const LOADING = Object.freeze({voice: null, aiEndpoint: null, unreadable: false});
-const UNREADABLE = Object.freeze({voice: false, aiEndpoint: null, unreadable: true});
+const LOADING = Object.freeze({voice: null, ai: false, aiEndpoint: null, unreadable: false});
+const UNREADABLE = Object.freeze({voice: false, ai: false, aiEndpoint: null, unreadable: true});
 
 // Hosts where an unencrypted address stays on this computer.
 const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
@@ -24,10 +24,12 @@ const endpointFrom = value => {
     }
 };
 
-// Only a plain `true` turns voice on, and only a safe address turns the AI helper on.
+// Voice and the AI helper are separate switches, and only a plain `true` turns either on. The helper also needs
+// a safe address: `aiEndpoint` is null whenever it is off.
 const interpret = file => {
     if (!file || typeof file !== 'object' || Array.isArray(file)) return UNREADABLE;
-    return {voice: file.voice === true, aiEndpoint: endpointFrom(file.aiEndpoint), unreadable: false};
+    const aiEndpoint = file.ai === true ? endpointFrom(file.aiEndpoint) : null;
+    return {voice: file.voice === true, ai: !!aiEndpoint, aiEndpoint, unreadable: false};
 };
 
 /**

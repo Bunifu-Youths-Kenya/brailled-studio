@@ -19,7 +19,8 @@ const aiMessages = defineMessages(Object.fromEntries(Object.entries({
     action: 'Use the action "{name}"',
     questionTitle: 'The AI helper asks',
     answerLabel: 'Your answer',
-    answerHint: 'Type an answer, choose one, or hold {key} and say it.',
+    answerHint: 'Type an answer, choose one, or hold {key} and say it. Your answer is sent to an online service.',
+    answerHintTyped: 'Type an answer or choose one. Your answer is sent to an online service.',
     send: 'Send answer',
     explanationTitle: 'The AI helper says',
     close: 'Close'

@@ -18,6 +18,30 @@ Voice is optional: everything can be done from the keyboard.
 What Google or another provider keeps, for how long and for what purpose is set by that provider. It has not
 been reviewed for Brailled.
 
+## What leaves the device
+
+| When | What is sent | To |
+| - | - | - |
+| Voice is on and a student talks | The sound of their speech | The browser's speech service (Chrome: Google) |
+| The AI helper is on and a student **types or says** something that is not an editor command, or answers the helper | That text, with the program and the other items listed under [AI helper](#ai-helper) | Your AI server, OpenRouter and the model's provider |
+
+**Typed text leaves the device too**, not only speech. Editor commands, such as "where am I" or "undo", are worked
+out in the browser and sent nowhere, apart from the sound of saying them when voice is used.
+
+Voice and the AI helper are separate switches in `static/brailled-config.json`:
+
+```json
+{
+    "voice": true,
+    "ai": false,
+    "aiEndpoint": ""
+}
+```
+
+`ai` is `false` unless set to `true`, and the helper also needs `aiEndpoint`. While it is on, the bar at the
+bottom of the editor shows "AI helper is on: text you type or say to it, and your program, are sent to an online
+service" (without "or say" where voice is off), and the command box and the helper's questions say the same.
+
 ## Turning voice off
 
 Whoever runs the editor can turn voice off entirely by editing
@@ -30,7 +54,8 @@ Whoever runs the editor can turn voice off entirely by editing
 }
 ```
 
-The change applies the next time the editor is opened; nothing needs rebuilding.
+The change applies the next time the editor is opened; nothing needs rebuilding. `ai` and `aiEndpoint` stay as
+they are.
 
 | With voice off | |
 | - | - |
@@ -38,6 +63,7 @@ The change applies the next time the editor is opened; nothing needs rebuilding.
 | Reading aloud, and the screen reader question | Off |
 | The voice bar | Says "Voice is turned off for this editor", with no talk key or settings |
 | Everything else, including the keyboard, typed commands and screen reader announcements | Works as before |
+| The AI helper | Not affected: it has its own switch, `ai` |
 
 Voice is on only if the file can be read and says exactly `true`. If it is missing, unreadable or says anything
 else, voice is off and the bar says so. Copy the file with any deployment that should have voice.
@@ -101,8 +127,9 @@ browser if needed. Clearing the site's data also removes the settings.
 
 ## AI helper
 
-Off unless whoever runs the editor sets `aiEndpoint` in `static/brailled-config.json` to the address of a
-[Brailled AI server](packages/brailled-ai-server/README.md). Without it nothing is sent to an AI.
+Off unless whoever runs the editor sets `"ai": true` and `aiEndpoint`, the address of a
+[Brailled AI server](packages/brailled-ai-server/README.md), in `static/brailled-config.json`. Otherwise nothing is
+sent to an AI.
 
 **What is sent, and when.** Only when a student says or types something that is not one of the editor's own
 commands, or answers the helper's question:
@@ -127,11 +154,10 @@ Brailled cannot check. Read the terms of OpenRouter and of the model's provider.
 **Control.** Nothing the AI replies with is carried out. Its suggestions are checked by the editor and only
 described.
 
-**Notice and consent.** The voice bar says that AI requests send the student's words and program to an AI
-service, and the command box says where other requests go. What is in
+**Notice and consent.** The notices under [What leaves the device](#what-leaves-the-device) are shown whenever the
+helper is on. What is in
 [Notice and consent](#notice-and-consent) applies to the AI helper too: tell students and families, get consent
-for children, and ask students not to include names or personal details. Turning voice off does not turn off the
-AI helper; remove `aiEndpoint` for that.
+for children, and ask students not to include names or personal details. To turn the helper off, set `"ai": false`.
 
 ## The rest of the editor
 

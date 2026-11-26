@@ -4,7 +4,6 @@ export interface Config {
   model: string
   denyDataCollection: boolean
   zeroDataRetention: boolean
-  host: string
   port: number
   allowedOrigins: string[]
   trustedProxies: number
@@ -31,17 +30,13 @@ const count = (env: Env, name: string, fallback: number, minimum = 1): number =>
 const unlessFalse = (env: Env, name: string): boolean => env[name]?.trim().toLowerCase() !== 'false'
 
 // A variable left empty counts as unset.
-const text = (env: Env, name: string, fallback = ''): string => {
-  const given = env[name]?.trim() ?? ''
-  return given === '' ? fallback : given
-}
+const text = (env: Env, name: string): string => env[name]?.trim() ?? ''
 
 export const readConfig = (env: Env): Config => ({
   apiKey: text(env, 'OPENROUTER_API_KEY'),
   model: text(env, 'OPENROUTER_MODEL'),
   denyDataCollection: unlessFalse(env, 'OPENROUTER_DENY_DATA_COLLECTION'),
   zeroDataRetention: unlessFalse(env, 'OPENROUTER_ZERO_DATA_RETENTION'),
-  host: text(env, 'HOST', 'localhost'),
   port: count(env, 'PORT', 8787, 0),
   allowedOrigins: (env.ALLOWED_ORIGINS ?? 'http://localhost:8601')
     .split(',')

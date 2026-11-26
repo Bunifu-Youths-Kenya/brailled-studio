@@ -21,12 +21,13 @@ npm start
 ```json
 {
     "voice": true,
+    "ai": true,
     "aiEndpoint": "http://localhost:8787/api/assistant"
 }
 ```
 
-The editor uses `https` addresses, addresses on the same server that start with `/`, and `http` only for this
-computer. Without `aiEndpoint` there is no AI helper.
+The AI helper is on only when `ai` is `true` and `aiEndpoint` is usable: an `https` address, one on the editor's
+own server starting with `/`, or `http` on this computer.
 
 `npm test`, `npm run typecheck` and `npm run lint` check the server. The tests use a stand-in for OpenRouter.
 
@@ -62,14 +63,21 @@ checks the whole of it. Errors are `{"error": ...}`:
 | 503 | `not_configured` | No key or model is set |
 | 504 | `upstream_timeout` | The model took too long |
 
-## Before putting it on the internet
+## It accepts connections from this computer only
+
+It listens on `127.0.0.1`, and no setting changes that. Editors on this computer reach it at
+`http://localhost:8787`.
+
+## Before letting other computers use it
+
+That needs a proxy on the same computer that passes requests to it.
 
 - **There is no sign-in.** The origin check stops other web pages, not other programs. Anyone who can reach the
-  server can spend your credit, within the limits. Put it behind authentication first, and set a spending limit
-  on the OpenRouter key.
+  proxy can spend your credit, within the limits. Make the proxy require sign-in, and set a spending limit on
+  the OpenRouter key.
 - **Limits are kept in memory**, for one server process, and start again when it restarts.
-- Serve it over `https`, set `ALLOWED_ORIGINS` to the editor's address, and set `TRUSTED_PROXIES` if it is
-  behind a proxy.
+- Serve the proxy over `https`, set `ALLOWED_ORIGINS` to the editor's address, and set `TRUSTED_PROXIES` to the
+  number of proxies.
 
 ## Privacy
 
