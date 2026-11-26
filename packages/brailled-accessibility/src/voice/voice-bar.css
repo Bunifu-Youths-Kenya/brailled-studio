@@ -75,11 +75,24 @@
 
 .side {
     display: flex;
-    flex: 0 1 26rem;
+    /* A fixed share, so that a long reply does not squeeze the notice onto more lines. */
+    flex: 0 0 26rem;
     flex-direction: column;
     align-items: flex-end;
     gap: 0.125rem;
     min-width: 0;
+}
+
+.top {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mode {
+    font-size: 0.8125rem;
+    font-weight: bold;
+    color: #ffd500;
 }
 
 .settings {

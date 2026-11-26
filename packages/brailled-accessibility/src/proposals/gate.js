@@ -45,6 +45,9 @@ const createGate = ({
 
     const say = (message, values) => app.say(message, values);
 
+    // Tell the conversation's memory what became of a suggestion.
+    const remember = text => app.memory.add('editor', text);
+
     // The words of what is being asked, for reading aloud. A screen reader reads them from the dialog.
     const wordsOf = view => {
         const list = view.steps.map((step, index) => `${index + 1}. ${step.sentence}${
@@ -119,6 +122,9 @@ const createGate = ({
 
     const expire = reason => {
         machine.send('expire');
+        remember(reason === 'timeout' ?
+            'The suggestion expired unanswered.' :
+            'The suggestion was cancelled because the project or the student\'s place changed.');
         end(reason === 'timeout' ? proposalMessages.expired : proposalMessages.stale);
     };
 
@@ -200,6 +206,10 @@ const createGate = ({
         machine.send('finish');
         // Moving about says what happened itself.
         const quiet = outcome.ok && done.sentences.length === 0 && job.risks.every(risk => risk === 'safe');
+        if (!quiet) {
+            const how = job.asked ? 'The student approved it.' : 'It was made without asking, as the school allows.';
+            remember(`${how} ${readBack(outcome, done)}`);
+        }
         end();
         if (!quiet) app.announce(readBack(outcome, done));
     };
@@ -215,6 +225,8 @@ const createGate = ({
         const risks = checked.steps.map(step => stepRisk({step, detail: step.detail, device}));
         const risk = proposalRisk(risks);
         if (immediateOnly && risk !== 'safe') return refuse('only moving about may come with a question');
+        // A student learning to do it makes the changes.
+        if (risk !== 'safe' && app.mode() === 'guide') return refuse('nothing is changed in guide mode');
         const {approval, proposalExpirySeconds} = app.config.get();
         // A change made under another window might not be heard, so then it is asked about instead.
         const asks = needsApproval({steps: checked.steps, risks, level: approval}) ||
@@ -231,7 +243,8 @@ const createGate = ({
             serial: 0,
             askingChange: false,
             note: null,
-            seconds: proposalExpirySeconds
+            seconds: proposalExpirySeconds,
+            asked: asks
         };
         if (!asks) {
             machine.send('proceed');
@@ -271,6 +284,7 @@ const createGate = ({
         if (!waiting()) return;
         const {done} = current;
         machine.send('reject');
+        remember(done.undos > 0 ? 'The student stopped part way.' : 'The student rejected the suggestion.');
         if (done.undos > 0) end(proposalMessages.stopped, {count: done.undos});
         else end(proposalMessages.rejected);
     };
@@ -288,6 +302,7 @@ const createGate = ({
             steps: current.steps.slice(current.index).map(step => step.sentence)
         };
         machine.send('revise');
+        remember('The student asked for the suggestion to be changed.');
         end(proposalMessages.revising);
         revise({change: words, previous});
     };

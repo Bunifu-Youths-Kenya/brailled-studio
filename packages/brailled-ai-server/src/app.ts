@@ -2,9 +2,9 @@
 import { readFileSync } from 'node:fs'
 import express, { type ErrorRequestHandler, type Request, type RequestHandler, type Response } from 'express'
 import type { Config } from './config.ts'
+import { runAgent } from './agent.ts'
+import { loadKnowledge } from './knowledge.ts'
 import { createRateLimiter } from './limits.ts'
-import { ask } from './openrouter.ts'
-import { buildMessages } from './prompt.ts'
 import { readRequest } from './request.ts'
 
 // The schema the editor's validator uses, so that the model is told the same rules.
@@ -18,6 +18,7 @@ export interface Options {
 
 export const createApp = (config: Config, { fetcher = fetch, now = Date.now, log = console.log }: Options = {}) => {
   const commandSchema = JSON.stringify(JSON.parse(readFileSync(SCHEMA_FILE, 'utf8')))
+  const knowledge = loadKnowledge()
   const limit = createRateLimiter(config, now)
   const configured = !!(config.apiKey && config.model)
 
@@ -72,9 +73,9 @@ export const createApp = (config: Config, { fetcher = fetch, now = Date.now, log
       return
     }
     const started = now()
-    const answer = await ask(config, buildMessages(read.request, commandSchema), fetcher)
-    const took = `${now() - started} ms`
-    // Nothing the student said or wrote is logged.
+    const answer = await runAgent(read.request, { config, knowledge, commandSchema, fetcher, now })
+    // Nothing the student said or wrote is logged: only which tools were used, by name.
+    const took = `${now() - started} ms, ${answer.rounds} rounds, tools: ${answer.tools.join(' ') || 'none'}`
     if ('reply' in answer) {
       log(`assistant: replied in ${took}`)
       response.set('Cache-Control', 'no-store').json({ reply: answer.reply })

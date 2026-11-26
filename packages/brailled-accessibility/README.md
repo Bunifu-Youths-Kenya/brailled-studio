@@ -18,6 +18,8 @@ the editor needs around them.
 | `src/ai/` | The AI side: what is sent, checking the form of what comes back, questions and explanations |
 | `src/proposals/` | The approval gate: queue, validator, risk, state machine, executor, dialog, highlighting |
 | `src/library.js` | The sprite library by name and kind |
+| `src/catalog/` | Plain descriptions of every editable block, and of programming ideas, for the AI helper's tools |
+| `src/memory.js` | The recent conversation with the AI helper, held only while the page is open |
 | `src/settings.js` | The student's choices, kept in the browser |
 | `src/config.js` | What whoever runs the editor allows |
 | `src/use-kept-state.js` | State that survives the editor rebuilding on a language change |
@@ -104,6 +106,7 @@ off the device.
 | `sprite.library` | | "open sprite library" |
 | `voice.talk`, `go.voice` | Hold the talk key | "talk", "go to voice bar" |
 | `voice.settings` | | "voice settings" |
+| `mode.build`, `mode.guide`, `memory.forget` | | "build mode", "guide me", "forget our conversation" |
 
 - **Typed commands** go in the command box, and spoken ones come from the voice bar. Both are matched against
   fixed English phrases and the action names in the user's language, ignoring a greeting such as "hey" or
@@ -207,14 +210,36 @@ Optional, and off by default. It needs the [Brailled AI server](../brailled-ai-s
 starting with `/`, or `http` on this computer. `ai` is separate from `voice`. While the helper is on, notices say
 that what is typed or said to it is sent to an online service.
 
-Anything said, or typed in the command box, that is not a local command is sent with the context snapshot, the
-selected sprite's program, the usable blocks and the actions it may propose. The reply is one of:
+Anything said, or typed in the command box, that is not a local command is sent with the mode, the recent
+conversation, the context snapshot, the selected sprite's program, the usable blocks and the actions it may
+propose. The reply is one of:
 
 | Reply | What happens |
 | - | - |
 | Proposal | It goes to the approval gate |
 | Question | Shown with any numbered choices. Type, choose or say an answer, or its number. It may first open something, such as the sprite library, and may list sprites of one kind from the library |
 | Explanation | Shown |
+
+### Tools, modes and memory
+
+The [server](../brailled-ai-server/README.md#the-tool-loop) lets the model look things up before it answers: blocks
+by what they do, one block's values, the program, where the student is, sprites in the library and programming
+ideas. Every tool only reads.
+
+| Mode | The helper | Switch by saying or typing |
+| - | - | - |
+| Build (default) | Suggests changes for the student to approve | "switch to build mode" or "build mode" |
+| Guide | Gives one step at a time for the student to make. It has no way to propose, the editor refuses a proposal, and the gate refuses changes | "guide me", "teach me" or "guide mode" |
+
+The mode is shown beside Voice settings. `"assistantMode": "guide"` in `brailled-config.json` makes guide the
+starting mode; a student's choice lasts while the page is open.
+
+**Memory.** The last 12 turns, each at most 300 characters, go with every request: what the student said, what the
+helper answered, and what the editor did about each suggestion (approved and what changed, rejected, changed,
+expired). The helper cannot record that the editor did something. Say "forget our conversation" to clear it.
+"Reset for new student" and reloading the page clear it too. It is never stored.
+
+**After an explanation**, a command closes it and is carried out, and anything else carries the conversation on.
 
 ### The AI can only propose
 
@@ -238,12 +263,13 @@ Each step has a risk that the editor works out; nothing the AI says changes it.
 | Edit that "undo" cannot take back | Running the project, undo, redo | Always |
 | Big, "hard to undo" | Deleting a whole script or more than one block, running with a device attached or in Upload mode, more than three changes at once, and anything not listed (so any future delete-sprite, overwrite, upload or robot action) | Always, with a warning |
 
-**The school's options** are in `static/brailled-config.json`. Students have no setting for either.
+**The school's options** are in `static/brailled-config.json`. Students have no setting for the first two.
 
 | Key | Values | Default |
 | - | - | - |
 | `approval` | `"every time"`: every change is approved. `"big changes only"`: changes marked "Edit" above that "undo" can take back are made without asking | `"every time"`, also for any other value |
 | `proposalExpirySeconds` | 30 to 900. Numbers outside that become the nearest limit | 120, also for anything that is not a number |
+| `assistantMode` | The mode the AI helper starts in: `"build"` or `"guide"`. A student can switch while the page is open | `"build"`, also for any other value |
 
 With either approval level, every change is announced with how to take it back. Where changes are made without
 asking, one that arrives while another window is open is asked about after all, so that it cannot go unheard. Undo is
@@ -294,7 +320,7 @@ told they are data and never instructions. That instruction can fail. What prote
 can only propose.
 
 **While something is open** the talk key still works. "stop" stops the project. "close" or "cancel" closes a
-question or explanation.
+question or explanation. Other words answer a question.
 
 ### The two worked examples
 

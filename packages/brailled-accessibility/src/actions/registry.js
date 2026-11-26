@@ -18,6 +18,7 @@ const inOutline = app => (app.outlineIsShown() && app.outline() ? true : 'needsO
 const whileMoving = app => (inOutline(app) === true && !app.outline().isMoving() ? 'needsMoving' : inOutline(app));
 const withGui = app => (app.gui() ? true : 'notReady');
 const withVoice = app => (app.config.get().voice ? true : 'voiceOff');
+const withAi = app => (app.config.get().ai ? true : 'noAi');
 
 const define = (id, options) => {
     const key = id.replace(/\./g, '_');
@@ -79,6 +80,23 @@ const ACTIONS = [
         },
         run: app => app.voice().toggle()
     }),
+    ...['build', 'guide'].map(mode => define(`mode.${mode}`, {
+        proposable: false,
+        available: withAi,
+        run: app => {
+            app.setMode(mode);
+            return app.say(mode === 'guide' ? speech.guideMode : speech.buildMode);
+        }
+    })),
+    define('memory.forget', {
+        proposable: false,
+        available: withAi,
+        run: app => {
+            app.memory.clear();
+            return app.say(speech.forgotten);
+        }
+    }),
+
     define('voice.settings', {
         proposable: false,
         available: app => (withVoice(app) === true ? withGui(app) : 'voiceOff'),

@@ -24,8 +24,8 @@ describe('what is sent', () => {
         const [{url, options, body}] = requests;
         expect(url).toBe('/api/assistant');
         expect(options).toMatchObject({method: 'POST', credentials: 'omit', referrerPolicy: 'no-referrer'});
-        expect(Object.keys(body).sort()).toEqual(['actions', 'blocks', 'context', 'data', 'language', 'names',
-            'program', 'spriteCategories', 'transcript']);
+        expect(Object.keys(body).sort()).toEqual(['actions', 'blocks', 'context', 'data', 'history', 'language',
+            'mode', 'names', 'program', 'spriteCategories', 'transcript']);
         expect(body.program).toContainEqual(expect.stringMatching(/^ {2}b[0-9]+ motion_movesteps: move/));
         expect(body.actions.map(action => action.id).filter(id => id.startsWith('edit.'))).toEqual([]);
         expect(options.body).not.toMatch(/<[a-z]+[ >]|data:image/);

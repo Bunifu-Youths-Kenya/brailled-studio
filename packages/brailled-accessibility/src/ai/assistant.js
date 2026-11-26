@@ -67,6 +67,8 @@ const createAssistant = ({ports, endpoint, fetch}) => {
     };
 
     const show = reply => {
+        const choices = reply.choices?.length ? ` Choices: ${reply.choices.join(', ')}.` : '';
+        ports.remember('assistant', reply.type === 'question' ? `${reply.question}${choices}` : reply.text);
         set({busy: false, reply});
         ports.speak(wordsOf(reply));
     };
@@ -94,11 +96,14 @@ const createAssistant = ({ports, endpoint, fetch}) => {
             }
             return null;
         }
+        // The gate refuses changes in guide mode too.
+        if (sent.body.mode === 'guide') return 'a proposal in guide mode';
         if (ports.targetId() !== sent.targetId) return 'another sprite has been selected';
         const steps = withBlockIds(reply.steps, sent.refs);
         if (!steps) return 'it uses a block that was not listed';
         // The gate may ask about it for a long time, and may come back for a change.
         set({busy: false});
+        ports.remember('assistant', `I suggested: ${reply.summary}`);
         const taken = await ports.submit({summary: reply.summary, steps});
         return taken.accepted ? null : taken.reason;
     };
@@ -120,6 +125,8 @@ const createAssistant = ({ports, endpoint, fetch}) => {
         const shortest = new Promise(resolve => setTimeout(resolve, MIN_REPLY_MS));
         try {
             const sent = buildRequest({ports, transcript, previous, revises});
+            // After the request is built, so that it is not in its own history.
+            ports.remember('student', transcript);
             let response;
             try {
                 response = await fetch(endpoint, {
@@ -165,6 +172,14 @@ const createAssistant = ({ports, endpoint, fetch}) => {
         ports.announce(ports.say(aiMessages.dismissed));
     };
 
+    // Close the reply being shown, then ask. For words that follow an explanation.
+    const followUp = text => {
+        ports.silence();
+        set({reply: null});
+        // The dialog closes, and focus returns, before the program is described.
+        setTimeout(() => ask(text), 50);
+    };
+
     // Answer the question being shown.
     const answer = text => {
         const {reply} = state;
@@ -188,12 +203,14 @@ const createAssistant = ({ports, endpoint, fetch}) => {
         revise: ({change, previous}) => ask(change, {revises: previous}),
         // Whether a reply is on screen, so that what is said next is about it.
         isOpen: () => !!state.reply,
-        // What was said while a reply is on screen.
+        // What was said while a reply is on screen: it answers a question, or carries on after an explanation.
         respond: text => {
             if (CLOSE_WORDS.includes(plain(text))) dismiss();
             else if (state.reply?.type === 'question') answer(text);
-            else ports.speak(ports.say(aiMessages.closeFirst));
+            else followUp(text);
         },
+        // Whether the reply on screen asks for nothing.
+        isExplaining: () => state.reply?.type === 'explanation',
         answer,
         dismiss,
         dispose: () => {

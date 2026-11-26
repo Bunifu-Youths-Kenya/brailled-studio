@@ -2,8 +2,15 @@
  * What the editor may send. Anything else, an unknown field included, is refused, so that pictures, page content
  * and the like cannot be passed on to the model.
  */
+export interface Turn {
+  who: 'student' | 'assistant' | 'editor'
+  text: string
+}
+
 export interface AssistantRequest {
   transcript: string
+  mode: 'build' | 'guide'
+  history: Turn[]
   language: string
   context: Record<string, unknown>
   program: string[]
@@ -68,10 +75,19 @@ const revises: Check<NonNullable<AssistantRequest['revises']>> = (value) => {
   return summary !== null && steps !== null ? { summary, steps } : null
 }
 
+const turn: Check<Turn> = (value) => {
+  if (!isObject(value) || !hasOnly(value, ['who', 'text'])) return null
+  const said = text(300)(value.text)
+  const who = value.who
+  return said !== null && (who === 'student' || who === 'assistant' || who === 'editor') ? { who, text: said } : null
+}
+
 const OPTIONAL = ['previous', 'revises']
 
 const fields: Record<keyof AssistantRequest, Check<unknown>> = {
   transcript: (value) => (typeof value === 'string' && value.trim() ? text(500)(value) : null),
+  mode: (value) => (value === 'build' || value === 'guide' ? value : null),
+  history: list(12, turn),
   language: text(35),
   context,
   program: list(400, text(300)),

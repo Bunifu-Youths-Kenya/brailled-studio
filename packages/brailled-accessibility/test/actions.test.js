@@ -193,15 +193,19 @@ describe('which actions are available', () => {
     const ids = ACTIONS.map(action => action.id);
     const without = (list, ...gone) => list.filter(id => !gone.some(pattern => id.startsWith(pattern)));
 
-    // Python is not built, and moving a block needs one picked up.
-    const usual = without(ids, 'view.python', 'edit.moveNewScript', 'edit.cancelMove');
+    // Python is not built, moving a block needs one picked up, and the AI helper is off.
+    const usual = without(ids, 'view.python', 'edit.moveNewScript', 'edit.cancelMove', 'mode.', 'memory.');
 
     test('in the outline, with everything there', () => {
         expect(available()).toEqual(usual);
     });
 
     test('while a block is being moved', () => {
-        expect(available({moving: true})).toEqual(without(ids, 'view.python'));
+        expect(available({moving: true})).toEqual(without(ids, 'view.python', 'mode.', 'memory.'));
+    });
+
+    test('the AI helper\'s own actions only where it is on', () => {
+        expect(available({ai: true})).toEqual(without(ids, 'view.python', 'edit.moveNewScript', 'edit.cancelMove'));
     });
 
     test('outline edits only while the outline is shown', () => {
@@ -217,7 +221,7 @@ describe('which actions are available', () => {
     test('voice actions follow the switch and the browser', () => {
         expect(available({voice: false})).toEqual(without(usual, 'voice.'));
         // The AI helper has no settings for students.
-        expect(available({voice: false, ai: true})).toEqual(without(usual, 'voice.'));
+        expect(available({voice: false, ai: true}).filter(id => id.startsWith('voice.'))).toEqual([]);
         expect(available({supported: false})).toEqual(without(usual, 'voice.talk'));
     });
 

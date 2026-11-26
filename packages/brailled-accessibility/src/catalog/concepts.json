@@ -1,0 +1,198 @@
+[
+ {
+  "id": "sprite",
+  "name": "Sprite",
+  "explanation": "A sprite is a character or object in your project. Each sprite has its own scripts, costumes and sounds.",
+  "words": [
+   "character",
+   "object",
+   "actor"
+  ]
+ },
+ {
+  "id": "stage",
+  "name": "Stage",
+  "explanation": "The stage is the area where sprites move. It has backdrops and can have scripts of its own. Its centre is x 0, y 0.",
+  "words": [
+   "background",
+   "screen"
+  ]
+ },
+ {
+  "id": "script",
+  "name": "Script",
+  "explanation": "A script is a stack of blocks that run from top to bottom, usually starting with an event block.",
+  "words": [
+   "program",
+   "stack",
+   "code"
+  ]
+ },
+ {
+  "id": "block",
+  "name": "Block",
+  "explanation": "A block is one instruction or value. Blocks join together to make scripts. Some hold other blocks inside them.",
+  "words": [
+   "instruction",
+   "command"
+  ]
+ },
+ {
+  "id": "event",
+  "name": "Event",
+  "explanation": "An event is something that happens, such as running the project or pressing a key. An event block starts the script under it when that happens.",
+  "words": [
+   "start",
+   "trigger",
+   "when"
+  ]
+ },
+ {
+  "id": "sequence",
+  "name": "Sequence",
+  "explanation": "A sequence is doing steps one after another, in order. Changing the order can change what happens.",
+  "words": [
+   "order",
+   "steps"
+  ]
+ },
+ {
+  "id": "loop",
+  "name": "Loop",
+  "explanation": "A loop repeats the blocks inside it: a set number of times, forever, or until something becomes true.",
+  "words": [
+   "repeat",
+   "forever",
+   "iteration"
+  ]
+ },
+ {
+  "id": "condition",
+  "name": "Condition",
+  "explanation": "A condition is a question that is true or false, such as whether a key is pressed. An if block runs its inside only when the condition is true.",
+  "words": [
+   "if",
+   "decision",
+   "boolean",
+   "else"
+  ]
+ },
+ {
+  "id": "variable",
+  "name": "Variable",
+  "explanation": "A variable is a named place that stores one value, such as a score. You can set it, change it and use it in other blocks.",
+  "words": [
+   "score",
+   "value",
+   "store"
+  ]
+ },
+ {
+  "id": "list",
+  "name": "List",
+  "explanation": "A list is a named, numbered collection of values. You can add items, remove them and read the item at a position. Positions start at 1.",
+  "words": [
+   "array",
+   "collection"
+  ]
+ },
+ {
+  "id": "message",
+  "name": "Message",
+  "explanation": "A broadcast message is a signal that one script sends and other scripts, in any sprite, can react to.",
+  "words": [
+   "broadcast",
+   "signal"
+  ]
+ },
+ {
+  "id": "coordinates",
+  "name": "Coordinates",
+  "explanation": "Coordinates say where a sprite is. x goes from -240 at the left to 240 at the right. y goes from -180 at the bottom to 180 at the top.",
+  "words": [
+   "position",
+   "x",
+   "y",
+   "place"
+  ]
+ },
+ {
+  "id": "direction",
+  "name": "Direction",
+  "explanation": "Direction is the way a sprite faces, in degrees: 90 is right, 0 is up, -90 is left and 180 is down.",
+  "words": [
+   "angle",
+   "heading",
+   "degrees",
+   "turn"
+  ]
+ },
+ {
+  "id": "costume",
+  "name": "Costume",
+  "explanation": "A costume is one picture of a sprite. Switching between costumes can make it look as if it moves.",
+  "words": [
+   "animation",
+   "appearance"
+  ]
+ },
+ {
+  "id": "backdrop",
+  "name": "Backdrop",
+  "explanation": "A backdrop is a picture behind all the sprites, on the stage.",
+  "words": [
+   "background",
+   "scene"
+  ]
+ },
+ {
+  "id": "clone",
+  "name": "Clone",
+  "explanation": "A clone is a copy of a sprite made while the project runs. It can have its own position and behaviour.",
+  "words": [
+   "copy",
+   "duplicate"
+  ]
+ },
+ {
+  "id": "value",
+  "name": "Value",
+  "explanation": "A value is a number, text or true or false. Blocks that give a value fit into the slots of other blocks.",
+  "words": [
+   "reporter",
+   "number",
+   "slot"
+  ]
+ },
+ {
+  "id": "operator",
+  "name": "Operator",
+  "explanation": "An operator works something out, such as adding numbers, comparing values or joining text.",
+  "words": [
+   "maths",
+   "compare",
+   "logic"
+  ]
+ },
+ {
+  "id": "debugging",
+  "name": "Debugging",
+  "explanation": "Debugging is finding out why a program does not do what you expect: run it, notice what happens, check one block at a time and change one thing.",
+  "words": [
+   "fix",
+   "bug",
+   "error",
+   "problem"
+  ]
+ },
+ {
+  "id": "square",
+  "name": "Drawing or walking a square",
+  "explanation": "To go round a square, repeat four times: move forward, then turn 90 degrees. A short wait between moves lets you notice each one.",
+  "words": [
+   "shape",
+   "corners",
+   "walk"
+  ]
+ }
+]

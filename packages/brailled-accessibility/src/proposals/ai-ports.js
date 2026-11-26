@@ -36,6 +36,10 @@ const createAiPorts = (app, submitter) => Object.freeze({
             resolve();
         });
     }),
+    mode: () => app.mode(),
+    history: () => app.memory.turns(),
+    // The helper records only what was said. What was done is recorded by the gate.
+    remember: (who, text) => app.memory.add(who === 'student' ? 'student' : 'assistant', text),
     submit: proposal => submitter.submit(proposal)
 });
 

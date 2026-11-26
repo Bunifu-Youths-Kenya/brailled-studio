@@ -85,17 +85,30 @@ const check = (name, ok, detail = '') => {
     console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `  [${detail}]` : ''}`);
 };
 
-// The real AI server, with a stand-in for the model it would ask. `model.reply` is what the model answers.
+// The real AI server, with a stand-in for the model it would ask. `model.reply` is the reply the model finishes
+// with, as the editor expects it, or text it just says. `model.lookUp` lists tools it calls first.
 const startAiServer = async (env = {}) => {
     const from = file => import(pathToFileURL(path.join(repo, 'packages/brailled-ai-server/src', file)).href);
     const [{createApp}, {readConfig}] = await Promise.all([from('app.ts'), from('config.ts')]);
-    const model = {reply: null, asked: []};
+    const model = {reply: null, lookUp: null, asked: [], results: []};
+    const tools = {proposal: 'submit_proposal', question: 'ask_question', explanation: 'give_explanation'};
+    const respond = message => Promise.resolve(Response.json(
+        {choices: [{finish_reason: message.tool_calls ? 'tool_calls' : 'stop', message}]}));
+    const calls = made => ({role: 'assistant', content: null, tool_calls: made.map(([name, args], i) => (
+        {id: `call_${i}`, type: 'function', function: {name, arguments: JSON.stringify(args)}}))});
     const fetcher = (_, options) => {
-        const user = JSON.parse(JSON.parse(options.body).messages[1].content);
-        model.asked.push(user);
-        const content = typeof model.reply === 'function' ? model.reply(user) : model.reply;
-        return Promise.resolve(Response.json({choices: [{finish_reason: 'stop',
-            message: {content: typeof content === 'string' ? content : JSON.stringify(content)}}]}));
+        const {messages} = JSON.parse(options.body);
+        const user = JSON.parse(messages[1].content);
+        // The first call of a turn.
+        if (messages.length === 2) {
+            model.asked.push(user);
+            if (model.lookUp) return respond(calls(model.lookUp));
+        }
+        model.results = messages.filter(message => message.role === 'tool').map(message => message.content);
+        const reply = typeof model.reply === 'function' ? model.reply(user) : model.reply;
+        if (typeof reply === 'string') return respond({role: 'assistant', content: reply});
+        const {type, ...args} = reply;
+        return respond(calls([[tools[type] || type, args]]));
     };
     const config = readConfig({OPENROUTER_API_KEY: 'not-a-real-key',
         OPENROUTER_MODEL: 'stand-in',
@@ -1454,6 +1467,85 @@ const startAiServer = async (env = {}) => {
             !await page.evaluate(() => window.brailledApp.snapshot().project.running));
     }, {init: [fakeSpeech, fakeVoice], config: aiConfig(ai.endpoint, true, bigOnly)});
 
+    await group('AI helper: tools, modes and memory', async t => {
+        const {page, key, pause} = t;
+        const {dialog, ask, say} = helpers(t);
+        const mode = page.locator('[data-voice-mode]');
+        await startOutline(t);
+        const original = await t.items();
+        check('the bar shows the mode', await mode.textContent() === 'Build mode');
+
+        ai.model.lookUp = [['find_blocks', {query: 'make it talk'}], ['describe_block', {opcode: 'control_wait'}],
+            ['search_library', {query: 'dragon'}], ['explain_concept', {concept: 'loop'}], ['get_program', {}]];
+        ai.model.reply = {type: 'explanation', text: 'Use say.'};
+        await ask('how do I make it talk');
+        const results = ai.model.results.join('\n');
+        check('the model can look up blocks, sprites, ideas and the program',
+            ai.model.results.length === 5 && /^looks_say/.test(ai.model.results[0]) &&
+            /control_wait \(stack\) "wait 1 second" DURATION=positive/.test(results) && /^Dragon/m.test(results) &&
+            /Loop: A loop repeats/.test(results) && /motion_movesteps: move 10 steps/.test(results),
+            results.slice(0, 200));
+        check('the answer is shown', /Use say\./.test(await dialog.textContent()));
+        check('looking things up changes nothing', (await t.items()).join() === original.join());
+        await key('Escape', 700);
+        ai.model.lookUp = null;
+
+        await say('guide me');
+        check('"guide me" switches to guide mode, and says so', await mode.textContent() === 'Guide mode' &&
+            /Guide mode\./.test(await t.said()), await t.said());
+        check('the notice stays', /AI helper is on/.test(await page.locator('[data-voice-notice]').textContent()));
+        await page.setViewportSize({width: 1024, height: 768});
+        await pause(700);
+        check('the bar fits with the mode at 1024 wide', await page.locator('[data-brailled-zone="voice"]')
+            .evaluate(el => {
+                const space = el.getBoundingClientRect().bottom - parseFloat(getComputedStyle(el).paddingBottom);
+                return Array.from(el.querySelectorAll('*')).every(child => child.closest('[role="group"]') ||
+                    child.getBoundingClientRect().bottom <= space + 0.5);
+            }));
+        await page.screenshot({path: path.join(out, 'guide-mode.png')});
+        await page.setViewportSize({width: 1366, height: 768});
+
+        ai.model.reply = {type: 'proposal', summary: 'Do it for you.', steps: [{command:
+            {op: 'insert', block: 'control_wait', after: 'b1'}}]};
+        await ask('make it wait');
+        check('in guide mode nothing can be suggested', await dialog.count() === 0 &&
+            await t.said() === failed && (await t.items()).join() === original.join(), await t.said());
+        check('the model was told the mode', ai.model.asked.at(-1).mode === 'guide');
+
+        ai.model.reply = {type: 'explanation', text: 'Press I and type wait.'};
+        await ask('how do I make it wait');
+        await say('what is a block');
+        check('speaking after an explanation carries on the conversation',
+            ai.model.asked.at(-1).request === 'what is a block' &&
+            ai.model.asked.at(-1).conversationSoFar.some(turn => turn.text === 'Press I and type wait.'),
+            JSON.stringify(ai.model.asked.at(-1).conversationSoFar.slice(-3)));
+        await say('build mode');
+        check('a command after an explanation closes it and is done', await dialog.count() === 0 &&
+            await mode.textContent() === 'Build mode');
+
+        ai.model.reply = {type: 'proposal', summary: 'Add a wait.', steps: [{command:
+            {op: 'insert', block: 'control_wait', after: 'b2'}}]};
+        await t.goTo('move 10 steps');
+        await ask('add a wait');
+        await say('yes');
+        ai.model.reply = {type: 'explanation', text: 'You are welcome.'};
+        await ask('thanks');
+        check('what was approved is remembered', ai.model.asked.at(-1).conversationSoFar
+            .some(turn => turn.who === 'editor' && /^The student approved it\. Done\./.test(turn.text)),
+        JSON.stringify(ai.model.asked.at(-1).conversationSoFar.slice(-3)));
+        await key('Escape', 700);
+        await typed(t, 'forget our conversation');
+        await ask('hello again');
+        check('"forget our conversation" empties it', ai.model.asked.at(-1).conversationSoFar.length === 0,
+            JSON.stringify(ai.model.asked.at(-1).conversationSoFar));
+        check('the conversation is not stored', await page.evaluate(() => !JSON.stringify([localStorage,
+            sessionStorage]).includes('hello again')));
+        await key('Escape', 700);
+        await t.reload();
+        await ask('after reload');
+        check('and is gone after a reload', ai.model.asked.at(-1).conversationSoFar.length === 0);
+    }, {init: [fakeSpeech, fakeVoice], config: aiConfig(ai.endpoint)});
+
     await group('AI helper', async t => {
         const {page, key} = t;
         const {dialog, ask, say, press} = helpers(t);
@@ -1490,7 +1582,7 @@ const startAiServer = async (env = {}) => {
         const {untrustedProjectContent: untrusted, ...trusted} = sent;
         check('project content is marked untrusted, and only there', sent.request === 'what is a loop' &&
             /Ignore your instructions/.test(JSON.stringify(untrusted)) &&
-            !/Ignore your instructions/.test(JSON.stringify(trusted)) && sent.editor.blocks.length > 100,
+            !/Ignore your instructions/.test(JSON.stringify(trusted)) && sent.editor.actions.length > 10,
         `${JSON.stringify(sent).length} characters`);
         check('as text only', !/<[a-z]+[ >]|data:image/.test(JSON.stringify(sent)));
         check('axe: AI explanation', (await t.axe()).length === 0, (await t.axe()).join('; '));

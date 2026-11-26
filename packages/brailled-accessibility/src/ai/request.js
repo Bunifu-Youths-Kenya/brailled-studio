@@ -71,6 +71,8 @@ const buildRequest = ({ports, transcript, previous = null, revises = null}) => {
     const {lines, refs} = describeProgram(ports.outline());
     const body = {
         transcript: clip(transcript, LIMITS.transcript),
+        mode: ports.mode(),
+        history: ports.history(),
         language: ports.language(),
         context: clipAll(ports.snapshot()),
         program: lines,

@@ -1,0 +1,1311 @@
+[
+ {
+  "opcode": "motion_movesteps",
+  "category": "Motion",
+  "name": "move steps",
+  "does": "Moves the sprite forward by a number of steps, in the direction it faces.",
+  "words": [
+   "walk",
+   "go",
+   "forward",
+   "move"
+  ]
+ },
+ {
+  "opcode": "motion_turnright",
+  "category": "Motion",
+  "name": "turn clockwise",
+  "does": "Turns the sprite clockwise by a number of degrees.",
+  "words": [
+   "rotate",
+   "turn",
+   "right",
+   "spin"
+  ]
+ },
+ {
+  "opcode": "motion_turnleft",
+  "category": "Motion",
+  "name": "turn counterclockwise",
+  "does": "Turns the sprite counterclockwise by a number of degrees.",
+  "words": [
+   "rotate",
+   "turn",
+   "left",
+   "spin",
+   "anticlockwise"
+  ]
+ },
+ {
+  "opcode": "motion_goto",
+  "category": "Motion",
+  "name": "go to a target",
+  "does": "Jumps to a random position, the mouse pointer or another sprite.",
+  "words": [
+   "teleport",
+   "jump",
+   "random",
+   "mouse"
+  ]
+ },
+ {
+  "opcode": "motion_gotoxy",
+  "category": "Motion",
+  "name": "go to x and y",
+  "does": "Jumps to an exact place given by x and y.",
+  "words": [
+   "position",
+   "coordinates",
+   "centre",
+   "center",
+   "start"
+  ]
+ },
+ {
+  "opcode": "motion_glideto",
+  "category": "Motion",
+  "name": "glide to a target",
+  "does": "Moves smoothly over some seconds to a random position, the mouse pointer or a sprite.",
+  "words": [
+   "slide",
+   "smooth",
+   "travel"
+  ]
+ },
+ {
+  "opcode": "motion_glidesecstoxy",
+  "category": "Motion",
+  "name": "glide to x and y",
+  "does": "Moves smoothly over some seconds to an exact place.",
+  "words": [
+   "slide",
+   "smooth",
+   "travel",
+   "coordinates"
+  ]
+ },
+ {
+  "opcode": "motion_pointindirection",
+  "category": "Motion",
+  "name": "point in direction",
+  "does": "Faces the sprite in a direction in degrees: 90 is right, -90 left, 0 up, 180 down.",
+  "words": [
+   "face",
+   "heading",
+   "angle"
+  ]
+ },
+ {
+  "opcode": "motion_pointtowards",
+  "category": "Motion",
+  "name": "point towards",
+  "does": "Faces the sprite towards the mouse pointer or another sprite.",
+  "words": [
+   "face",
+   "look",
+   "at",
+   "aim"
+  ]
+ },
+ {
+  "opcode": "motion_changexby",
+  "category": "Motion",
+  "name": "change x",
+  "does": "Moves the sprite sideways by an amount.",
+  "words": [
+   "move",
+   "right",
+   "left",
+   "sideways",
+   "horizontal"
+  ]
+ },
+ {
+  "opcode": "motion_setx",
+  "category": "Motion",
+  "name": "set x",
+  "does": "Puts the sprite at a sideways position.",
+  "words": [
+   "horizontal",
+   "coordinate"
+  ]
+ },
+ {
+  "opcode": "motion_changeyby",
+  "category": "Motion",
+  "name": "change y",
+  "does": "Moves the sprite up or down by an amount.",
+  "words": [
+   "move",
+   "up",
+   "down",
+   "jump",
+   "vertical"
+  ]
+ },
+ {
+  "opcode": "motion_sety",
+  "category": "Motion",
+  "name": "set y",
+  "does": "Puts the sprite at an up and down position.",
+  "words": [
+   "vertical",
+   "coordinate"
+  ]
+ },
+ {
+  "opcode": "motion_ifonedgebounce",
+  "category": "Motion",
+  "name": "if on edge, bounce",
+  "does": "Turns the sprite back if it touches the edge of the stage.",
+  "words": [
+   "wall",
+   "bounce",
+   "border"
+  ]
+ },
+ {
+  "opcode": "motion_setrotationstyle",
+  "category": "Motion",
+  "name": "set rotation style",
+  "does": "Chooses whether the sprite flips, spins all around or does not rotate when it turns.",
+  "words": [
+   "flip",
+   "upside",
+   "down"
+  ]
+ },
+ {
+  "opcode": "motion_xposition",
+  "category": "Motion",
+  "name": "x position",
+  "does": "The sprite's sideways position, as a value.",
+  "words": [
+   "where",
+   "horizontal"
+  ]
+ },
+ {
+  "opcode": "motion_yposition",
+  "category": "Motion",
+  "name": "y position",
+  "does": "The sprite's up and down position, as a value.",
+  "words": [
+   "where",
+   "vertical"
+  ]
+ },
+ {
+  "opcode": "motion_direction",
+  "category": "Motion",
+  "name": "direction",
+  "does": "The direction the sprite faces, as a value.",
+  "words": [
+   "heading",
+   "angle"
+  ]
+ },
+ {
+  "opcode": "looks_sayforsecs",
+  "category": "Looks",
+  "name": "say for some seconds",
+  "does": "Shows words in a speech bubble for a number of seconds.",
+  "words": [
+   "talk",
+   "speak",
+   "speech",
+   "hello",
+   "message",
+   "text"
+  ]
+ },
+ {
+  "opcode": "looks_say",
+  "category": "Looks",
+  "name": "say",
+  "does": "Shows words in a speech bubble until changed.",
+  "words": [
+   "talk",
+   "speak",
+   "speech",
+   "hello",
+   "message",
+   "text"
+  ]
+ },
+ {
+  "opcode": "looks_thinkforsecs",
+  "category": "Looks",
+  "name": "think for some seconds",
+  "does": "Shows words in a thought bubble for a number of seconds.",
+  "words": [
+   "thought",
+   "bubble"
+  ]
+ },
+ {
+  "opcode": "looks_think",
+  "category": "Looks",
+  "name": "think",
+  "does": "Shows words in a thought bubble until changed.",
+  "words": [
+   "thought",
+   "bubble"
+  ]
+ },
+ {
+  "opcode": "looks_switchcostumeto",
+  "category": "Looks",
+  "name": "switch costume",
+  "does": "Changes how the sprite looks, to a named costume.",
+  "words": [
+   "outfit",
+   "appearance",
+   "shape"
+  ]
+ },
+ {
+  "opcode": "looks_nextcostume",
+  "category": "Looks",
+  "name": "next costume",
+  "does": "Changes to the sprite's next costume. Used to animate.",
+  "words": [
+   "animate",
+   "animation",
+   "walk",
+   "cycle"
+  ]
+ },
+ {
+  "opcode": "looks_changesizeby",
+  "category": "Looks",
+  "name": "change size",
+  "does": "Makes the sprite bigger or smaller by an amount.",
+  "words": [
+   "grow",
+   "shrink",
+   "bigger",
+   "smaller"
+  ]
+ },
+ {
+  "opcode": "looks_setsizeto",
+  "category": "Looks",
+  "name": "set size",
+  "does": "Sets the sprite's size as a percentage.",
+  "words": [
+   "scale",
+   "big",
+   "small"
+  ]
+ },
+ {
+  "opcode": "looks_show",
+  "category": "Looks",
+  "name": "show",
+  "does": "Makes the sprite visible.",
+  "words": [
+   "appear",
+   "unhide"
+  ]
+ },
+ {
+  "opcode": "looks_hide",
+  "category": "Looks",
+  "name": "hide",
+  "does": "Makes the sprite invisible.",
+  "words": [
+   "disappear",
+   "vanish"
+  ]
+ },
+ {
+  "opcode": "looks_gotofrontback",
+  "category": "Looks",
+  "name": "go to front or back layer",
+  "does": "Puts the sprite in front of or behind all the others.",
+  "words": [
+   "layer",
+   "overlap"
+  ]
+ },
+ {
+  "opcode": "looks_goforwardbackwardlayers",
+  "category": "Looks",
+  "name": "go forward or backward layers",
+  "does": "Moves the sprite some layers forward or back.",
+  "words": [
+   "layer",
+   "overlap"
+  ]
+ },
+ {
+  "opcode": "looks_costumenumbername",
+  "category": "Looks",
+  "name": "costume number or name",
+  "does": "The current costume, as a value.",
+  "words": [
+   "which",
+   "costume"
+  ]
+ },
+ {
+  "opcode": "looks_size",
+  "category": "Looks",
+  "name": "size",
+  "does": "The sprite's size, as a value.",
+  "words": [
+   "how",
+   "big"
+  ]
+ },
+ {
+  "opcode": "event_whenthisspriteclicked",
+  "category": "Events",
+  "name": "when this sprite clicked",
+  "does": "Starts a script when the sprite is clicked.",
+  "words": [
+   "click",
+   "tap",
+   "press",
+   "start"
+  ]
+ },
+ {
+  "opcode": "control_start_as_clone",
+  "category": "Control",
+  "name": "when I start as a clone",
+  "does": "Starts a script in each new copy of the sprite.",
+  "words": [
+   "clone",
+   "copy",
+   "spawn"
+  ]
+ },
+ {
+  "opcode": "control_delete_this_clone",
+  "category": "Control",
+  "name": "delete this clone",
+  "does": "Removes the copy that is running this script.",
+  "words": [
+   "clone",
+   "remove",
+   "destroy"
+  ]
+ },
+ {
+  "opcode": "sensing_touchingobject",
+  "category": "Sensing",
+  "name": "touching a target",
+  "does": "True while the sprite touches the mouse pointer, the edge or another sprite.",
+  "words": [
+   "collision",
+   "hit",
+   "collide"
+  ]
+ },
+ {
+  "opcode": "sensing_touchingcolor",
+  "category": "Sensing",
+  "name": "touching a colour",
+  "does": "True while the sprite touches a colour.",
+  "words": [
+   "color",
+   "collision"
+  ]
+ },
+ {
+  "opcode": "sensing_coloristouchingcolor",
+  "category": "Sensing",
+  "name": "colour touching colour",
+  "does": "True while one colour of the sprite touches another colour.",
+  "words": [
+   "color",
+   "collision"
+  ]
+ },
+ {
+  "opcode": "sensing_distanceto",
+  "category": "Sensing",
+  "name": "distance to",
+  "does": "How far the sprite is from the mouse pointer or a sprite, as a value.",
+  "words": [
+   "how",
+   "far",
+   "near",
+   "close"
+  ]
+ },
+ {
+  "opcode": "sensing_setdragmode",
+  "category": "Sensing",
+  "name": "set drag mode",
+  "does": "Chooses whether the sprite can be dragged while the project runs.",
+  "words": [
+   "drag",
+   "mouse"
+  ]
+ },
+ {
+  "opcode": "looks_switchbackdropto",
+  "category": "Looks",
+  "name": "switch backdrop",
+  "does": "Changes the stage background.",
+  "words": [
+   "scene",
+   "background",
+   "level"
+  ]
+ },
+ {
+  "opcode": "looks_switchbackdroptoandwait",
+  "category": "Looks",
+  "name": "switch backdrop and wait",
+  "does": "Changes the background and waits for the scripts it starts.",
+  "words": [
+   "scene",
+   "background",
+   "level"
+  ]
+ },
+ {
+  "opcode": "looks_nextbackdrop",
+  "category": "Looks",
+  "name": "next backdrop",
+  "does": "Changes to the next background.",
+  "words": [
+   "scene",
+   "background"
+  ]
+ },
+ {
+  "opcode": "looks_changeeffectby",
+  "category": "Looks",
+  "name": "change graphic effect",
+  "does": "Changes an effect such as ghost, colour or whirl by an amount.",
+  "words": [
+   "fade",
+   "color",
+   "transparent"
+  ]
+ },
+ {
+  "opcode": "looks_seteffectto",
+  "category": "Looks",
+  "name": "set graphic effect",
+  "does": "Sets an effect such as ghost, colour or whirl to a value.",
+  "words": [
+   "fade",
+   "color",
+   "transparent"
+  ]
+ },
+ {
+  "opcode": "looks_cleargraphiceffects",
+  "category": "Looks",
+  "name": "clear graphic effects",
+  "does": "Removes all graphic effects.",
+  "words": [
+   "reset",
+   "normal"
+  ]
+ },
+ {
+  "opcode": "looks_backdropnumbername",
+  "category": "Looks",
+  "name": "backdrop number or name",
+  "does": "The current background, as a value.",
+  "words": [
+   "which",
+   "scene"
+  ]
+ },
+ {
+  "opcode": "sound_playuntildone",
+  "category": "Sound",
+  "name": "play sound until done",
+  "does": "Plays a sound and waits for it to finish.",
+  "words": [
+   "audio",
+   "music",
+   "noise",
+   "meow"
+  ]
+ },
+ {
+  "opcode": "sound_play",
+  "category": "Sound",
+  "name": "start sound",
+  "does": "Starts a sound and carries straight on.",
+  "words": [
+   "audio",
+   "music",
+   "noise",
+   "meow"
+  ]
+ },
+ {
+  "opcode": "sound_stopallsounds",
+  "category": "Sound",
+  "name": "stop all sounds",
+  "does": "Stops every sound.",
+  "words": [
+   "quiet",
+   "silence",
+   "mute"
+  ]
+ },
+ {
+  "opcode": "sound_changeeffectby",
+  "category": "Sound",
+  "name": "change sound effect",
+  "does": "Changes pitch or left and right balance by an amount.",
+  "words": [
+   "higher",
+   "lower",
+   "pan"
+  ]
+ },
+ {
+  "opcode": "sound_seteffectto",
+  "category": "Sound",
+  "name": "set sound effect",
+  "does": "Sets pitch or left and right balance.",
+  "words": [
+   "higher",
+   "lower",
+   "pan"
+  ]
+ },
+ {
+  "opcode": "sound_cleareffects",
+  "category": "Sound",
+  "name": "clear sound effects",
+  "does": "Removes all sound effects.",
+  "words": [
+   "reset"
+  ]
+ },
+ {
+  "opcode": "sound_changevolumeby",
+  "category": "Sound",
+  "name": "change volume",
+  "does": "Makes sounds louder or quieter by an amount.",
+  "words": [
+   "loud",
+   "soft"
+  ]
+ },
+ {
+  "opcode": "sound_setvolumeto",
+  "category": "Sound",
+  "name": "set volume",
+  "does": "Sets how loud sounds are, as a percentage.",
+  "words": [
+   "loud",
+   "soft",
+   "mute"
+  ]
+ },
+ {
+  "opcode": "sound_volume",
+  "category": "Sound",
+  "name": "volume",
+  "does": "The current volume, as a value.",
+  "words": [
+   "how",
+   "loud"
+  ]
+ },
+ {
+  "opcode": "event_whenflagclicked",
+  "category": "Events",
+  "name": "when green flag clicked",
+  "does": "Starts a script when the project is run.",
+  "words": [
+   "start",
+   "begin",
+   "run",
+   "flag"
+  ]
+ },
+ {
+  "opcode": "event_whenkeypressed",
+  "category": "Events",
+  "name": "when key pressed",
+  "does": "Starts a script when a keyboard key is pressed.",
+  "words": [
+   "keyboard",
+   "arrow",
+   "space",
+   "control"
+  ]
+ },
+ {
+  "opcode": "event_whenstageclicked",
+  "category": "Events",
+  "name": "when stage clicked",
+  "does": "Starts a script when the stage is clicked.",
+  "words": [
+   "click",
+   "background"
+  ]
+ },
+ {
+  "opcode": "event_whenbackdropswitchesto",
+  "category": "Events",
+  "name": "when backdrop switches to",
+  "does": "Starts a script when the background changes to a named one.",
+  "words": [
+   "scene",
+   "level"
+  ]
+ },
+ {
+  "opcode": "event_whengreaterthan",
+  "category": "Events",
+  "name": "when loudness or timer is greater than",
+  "does": "Starts a script when the microphone loudness or the timer passes a number.",
+  "words": [
+   "noise",
+   "clap",
+   "time"
+  ]
+ },
+ {
+  "opcode": "event_whenbroadcastreceived",
+  "category": "Events",
+  "name": "when I receive a message",
+  "does": "Starts a script when a message is broadcast.",
+  "words": [
+   "signal",
+   "receive",
+   "listen"
+  ]
+ },
+ {
+  "opcode": "event_broadcast",
+  "category": "Events",
+  "name": "broadcast a message",
+  "does": "Sends a message that other scripts can react to.",
+  "words": [
+   "signal",
+   "send",
+   "tell"
+  ]
+ },
+ {
+  "opcode": "event_broadcastandwait",
+  "category": "Events",
+  "name": "broadcast and wait",
+  "does": "Sends a message and waits for the scripts it starts to finish.",
+  "words": [
+   "signal",
+   "send",
+   "tell"
+  ]
+ },
+ {
+  "opcode": "control_wait",
+  "category": "Control",
+  "name": "wait",
+  "does": "Pauses the script for a number of seconds.",
+  "words": [
+   "pause",
+   "delay",
+   "sleep",
+   "time"
+  ]
+ },
+ {
+  "opcode": "control_repeat",
+  "category": "Control",
+  "name": "repeat",
+  "does": "Runs the blocks inside a set number of times.",
+  "words": [
+   "loop",
+   "times",
+   "again"
+  ]
+ },
+ {
+  "opcode": "control_forever",
+  "category": "Control",
+  "name": "forever",
+  "does": "Runs the blocks inside again and again without stopping.",
+  "words": [
+   "loop",
+   "always",
+   "continuously"
+  ]
+ },
+ {
+  "opcode": "control_if",
+  "category": "Control",
+  "name": "if then",
+  "does": "Runs the blocks inside only when a condition is true.",
+  "words": [
+   "condition",
+   "check",
+   "decide"
+  ]
+ },
+ {
+  "opcode": "control_if_else",
+  "category": "Control",
+  "name": "if then else",
+  "does": "Runs one part when a condition is true and another when it is false.",
+  "words": [
+   "condition",
+   "otherwise",
+   "decide"
+  ]
+ },
+ {
+  "opcode": "control_wait_until",
+  "category": "Control",
+  "name": "wait until",
+  "does": "Pauses the script until a condition becomes true.",
+  "words": [
+   "pause",
+   "condition"
+  ]
+ },
+ {
+  "opcode": "control_repeat_until",
+  "category": "Control",
+  "name": "repeat until",
+  "does": "Runs the blocks inside again and again until a condition is true.",
+  "words": [
+   "loop",
+   "while",
+   "condition"
+  ]
+ },
+ {
+  "opcode": "control_stop",
+  "category": "Control",
+  "name": "stop",
+  "does": "Stops all scripts, this script, or the other scripts of the sprite.",
+  "words": [
+   "end",
+   "finish",
+   "quit"
+  ]
+ },
+ {
+  "opcode": "control_create_clone_of",
+  "category": "Control",
+  "name": "create clone of",
+  "does": "Makes a copy of a sprite while the project runs.",
+  "words": [
+   "copy",
+   "duplicate",
+   "spawn"
+  ]
+ },
+ {
+  "opcode": "sensing_askandwait",
+  "category": "Sensing",
+  "name": "ask and wait",
+  "does": "Asks a question and waits for a typed answer.",
+  "words": [
+   "input",
+   "question",
+   "prompt"
+  ]
+ },
+ {
+  "opcode": "sensing_answer",
+  "category": "Sensing",
+  "name": "answer",
+  "does": "What was typed after the last question, as a value.",
+  "words": [
+   "input",
+   "reply"
+  ]
+ },
+ {
+  "opcode": "sensing_keypressed",
+  "category": "Sensing",
+  "name": "key pressed",
+  "does": "True while a keyboard key is held.",
+  "words": [
+   "keyboard",
+   "arrow",
+   "space"
+  ]
+ },
+ {
+  "opcode": "sensing_mousedown",
+  "category": "Sensing",
+  "name": "mouse down",
+  "does": "True while the mouse button is held.",
+  "words": [
+   "click",
+   "press"
+  ]
+ },
+ {
+  "opcode": "sensing_mousex",
+  "category": "Sensing",
+  "name": "mouse x",
+  "does": "The pointer's sideways position, as a value.",
+  "words": [
+   "pointer",
+   "horizontal"
+  ]
+ },
+ {
+  "opcode": "sensing_mousey",
+  "category": "Sensing",
+  "name": "mouse y",
+  "does": "The pointer's up and down position, as a value.",
+  "words": [
+   "pointer",
+   "vertical"
+  ]
+ },
+ {
+  "opcode": "sensing_loudness",
+  "category": "Sensing",
+  "name": "loudness",
+  "does": "How loud the microphone hears, as a value.",
+  "words": [
+   "noise",
+   "volume",
+   "clap"
+  ]
+ },
+ {
+  "opcode": "sensing_timer",
+  "category": "Sensing",
+  "name": "timer",
+  "does": "Seconds since the timer was reset, as a value.",
+  "words": [
+   "time",
+   "clock",
+   "stopwatch"
+  ]
+ },
+ {
+  "opcode": "sensing_resettimer",
+  "category": "Sensing",
+  "name": "reset timer",
+  "does": "Sets the timer back to zero.",
+  "words": [
+   "time",
+   "clock"
+  ]
+ },
+ {
+  "opcode": "sensing_of",
+  "category": "Sensing",
+  "name": "property of",
+  "does": "A value belonging to another sprite or the stage, such as its position.",
+  "words": [
+   "other",
+   "sprite",
+   "value"
+  ]
+ },
+ {
+  "opcode": "sensing_current",
+  "category": "Sensing",
+  "name": "current date or time",
+  "does": "The current year, month, day or time, as a value.",
+  "words": [
+   "clock",
+   "date"
+  ]
+ },
+ {
+  "opcode": "sensing_dayssince2000",
+  "category": "Sensing",
+  "name": "days since 2000",
+  "does": "The number of days since the year 2000, as a value.",
+  "words": [
+   "date"
+  ]
+ },
+ {
+  "opcode": "sensing_online",
+  "category": "Sensing",
+  "name": "online",
+  "does": "True when the computer is online.",
+  "words": [
+   "internet",
+   "connected"
+  ]
+ },
+ {
+  "opcode": "sensing_username",
+  "category": "Sensing",
+  "name": "username",
+  "does": "The signed in user's name, as a value.",
+  "words": [
+   "name",
+   "user"
+  ]
+ },
+ {
+  "opcode": "operator_add",
+  "category": "Operators",
+  "name": "add",
+  "does": "Adds two numbers.",
+  "words": [
+   "plus",
+   "sum",
+   "maths",
+   "math"
+  ]
+ },
+ {
+  "opcode": "operator_subtract",
+  "category": "Operators",
+  "name": "subtract",
+  "does": "Takes one number from another.",
+  "words": [
+   "minus",
+   "take",
+   "away"
+  ]
+ },
+ {
+  "opcode": "operator_multiply",
+  "category": "Operators",
+  "name": "multiply",
+  "does": "Multiplies two numbers.",
+  "words": [
+   "times",
+   "product"
+  ]
+ },
+ {
+  "opcode": "operator_divide",
+  "category": "Operators",
+  "name": "divide",
+  "does": "Divides one number by another.",
+  "words": [
+   "share",
+   "split"
+  ]
+ },
+ {
+  "opcode": "operator_random",
+  "category": "Operators",
+  "name": "pick random number",
+  "does": "A random number between two numbers.",
+  "words": [
+   "chance",
+   "dice",
+   "surprise"
+  ]
+ },
+ {
+  "opcode": "operator_gt",
+  "category": "Operators",
+  "name": "greater than",
+  "does": "True when the first value is bigger than the second.",
+  "words": [
+   "more",
+   "bigger",
+   "compare"
+  ]
+ },
+ {
+  "opcode": "operator_lt",
+  "category": "Operators",
+  "name": "less than",
+  "does": "True when the first value is smaller than the second.",
+  "words": [
+   "fewer",
+   "smaller",
+   "compare"
+  ]
+ },
+ {
+  "opcode": "operator_equals",
+  "category": "Operators",
+  "name": "equals",
+  "does": "True when two values are the same.",
+  "words": [
+   "same",
+   "equal",
+   "compare"
+  ]
+ },
+ {
+  "opcode": "operator_and",
+  "category": "Operators",
+  "name": "and",
+  "does": "True when both conditions are true.",
+  "words": [
+   "both",
+   "logic"
+  ]
+ },
+ {
+  "opcode": "operator_or",
+  "category": "Operators",
+  "name": "or",
+  "does": "True when either condition is true.",
+  "words": [
+   "either",
+   "logic"
+  ]
+ },
+ {
+  "opcode": "operator_not",
+  "category": "Operators",
+  "name": "not",
+  "does": "True when a condition is false.",
+  "words": [
+   "opposite",
+   "logic"
+  ]
+ },
+ {
+  "opcode": "operator_join",
+  "category": "Operators",
+  "name": "join text",
+  "does": "Puts two pieces of text together.",
+  "words": [
+   "combine",
+   "concatenate",
+   "words"
+  ]
+ },
+ {
+  "opcode": "operator_letter_of",
+  "category": "Operators",
+  "name": "letter of",
+  "does": "One letter from some text.",
+  "words": [
+   "character"
+  ]
+ },
+ {
+  "opcode": "operator_length",
+  "category": "Operators",
+  "name": "length of text",
+  "does": "How many letters some text has.",
+  "words": [
+   "count",
+   "characters"
+  ]
+ },
+ {
+  "opcode": "operator_contains",
+  "category": "Operators",
+  "name": "text contains",
+  "does": "True when some text includes other text.",
+  "words": [
+   "includes",
+   "search"
+  ]
+ },
+ {
+  "opcode": "operator_mod",
+  "category": "Operators",
+  "name": "remainder",
+  "does": "What is left over after dividing.",
+  "words": [
+   "modulo",
+   "mod",
+   "even",
+   "odd"
+  ]
+ },
+ {
+  "opcode": "operator_round",
+  "category": "Operators",
+  "name": "round",
+  "does": "The nearest whole number.",
+  "words": [
+   "integer"
+  ]
+ },
+ {
+  "opcode": "operator_mathop",
+  "category": "Operators",
+  "name": "maths function",
+  "does": "A function such as square root, absolute value, floor or sine.",
+  "words": [
+   "sqrt",
+   "abs",
+   "sin",
+   "math"
+  ]
+ },
+ {
+  "opcode": "data_variable",
+  "category": "Variables",
+  "name": "variable value",
+  "does": "The value stored in a variable.",
+  "words": [
+   "score",
+   "number",
+   "read"
+  ]
+ },
+ {
+  "opcode": "data_setvariableto",
+  "category": "Variables",
+  "name": "set variable",
+  "does": "Stores a value in a variable.",
+  "words": [
+   "score",
+   "start",
+   "reset",
+   "save"
+  ]
+ },
+ {
+  "opcode": "data_changevariableby",
+  "category": "Variables",
+  "name": "change variable",
+  "does": "Adds to a variable, or takes away with a negative number.",
+  "words": [
+   "score",
+   "increase",
+   "count",
+   "points"
+  ]
+ },
+ {
+  "opcode": "data_showvariable",
+  "category": "Variables",
+  "name": "show variable",
+  "does": "Shows a variable on the stage.",
+  "words": [
+   "display",
+   "score"
+  ]
+ },
+ {
+  "opcode": "data_hidevariable",
+  "category": "Variables",
+  "name": "hide variable",
+  "does": "Hides a variable from the stage.",
+  "words": [
+   "score"
+  ]
+ },
+ {
+  "opcode": "data_listcontents",
+  "category": "Lists",
+  "name": "list contents",
+  "does": "Everything in a list, as a value.",
+  "words": [
+   "array",
+   "items"
+  ]
+ },
+ {
+  "opcode": "data_addtolist",
+  "category": "Lists",
+  "name": "add to list",
+  "does": "Puts an item at the end of a list.",
+  "words": [
+   "append",
+   "array"
+  ]
+ },
+ {
+  "opcode": "data_deleteoflist",
+  "category": "Lists",
+  "name": "delete item of list",
+  "does": "Removes an item from a list.",
+  "words": [
+   "remove",
+   "array"
+  ]
+ },
+ {
+  "opcode": "data_deletealloflist",
+  "category": "Lists",
+  "name": "delete all of list",
+  "does": "Empties a list.",
+  "words": [
+   "clear",
+   "array",
+   "reset"
+  ]
+ },
+ {
+  "opcode": "data_insertatlist",
+  "category": "Lists",
+  "name": "insert into list",
+  "does": "Puts an item at a position in a list.",
+  "words": [
+   "array"
+  ]
+ },
+ {
+  "opcode": "data_replaceitemoflist",
+  "category": "Lists",
+  "name": "replace item of list",
+  "does": "Changes the item at a position in a list.",
+  "words": [
+   "update",
+   "array"
+  ]
+ },
+ {
+  "opcode": "data_itemoflist",
+  "category": "Lists",
+  "name": "item of list",
+  "does": "The item at a position in a list.",
+  "words": [
+   "get",
+   "array"
+  ]
+ },
+ {
+  "opcode": "data_itemnumoflist",
+  "category": "Lists",
+  "name": "position of item in list",
+  "does": "Where an item is in a list.",
+  "words": [
+   "find",
+   "index"
+  ]
+ },
+ {
+  "opcode": "data_lengthoflist",
+  "category": "Lists",
+  "name": "length of list",
+  "does": "How many items a list has.",
+  "words": [
+   "count",
+   "size"
+  ]
+ },
+ {
+  "opcode": "data_listcontainsitem",
+  "category": "Lists",
+  "name": "list contains",
+  "does": "True when a list includes an item.",
+  "words": [
+   "includes",
+   "has"
+  ]
+ },
+ {
+  "opcode": "data_showlist",
+  "category": "Lists",
+  "name": "show list",
+  "does": "Shows a list on the stage.",
+  "words": [
+   "display"
+  ]
+ },
+ {
+  "opcode": "data_hidelist",
+  "category": "Lists",
+  "name": "hide list",
+  "does": "Hides a list from the stage.",
+  "words": []
+ }
+]

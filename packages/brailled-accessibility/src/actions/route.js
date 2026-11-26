@@ -5,6 +5,9 @@ import {hasOpenDialog} from './dom.js';
 import {speech} from './messages.js';
 import parseCommand from './parser.js';
 
+// Long enough for a window to close and focus to return.
+const CLOSING_MS = 50;
+
 /**
  * Act on what was said or typed.
  * @param {object} app The app.
@@ -24,8 +27,17 @@ const routeCommand = (app, text, source) => {
     // While the AI helper's reply is open, what is said is about it, apart from stopping the project.
     const assistant = app.assistant();
     if (assistant?.isOpen()) {
-        if (parseCommand(text, app.actionNames()) === 'project.stop') app.perform('project.stop');
-        else assistant.respond(text);
+        const command = parseCommand(text, app.actionNames());
+        if (command === 'project.stop') {
+            app.perform(command);
+        } else if (command && assistant.isExplaining()) {
+            // An explanation asks nothing, so a command closes it and is carried out once focus is back.
+            assistant.dismiss();
+            setTimeout(() => app.perform(command), CLOSING_MS);
+            return 'action';
+        } else {
+            assistant.respond(text);
+        }
         return 'assistant';
     }
     if (hasOpenDialog(globalThis.document)) {

@@ -11,7 +11,6 @@ const aiMessages = defineMessages(Object.fromEntries(Object.entries({
     notReady: 'The AI helper is not set up on this server.',
     noSprite: 'Select a sprite before asking the AI helper.',
     dismissed: 'Closed. Nothing was changed.',
-    closeFirst: 'Close the AI helper\'s window first.',
     sayName: 'Say a name or a number from the list, or say more.',
     questionTitle: 'The AI helper asks',
     answerLabel: 'Your answer',

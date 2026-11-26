@@ -10,8 +10,11 @@ const EXPIRY_SECONDS = Object.freeze({least: 30, usual: 120, most: 900});
 const BIG_CHANGES_ONLY = 'big changes only';
 
 // What applies until the file says otherwise.
-const SAFEST = Object.freeze(
-    {ai: false, aiEndpoint: null, approval: 'every', proposalExpirySeconds: EXPIRY_SECONDS.usual});
+const SAFEST = Object.freeze({ai: false,
+    aiEndpoint: null,
+    approval: 'every',
+    proposalExpirySeconds: EXPIRY_SECONDS.usual,
+    assistantMode: 'build'});
 // `voice` is null until the file has been read.
 const LOADING = Object.freeze({...SAFEST, voice: null, unreadable: false});
 const UNREADABLE = Object.freeze({...SAFEST, voice: false, unreadable: true});
@@ -49,6 +52,8 @@ const interpret = file => {
         aiEndpoint,
         approval: file.approval === BIG_CHANGES_ONLY ? 'big' : 'every',
         proposalExpirySeconds: expiryFrom(file.proposalExpirySeconds),
+        // How the AI helper starts: suggesting changes, or teaching the student to make them.
+        assistantMode: file.assistantMode === 'guide' ? 'guide' : 'build',
         unreadable: false
     };
 };

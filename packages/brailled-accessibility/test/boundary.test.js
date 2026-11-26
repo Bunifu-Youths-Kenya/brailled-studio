@@ -33,9 +33,9 @@ describe('the boundary around the AI side', () => {
     test('the helper is given only these ports', () => {
         const {ports} = setUp();
         expect(Object.isFrozen(ports)).toBe(true);
-        expect(Object.keys(ports).sort()).toEqual(['actions', 'announce', 'blockSpecs', 'data', 'language', 'names',
-            'outline', 'say', 'silence', 'snapshot', 'speak', 'spriteCategories', 'spriteNames', 'submit',
-            'targetId', 'whenQuiet']);
+        expect(Object.keys(ports).sort()).toEqual(['actions', 'announce', 'blockSpecs', 'data', 'history', 'language',
+            'mode', 'names', 'outline', 'remember', 'say', 'silence', 'snapshot', 'speak', 'spriteCategories',
+            'spriteNames', 'submit', 'targetId', 'whenQuiet']);
     });
 
     test('what the ports hand out is a copy, with nothing to call', () => {

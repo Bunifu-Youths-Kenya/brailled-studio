@@ -141,6 +141,8 @@ commands, answers the helper's question, or asks for a suggestion to be changed:
 | - | - |
 | What the student said or typed (at most 500 characters) | Yes, whatever they say |
 | The helper's question being answered, or its suggestion being changed | Possibly |
+| The recent conversation: up to 12 turns of what the student said, what the helper answered and what the editor did | Yes: it repeats earlier words and block text |
+| Whether the helper is building or guiding | No |
 | The selected sprite's program, as text | Yes: text students write in blocks |
 | Names of sprites, costumes, sounds, backdrops, variables, lists and messages | Yes, if students put names in them |
 | The context snapshot: view, focused control, selected sprite, place in the program, device mode, running state | Possibly, as it quotes block text and names |
@@ -156,7 +158,9 @@ proxy the computer's network address, which the server keeps in memory for up to
 not log.
 
 **Where it goes.** Editor → your AI server → [OpenRouter](https://openrouter.ai/) → the company running the
-chosen model. The server keeps and logs nothing students wrote, only whether a request worked and how long it took.
+chosen model. To answer one request the server may call the model several times, as it looks things up; each call
+includes the request and what was looked up. The server keeps and logs nothing students wrote, only whether a
+request worked, how long it took, how many calls it made and which tools were used.
 By default it asks OpenRouter to use only providers that do not collect data (`data_collection: "deny"`) and
 endpoints with zero data retention (`zdr`). Those are OpenRouter's settings and the providers' promises, which
 Brailled cannot check. Read the terms of OpenRouter and of the model's provider.
@@ -180,6 +184,7 @@ for children, and ask students not to include names or personal details. To turn
 | Audio | Brailled does not record, store or upload audio. Its code only starts and stops the browser's speech recognition, which in Chrome **does upload the sound to Google** |
 | Transcripts (what was heard) and typed requests | Kept in memory only: shown until replaced, and gone when the page is closed. There is no setting that saves them |
 | Suggestions and the helper's replies | In memory only |
+| The recent conversation | In memory only: cleared by reloading, "forget our conversation" and "Reset for new student" |
 | The project | Saved only when the student saves it, as before |
 
 A browser can keep things of its own, such as the console, where the editor writes why a reply was refused (which

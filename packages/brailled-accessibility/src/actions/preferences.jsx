@@ -14,6 +14,7 @@ import dialogStyles from '../outline/dialog.css';
 const appShape = PropTypes.shape({
     announce: PropTypes.func.isRequired,
     canReadAloud: PropTypes.func.isRequired,
+    forgetStudent: PropTypes.func.isRequired,
     say: PropTypes.func.isRequired,
     silence: PropTypes.func.isRequired,
     speak: PropTypes.func.isRequired,
@@ -21,7 +22,6 @@ const appShape = PropTypes.shape({
         answerScreenReader: PropTypes.func.isRequired,
         dismissQuestion: PropTypes.func.isRequired,
         get: PropTypes.func.isRequired,
-        reset: PropTypes.func.isRequired,
         set: PropTypes.func.isRequired,
         subscribe: PropTypes.func.isRequired
     }).isRequired
@@ -101,7 +101,7 @@ const VoiceSettings = ({app, onClose}) => {
     // The first-visit question follows, so this dialog closes first.
     const handleReset = useCallback(() => {
         onClose();
-        app.settings.reset();
+        app.forgetStudent();
         app.announce(app.say(preferenceMessages.wasReset));
     }, [app, onClose]);
 

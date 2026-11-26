@@ -9,6 +9,7 @@
     "node": ">=24"
   },
   "scripts": {
+    "eval": "node --env-file-if-exists=.env eval/run.ts",
     "lint": "eslint",
     "start": "node --env-file-if-exists=.env src/index.ts",
     "test": "vitest run",

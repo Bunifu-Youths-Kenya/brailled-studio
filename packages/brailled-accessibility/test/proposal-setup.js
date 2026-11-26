@@ -43,6 +43,7 @@ const setUp = ({respond = () => answer({type: 'explanation', text: 'Hello.'}), s
         aiEndpoint: '/api/assistant',
         approval: 'every',
         proposalExpirySeconds: 120,
+        assistantMode: 'build',
         ...school};
     const config = {get: () => configured, subscribe: () => () => {}};
     const settings = createSettings(null);

@@ -102,6 +102,7 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
     // Off until the configuration says otherwise. Then there is nothing to hear, set or send.
     const {voice: allowed, aiEndpoint} = useSyncExternalStore(app.config.subscribe, app.config.get);
     const off = allowed !== true;
+    const aiMode = useSyncExternalStore(app.subscribeMode, app.mode);
 
     useEffect(() => app.register('voice', voice), [app, voice]);
     useEffect(() => {
@@ -279,16 +280,26 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider}) => {
             </div>
             {notice ? (
                 <div className={styles.side}>
-                    {off ? null : (
-                        <button
-                            className={styles.settings}
-                            type="button"
-                            // eslint-disable-next-line react/jsx-no-bind
-                            onClick={handleSettings}
-                        >
-                            {intl.formatMessage(voiceMessages.settings)}
-                        </button>
-                    )}
+                    <div className={styles.top}>
+                        {aiEndpoint ? (
+                            <span
+                                className={styles.mode}
+                                data-voice-mode={aiMode}
+                            >
+                                {intl.formatMessage(voiceMessages.mode, {mode: aiMode})}
+                            </span>
+                        ) : null}
+                        {off ? null : (
+                            <button
+                                className={styles.settings}
+                                type="button"
+                                // eslint-disable-next-line react/jsx-no-bind
+                                onClick={handleSettings}
+                            >
+                                {intl.formatMessage(voiceMessages.settings)}
+                            </button>
+                        )}
+                    </div>
                     <p
                         className={aiEndpoint ? styles.aiNotice : styles.privacy}
                         data-voice-notice

@@ -4,6 +4,7 @@ import {createIntl} from 'react-intl';
 import {getEditor} from '../commands/editor.js';
 import {createConfig, fetchConfig} from '../config.js';
 import {createLibrary} from '../library.js';
+import {createMemory} from '../memory.js';
 import {createSettings, storageOf} from '../settings.js';
 import {createReader} from '../speech/read-aloud.js';
 import {SCRIPTS_VIEWS} from '../views.js';
@@ -63,6 +64,11 @@ const createApp = (vm, {
     const listeners = new Set();
     let intl = createIntl({locale: 'en', defaultLocale: 'en', onError: () => {}});
     let announceTimer = null;
+    const memory = createMemory();
+    // The mode the student chose, or null for the configured one.
+    let chosenMode = null;
+    const modeListeners = new Set();
+    const modeChanged = () => modeListeners.forEach(listener => listener());
     let preface = null;
     let prefaceTimer = null;
 
@@ -71,6 +77,29 @@ const createApp = (vm, {
         editor: getEditor(vm),
         config,
         settings,
+        // The recent conversation with the AI helper.
+        memory,
+        // `build`: the helper suggests changes. `guide`: it teaches the student to make them.
+        mode: () => chosenMode ?? config.get().assistantMode,
+        setMode: mode => {
+            chosenMode = mode;
+            modeChanged();
+        },
+        subscribeMode: listener => {
+            modeListeners.add(listener);
+            const configured = config.subscribe(listener);
+            return () => {
+                modeListeners.delete(listener);
+                configured();
+            };
+        },
+        // Nothing of one student stays for the next.
+        forgetStudent: () => {
+            memory.clear();
+            chosenMode = null;
+            modeChanged();
+            settings.reset();
+        },
 
         // Read text aloud, if that is wanted and the microphone would not hear it.
         speak: text => {

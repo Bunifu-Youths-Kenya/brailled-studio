@@ -12,9 +12,15 @@ export interface Config {
   perDay: number
   maxRequestBytes: number
   upstreamTimeoutMs: number
+  // How many times the model may be asked in one turn, and how long the whole turn may take.
+  maxRounds: number
+  turnTimeoutMs: number
 }
 
 type Env = Record<string, string | undefined>
+
+// Each round is a call that costs money.
+const MOST_ROUNDS = 10
 
 const count = (env: Env, name: string, fallback: number, minimum = 1): number => {
   const given = env[name]?.trim()
@@ -48,4 +54,6 @@ export const readConfig = (env: Env): Config => ({
   perDay: count(env, 'REQUESTS_PER_DAY', 2000),
   maxRequestBytes: count(env, 'MAX_REQUEST_BYTES', 128 * 1024),
   upstreamTimeoutMs: count(env, 'UPSTREAM_TIMEOUT_MS', 30000),
+  maxRounds: Math.min(count(env, 'AI_MAX_ROUNDS', 6), MOST_ROUNDS),
+  turnTimeoutMs: count(env, 'AI_TURN_TIMEOUT_MS', 40000),
 })

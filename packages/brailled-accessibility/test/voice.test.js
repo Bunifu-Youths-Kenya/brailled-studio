@@ -437,6 +437,7 @@ describe('the configuration', () => {
             aiEndpoint: null,
             approval: 'every',
             proposalExpirySeconds: 120,
+            assistantMode: 'build',
             unreadable: false});
     });
 
@@ -450,6 +451,7 @@ describe('the configuration', () => {
             aiEndpoint: null,
             approval: 'every',
             proposalExpirySeconds: 120,
+            assistantMode: 'build',
             unreadable: true});
     });
 
