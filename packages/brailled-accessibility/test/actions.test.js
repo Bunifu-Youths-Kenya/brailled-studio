@@ -28,12 +28,19 @@ describe('local commands, understood without AI', () => {
         ['switch to blocks', 'view.blocks'],
         ['show Python', 'view.python'],
         ['open sprite library', 'sprite.library'],
-        ['delete block', 'edit.delete']
+        ['delete block', 'edit.delete'],
+        // As people talk.
+        ['Hey where am I', 'help.whereAmI'],
+        ['ok, next please', 'move.next'],
+        ['Um, uh, stop.', 'project.stop'],
+        ['Hey Brailled, go to the stage', 'go.stage'],
+        ['hello what can I do here', 'help.whatCanIDo']
     ])('%j', (text, id) => {
         expect(parseCommand(text, names)).toBe(id);
     });
 
-    test.each(['', '   ', 'make me a sandwich', 'go to the moon', 'stop the world please now'])(
+    test.each(['', '   ', 'make me a sandwich', 'go to the moon', 'stop the world please now', 'hey', 'say hello',
+        'hey make me a sandwich', 'can you stop it falling'])(
         'does not guess at %j', text => {
             expect(parseCommand(text, names)).toBeNull();
         });

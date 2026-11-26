@@ -37,11 +37,15 @@ const PLACES = {
 
 const GO = /^(?:go to|goto|go|open|show|switch to|move to|take me to) (?:the )?(.+?)(?: tab| panel| zone)?$/;
 
+// Words people start with that ask for nothing, such as "Hey, where am I?".
+const OPENINGS = /^(?:(?:please|hey|hi|hello|ok|okay|um|uh|so|brailled) )+/;
+
 const normalise = text => String(text).toLowerCase()
     .replace(/[.,!?;:"]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .replace(/^please | please$/g, '');
+    .replace(OPENINGS, '')
+    .replace(/(?: please)+$/, '');
 
 const findIn = (table, phrase) => Object.keys(table).find(id => table[id].includes(phrase)) || null;
 
