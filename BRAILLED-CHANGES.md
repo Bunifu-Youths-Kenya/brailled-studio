@@ -44,6 +44,7 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-26 | `packages/scratch-gui/src/components/gui/gui.jsx` | Passes the colour mode to `useColorMode` from `brailled-accessibility`. | Brailled's panels follow the colour mode. |
 | 2026-11-26 | `packages/scratch-gui/src/components/menu-bar/menu-bar.css` | The menu bar takes `--brailled-brand`: a deep purple with white text at 12:1, black in High Contrast. | The old purple gave white text 4.7:1, too little for low-vision students. |
 | 2026-11-27 | `AGENTS.md` | Adds the testing workflow: which tests to run after an edit and before a push. | Full browser runs after every change took too long. |
+| 2026-11-27 | `packages/scratch-gui/src/components/menu-bar/menu-bar.css`, `project-title-input.css`, `src/components/menu/menu.css` | A white menu bar with deep blue text, icons and project name box, and a line in the logo's blue; drop-down menus take the same deep blue. Black in High Contrast. | The logo sat in a white box on purple. It is now drawn straight on the bar. |
 
 ## Files added by Brailled
 
@@ -195,7 +196,8 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `packages/brailled-accessibility/test/proposals.test.js` |
 | 2026-11-26 | `packages/brailled-ai-server/test/no-network.ts` |
 | 2026-11-26 | `packages/brailled-ai-server/vitest.config.ts` |
-| 2026-11-26 | `packages/brailled-accessibility/src/brand/brailled-logo.svg` |
+| 2026-11-27 | `packages/brailled-accessibility/src/brand/brailled-logo.png` |
+| 2026-11-27 | `packages/logos/Braille bot  Bio.png` |
 | 2026-11-26 | `packages/logos/fav.png` |
 | 2026-11-26 | `packages/brailled-accessibility/e2e/capture-eval-projects.cjs` |
 | 2026-11-26 | `packages/brailled-accessibility/src/catalog/blocks.json` |

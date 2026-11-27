@@ -27,9 +27,10 @@
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: $menu-bar-standard-font-size;
     font-weight: bold;
-    /* Brailled's own purple, dark enough for white text at 12:1, and black in high contrast. */
-    background-color: var(--brailled-brand, $looks-secondary);
-    color: $ui-white;
+    /* Brailled's white bar with deep blue text, and black in high contrast. */
+    background-color: var(--brailled-menu, $looks-secondary);
+    border-bottom: 3px solid var(--brailled-menu-line, $looks-secondary);
+    color: var(--brailled-on-menu, $ui-white);
 }
 
 .main-menu {
@@ -56,7 +57,7 @@
     display: flex;
     padding: 0 0.25rem;
     text-decoration: none;
-    color: $ui-white;
+    color: var(--brailled-on-menu, $ui-white);
     user-select: none;
     align-self: center;
     position: relative;
@@ -78,6 +79,11 @@
 .menu-bar-item.active,
 .menu-bar-item.hoverable:hover {
     background-color: $ui-black-transparent;
+}
+
+/* The icons on the bar are drawn white. Those inside the drop-down menus keep that. */
+.menu-bar-item > img {
+    filter: var(--brailled-menu-icons, none);
 }
 
 .menu-bar-item.growable {

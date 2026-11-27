@@ -6,20 +6,28 @@
 :global(:root) {
     /* Panels: the Outline, dialogs and the question beside the editor. */
     --brailled-canvas: #fff;
-    --brailled-text: #1c1033;
-    --brailled-text-soft: #5e4f80;
-    --brailled-line: #3b1f86;
+    --brailled-text: #0b1f33;
+    --brailled-text-soft: #34516e;
+    --brailled-line: #06365c;
 
-    /* The menu bar and the voice bar. */
-    --brailled-brand: #3b1f86;
+    /* The menu bar: white, so that the logo is drawn straight on it, with a line in the logo's blue. */
+    --brailled-menu: #fff;
+    --brailled-on-menu: #06365c;
+    --brailled-menu-line: #0088cf;
+    --brailled-menu-focus: #06365c;
+    /* Turns the menu bar's white icons into its text colour. */
+    --brailled-menu-icons: brightness(0) invert(15%) sepia(85%) saturate(1500%) hue-rotate(184deg) brightness(92%);
+
+    /* Chosen tabs, drop-down menus and the microphone's dot: a deep shade of the logo's blue. */
+    --brailled-brand: #06365c;
     --brailled-on-brand: #fff;
 
     /* What the eye must find: the talk button, notices, highlights. */
     --brailled-accent: #ffd500;
-    --brailled-on-accent: #1c1033;
+    --brailled-on-accent: #0b1f33;
 
     /* Where the student is, in a list. */
-    --brailled-selected: #3b1f86;
+    --brailled-selected: #06365c;
     --brailled-on-selected: #ffd500;
 
     /* Recording, warnings and errors. */
@@ -28,26 +36,30 @@
     --brailled-danger-text: #a30000;
 
     /* A dark ring inside a yellow one, seen on light and dark alike. */
-    --brailled-focus-inner: #1c1033;
+    --brailled-focus-inner: #0b1f33;
     --brailled-focus-outer: #ffd500;
 
-    --brailled-backdrop: rgba(28, 16, 51, 0.7);
-    --brailled-shadow: 0 0.25rem 1rem rgba(28, 16, 51, 0.35);
+    --brailled-backdrop: rgba(11, 31, 51, 0.7);
+    --brailled-shadow: 0 0.25rem 1rem rgba(11, 31, 51, 0.35);
 }
 
 :global(:root[data-brailled-color-mode="dark"]) {
-    --brailled-canvas: #17112a;
-    --brailled-text: #f5f0ff;
-    --brailled-text-soft: #d9d0f2;
-    --brailled-line: #c9b8ff;
-    --brailled-brand: #2a1868;
+    --brailled-canvas: #0c1826;
+    --brailled-text: #f0f7ff;
+    --brailled-text-soft: #cfe2f5;
+    --brailled-line: #9fd2f5;
+    --brailled-menu: #0c1826;
+    --brailled-on-menu: #fff;
+    --brailled-menu-focus: #ffd500;
+    --brailled-menu-icons: none;
+    --brailled-brand: #0a2a47;
     --brailled-on-brand: #fff;
-    --brailled-on-accent: #17112a;
+    --brailled-on-accent: #0c1826;
     --brailled-selected: #ffd500;
-    --brailled-on-selected: #17112a;
+    --brailled-on-selected: #0c1826;
     --brailled-danger-text: #ff9e97;
     --brailled-focus-inner: #ffd500;
-    --brailled-focus-outer: #17112a;
+    --brailled-focus-outer: #0c1826;
     --brailled-backdrop: rgba(0, 0, 0, 0.75);
     --brailled-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.6);
 }
@@ -57,6 +69,11 @@
     --brailled-text: #000;
     --brailled-text-soft: #000;
     --brailled-line: #000;
+    --brailled-menu: #000;
+    --brailled-on-menu: #fff;
+    --brailled-menu-line: #fff;
+    --brailled-menu-focus: #ffd500;
+    --brailled-menu-icons: none;
     --brailled-brand: #000;
     --brailled-on-accent: #000;
     --brailled-selected: #000;

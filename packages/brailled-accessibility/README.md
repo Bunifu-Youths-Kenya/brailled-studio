@@ -7,7 +7,7 @@ the editor needs around them.
 | - | - |
 | `src/shell.jsx` | Skip links, zone ids and the focus indicator |
 | `src/menu-bar-items.jsx` | Product logo, language picker, Save, Help and Examples |
-| `src/brand/brailled-logo.svg` | The logo from `packages/logos`, trimmed to the lettering, without its square white background |
+| `src/brand/brailled-logo.png` | `packages/logos/Braille bot  Bio.png`, trimmed to the lettering, without the empty space around it |
 | `src/stage-tabs.jsx` | Devices, Sprites and Background tabs under the stage |
 | `src/devices-panel.jsx` | Devices panel (interface only; nothing connects yet) |
 | `src/scripts-views.jsx` | Blocks / Outline / Python toggle |
@@ -689,14 +689,15 @@ them too. `useColorMode` (called in `gui.jsx`) puts the editor's colour mode on 
 
 | Colour mode | Panels | Menu bar | Student's place |
 | - | - | - | - |
-| Original | Dark purple text on white | White on deep purple, yellow accents | Yellow on deep purple |
-| High Contrast (also chosen by the computer's "more contrast" setting) | Black on white | White on black, yellow accents | Yellow on black |
-| Dark (ready for when Scratch turns it on) | Light text on dark purple | White on deep purple | Dark on yellow |
+| Original | Dark blue text on white | Deep blue on white, a line in the logo's blue | Yellow on deep blue |
+| High Contrast (also chosen by the computer's "more contrast" setting) | Black on white | White on black | Yellow on black |
+| Dark (ready for when Scratch turns it on) | Light text on dark blue | White on dark blue | Dark on yellow |
 
 Every text colour is at least 7:1 against what it sits on (WCAG AAA) and every border and focus ring at least 3:1.
-`test/theme.test.js` checks this for each mode, so a new colour must be added to all three and pass it. The menu
-bar, the Blocks/Outline switch and the stage tabs use the same deep purple. The rest of Scratch's own interface
-keeps its colours.
+`test/theme.test.js` checks this for each mode, so a new colour must be added to all three and pass it. The logo is
+drawn straight on the menu bar, where its lettering is at least 3:1. The menu bar's drop-down menus, the
+Blocks/Outline switch and the stage tabs use the same deep blue. The rest of Scratch's own interface keeps its
+colours.
 
 ## Accessible names
 

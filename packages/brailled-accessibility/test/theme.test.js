@@ -34,9 +34,18 @@ const contrast = (a, b) => {
 
 // Text on what it sits on: WCAG AAA.
 const TEXT = [['text', 'canvas'], ['text-soft', 'canvas'], ['danger-text', 'canvas'], ['on-brand', 'brand'],
-    ['accent', 'brand'], ['on-accent', 'accent'], ['on-selected', 'selected'], ['on-danger', 'danger']];
+    ['accent', 'brand'], ['on-accent', 'accent'], ['on-selected', 'selected'], ['on-danger', 'danger'],
+    ['on-menu', 'menu']];
 // Borders and focus rings: at least 3:1 against what is around them.
-const LINES = [['line', 'canvas'], ['focus-inner', 'canvas'], ['focus-inner', 'focus-outer'], ['accent', 'brand']];
+const LINES = [['line', 'canvas'], ['focus-inner', 'canvas'], ['focus-inner', 'focus-outer'], ['accent', 'brand'],
+    ['menu-line', 'menu'], ['menu-focus', 'menu']];
+
+// The logo's lettering, drawn straight on the menu bar: at least 3:1, as for any graphic.
+const LOGO = '#0088cf';
+
+test.each(Object.entries(MODES))('the logo can be seen on the menu bar in the %s colour mode', (mode, set) => {
+    expect(contrast(LOGO, set.menu)).toBeGreaterThanOrEqual(3);
+});
 
 describe.each(Object.entries(MODES))('in the %s colour mode', (mode, set) => {
     test('every colour is given', () => {

@@ -9,9 +9,9 @@
     box-shadow: 0 0 0 5px var(--brailled-focus-outer) !important;
 }
 
-/* The menu bar is the brand colour and touches the window edge. */
+/* The menu bar has a colour of its own and touches the window edge. */
 .shell header *:focus-visible {
-    outline-color: var(--brailled-accent) !important;
+    outline-color: var(--brailled-menu-focus) !important;
     outline-offset: -3px;
     box-shadow: none !important;
 }
