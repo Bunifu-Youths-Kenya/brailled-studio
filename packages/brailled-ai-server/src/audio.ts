@@ -1,4 +1,7 @@
 // Checks a recording the editor sends: a WAV file of one channel of 16 bit PCM at 16 kHz, as base64.
+// Named, because not every runtime has it ready made.
+import { Buffer } from 'node:buffer'
+
 export const RATE = 16000
 const HEADER_BYTES = 44
 const BYTES_A_SECOND = RATE * 2

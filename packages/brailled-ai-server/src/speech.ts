@@ -1,6 +1,7 @@
 /*
  * Turns words into speech through OpenRouter. The words are read and passed on; neither they nor the sound is kept.
  */
+import { Buffer } from 'node:buffer'
 import type { Config } from './config.ts'
 import type { Failure } from './openrouter.ts'
 import { readUse } from './request.ts'

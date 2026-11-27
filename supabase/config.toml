@@ -1,0 +1,6 @@
+# The Supabase project for the online version. Secrets are set with the CLI and never kept here.
+project_id = "brailled"
+
+# The AI server. It checks the login token itself, so that browsers may ask first without one.
+[functions.ai]
+verify_jwt = false
