@@ -257,5 +257,10 @@ These are new files, not edits to Scratch's own.
 | 2026-11-26 | `packages/brailled-accessibility/src/theme.css` |
 | 2026-11-26 | `packages/brailled-accessibility/src/theme.js` |
 | 2026-11-26 | `packages/brailled-accessibility/test/theme.test.js` |
+| 2026-11-27 | `packages/brailled-accessibility/src/live/session.js` |
+| 2026-11-27 | `packages/brailled-accessibility/src/voice/notice.js` |
+| 2026-11-27 | `packages/brailled-accessibility/test/live.test.js` |
+| 2026-11-27 | `packages/brailled-ai-server/src/live.ts` |
+| 2026-11-27 | `packages/brailled-ai-server/test/live.test.ts` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

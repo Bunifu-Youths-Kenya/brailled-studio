@@ -8,6 +8,7 @@ import { createCostLog, speechCost, type CostLog, type Entry } from './cost.ts'
 import { readCaps, type Caps } from './editor-config.ts'
 import { runAgent } from './agent.ts'
 import { loadKnowledge } from './knowledge.ts'
+import { mintLiveKey, runLiveTool } from './live.ts'
 import { createRateLimiter } from './limits.ts'
 import { readRequest, readVoiceTurn, type AssistantRequest } from './request.ts'
 import { readSpeechRequest, synthesise } from './speech.ts'
@@ -323,6 +324,68 @@ export const createApp = (
   app.use('/api/speak', origins)
   app.post('/api/speak', speakRate, express.json({ limit: config.maxRequestBytes }), (request, response, next) => {
     speak(request, response).catch(next)
+  })
+
+  // OpenAI's live voice: a short-lived key for one session, and the tools the live model calls during it.
+  const liveRate = minuteRate(config.voicePerAddressPerMinute)
+  const operations = (JSON.parse(commandSchema) as { oneOf: { $ref: string }[] }).oneOf.map(
+    (option) => option.$ref.split('/').at(-1) ?? '',
+  )
+  let liveDay = ''
+  let liveSessions = 0
+  const liveSession = async (request: Request, response: Response) => {
+    if (!request.is('application/json')) {
+      response.status(415).json({ error: 'invalid_request' })
+      return
+    }
+    if (!config.openaiApiKey) {
+      response.status(503).json({ error: 'not_configured' })
+      return
+    }
+    const read = readRequest(request.body)
+    if ('problem' in read) {
+      response.status(400).json({ error: 'invalid_request', field: read.problem })
+      return
+    }
+    const day = new Date(now()).toISOString().slice(0, 10)
+    if (day !== liveDay) [liveDay, liveSessions] = [day, 0]
+    if (liveSessions >= config.liveSessionsPerDay) {
+      refuseForToday(response)
+      return
+    }
+    liveSessions += 1
+    const started = now()
+    const minted = await mintLiveKey(config, read.request, commandSchema, fetcher)
+    if ('failure' in minted) {
+      log(`live-session: ${minted.failure} (${minted.detail}) after ${now() - started} ms`)
+      response.status(minted.failure === 'upstream_timeout' ? 504 : 502).json({ error: minted.failure })
+      return
+    }
+    log(`live-session: ${liveSessions} today, key made in ${now() - started} ms`)
+    response.set('Cache-Control', 'no-store').json(minted)
+  }
+  const liveTool = (request: Request, response: Response) => {
+    const body = (request.body ?? {}) as { request?: unknown; name?: unknown; arguments?: unknown }
+    const read = readRequest(body.request)
+    const { name, arguments: args } = body
+    if ('problem' in read || typeof name !== 'string' || name.length > 60 || typeof args !== 'string') {
+      response.status(400).json({ error: 'invalid_request' })
+      return
+    }
+    // Nothing the student said is logged: only the tool's name.
+    log(`live-tool: ${name}`)
+    response.set('Cache-Control', 'no-store').json(runLiveTool(name, args, read.request, knowledge, operations))
+  }
+  for (const path of ['/api/live-session', '/api/live-tool']) app.use(path, origins)
+  app.post('/api/live-session', liveRate, express.json({ limit: config.maxRequestBytes }), (request, response, next) => {
+    liveSession(request, response).catch(next)
+  })
+  app.post('/api/live-tool', rate, express.json({ limit: config.maxRequestBytes }), (request, response) => {
+    if (!request.is('application/json')) {
+      response.status(415).json({ error: 'invalid_request' })
+      return
+    }
+    liveTool(request, response)
   })
 
   // Bodies that are too large or are not JSON.

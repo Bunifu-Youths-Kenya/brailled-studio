@@ -1,7 +1,7 @@
 {
     "voice": {
         "enabled": true,
-        "provider": "browser",
+        "provider": "openai-live",
         "listenModel": "google/gemini-3.5-flash-lite",
         "ttsModel": "hexgrad/kokoro-82m",
         "ttsVoice": "af_heart",

@@ -15,7 +15,8 @@ const privacyNotice = ({voice, aiEndpoint, waking, online, speech}) => {
     let notice = voice ? voiceMessages.privacy : null;
     if (aiEndpoint) notice = voice ? voiceMessages.aiNoticeWithVoice : voiceMessages.aiNotice;
     if (waking) notice = aiEndpoint ? voiceMessages.wakeNoticeAi : voiceMessages.wakeNotice;
-    if (online) notice = waking ? voiceMessages.onlineNoticeWake : voiceMessages.onlineNotice;
+    if (online && speech?.provider === 'openai-live') notice = voiceMessages.liveNotice;
+    else if (online) notice = waking ? voiceMessages.onlineNoticeWake : voiceMessages.onlineNotice;
     else if (aiEndpoint && voice && readsRepliesOnline(speech)) {
         notice = waking ? voiceMessages.replyNoticeWake : voiceMessages.replyNotice;
     }

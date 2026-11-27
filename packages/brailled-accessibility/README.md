@@ -379,6 +379,29 @@ bar shows "Talking with Mboni". She does not listen while she thinks.
   "Okay, let me look.", the greeting, the goodbye and the lines about adding and guiding ship as recordings, so
   they play at once.
 
+### Live voice
+
+```json
+{"voice": {"enabled": true, "provider": "openai-live"}, "conversation": {"enabled": true, "voiceApproval": true},
+ "ai": true, "aiEndpoint": "http://localhost:8787/api/assistant"}
+```
+
+With the AI server's `OPENAI_API_KEY` set, **F4** starts a live conversation with OpenAI's live model
+(`gpt-realtime-2.1-mini` unless changed), which hears the student and answers in its own voice. F4, Escape or
+"goodbye" end it, as do 90 seconds of quiet and 15 minutes. The red dot shows while it is on; the talk key is not
+needed then. `src/live/session.js` holds it:
+
+- **The editor goes first.** The model replies only when the editor asks it to. When the student stops, the editor
+  takes the written-down words: an answer to a waiting suggestion goes to the gate, as in any hands-free
+  conversation (a bare "yes" approves nothing); a local command runs as one; words that are its own coming back are
+  dropped; "goodbye" ends it. Only then is the model given the project as it is and asked to reply.
+- **Suggestions go to the gate.** The model's `submit_proposal` goes through the AI server's checks and then the
+  editor's, as from any model. If the editor cannot use it, the model is told why and tries again; after three tries
+  the student is told it could not be worked out.
+- **One voice.** While the session is on, everything the editor would say or read aloud is said by the live voice,
+  gathered for a moment so that what follows at once is said together.
+- If it cannot start (no key, no network, the microphone blocked), the editor says so and the talk key still works.
+
 ### Changing the speech service
 
 `src/voice/provider.js` describes the interface: `isSupported()` and

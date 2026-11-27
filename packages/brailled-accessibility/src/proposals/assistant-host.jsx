@@ -11,11 +11,14 @@ import Replies from '../ai/replies.jsx';
 import {createAiPorts} from './ai-ports.js';
 import {createExecutor} from './executor.js';
 import {createGate} from './gate.js';
+import {createLiveSession} from '../live/session.js';
 import {createGuide} from './guide.js';
 import {createHighlighter} from './highlight.js';
 import ProposalDialog from './proposal-dialog.jsx';
 import {createProposalQueue} from './queue.js';
 
+
+import voiceStyles from '../voice/voice-bar.css';
 import './highlight.css';
 
 const connect = (app, endpoint) => {
@@ -34,19 +37,38 @@ const connect = (app, endpoint) => {
         fetch: window.fetch.bind(window)
     });
     const guide = createGuide(app);
+    const live = createLiveSession({app, assistant, endpoint, scope: window});
     const leave = [queue.connect(gate.take), app.register('gate', gate), app.register('assistant', assistant),
-        app.register('guide', guide)];
+        app.register('guide', guide), app.register('live', live)];
     return {
         assistant,
         gate,
+        live,
         dispose: () => {
             leave.forEach(task => task());
             assistant.dispose();
             gate.dispose();
             guide.stop({quietly: true});
+            live.dispose();
             highlighter.clear();
         }
     };
+};
+
+// The microphone sign while the live voice is on, the same as voice input's.
+const LiveSign = ({live}) => {
+    const {phase} = useSyncExternalStore(live.subscribe, live.getState);
+    return phase === 'on' ? (
+        <span
+            aria-hidden="true"
+            className={voiceStyles.mic}
+            data-voice-mic
+        />
+    ) : null;
+};
+
+LiveSign.propTypes = {
+    live: PropTypes.shape({getState: PropTypes.func.isRequired, subscribe: PropTypes.func.isRequired}).isRequired
 };
 
 const AssistantHost = ({app}) => {
@@ -77,6 +99,7 @@ const AssistantHost = ({app}) => {
                 gate={helper.gate}
                 name={name}
             />
+            <LiveSign live={helper.live} />
         </React.Fragment>
     ) : null;
 };

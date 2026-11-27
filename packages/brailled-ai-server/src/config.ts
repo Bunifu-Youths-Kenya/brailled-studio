@@ -31,6 +31,12 @@ export interface Config {
   // The file the record of costs is kept in, and the most it may add up to in a day, in US dollars.
   costLog: string | null
   costPerDayUsd: number
+  // OpenAI's live voice: the key, which never leaves this server, the models and voice, and live sessions a day.
+  openaiApiKey: string
+  liveModel: string
+  liveTranscribeModel: string
+  liveVoice: string
+  liveSessionsPerDay: number
 }
 
 const COST_LOG = fileURLToPath(new URL('../logs/cost.jsonl', import.meta.url))
@@ -115,4 +121,9 @@ export const readConfig = (env: Env): Config => ({
   charactersPerDay: optional(env, 'VOICE_CHARACTERS_PER_DAY'),
   costLog: text(env, 'AI_COST_LOG') === 'off' ? null : text(env, 'AI_COST_LOG') || COST_LOG,
   costPerDayUsd: amount(env, 'AI_DAILY_COST_CAP_USD', 1),
+  openaiApiKey: text(env, 'OPENAI_API_KEY'),
+  liveModel: text(env, 'OPENAI_LIVE_MODEL') || 'gpt-realtime-2.1-mini',
+  liveTranscribeModel: text(env, 'OPENAI_LIVE_TRANSCRIBE_MODEL') || 'gpt-4o-mini-transcribe',
+  liveVoice: text(env, 'OPENAI_LIVE_VOICE') || 'marin',
+  liveSessionsPerDay: count(env, 'LIVE_SESSIONS_PER_DAY', 60),
 })

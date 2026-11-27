@@ -117,7 +117,8 @@ const createApp = (vm, {
 
     // Whether the student's name may be said: by the device, or online where they allow it.
     const nameMaySound = () => settings.get().onlineName || reader.isAvailable(intl.locale);
-    const conversing = () => !!parts.get('wake')?.getState().conversing;
+    // Talking hands-free: after the wake words, or with the live voice.
+    const conversing = () => !!parts.get('wake')?.getState().conversing || !!parts.get('live')?.active();
 
     // Whether words may be sent to be read: not after listening online has failed.
     const sends = () => !online.hasFallenBack();
@@ -176,6 +177,13 @@ const createApp = (vm, {
         // else, such as what an edit did, stays on the device unless the student chooses otherwise.
         speak: (text, {reply = false} = {}) => {
             noteSaid(text);
+            // In a live session the live voice says everything, so that the student hears one voice.
+            if (parts.get('live')?.active()) {
+                reader.stop();
+                speaker.stop();
+                parts.get('live').say(text);
+                return;
+            }
             const listening = !!parts.get('voice') && parts.get('voice').getState().phase !== 'idle';
             if (!config.get().voice || !settings.get().readAloud || listening) return;
             if (readsOnline(text, reply)) {
@@ -249,6 +257,8 @@ const createApp = (vm, {
         voice: () => parts.get('voice') || null,
         // Listening for the wake words, see `wake/control.js`.
         wake: () => parts.get('wake') || null,
+        // OpenAI's live voice, where the school chose it, see `live/session.js`.
+        live: () => parts.get('live') || null,
         // The approval gate, see `proposals/gate.js`: takes the student's answer to a suggestion.
         gate: () => parts.get('gate') || null,
         // The AI helper, see `ai/assistant.js`: takes what is not a local command.

@@ -291,6 +291,14 @@ const createAssistant = ({ports, endpoint, fetch}) => {
         answer,
         hear,
         dismiss,
+        // For the live voice: the project as a request now, and a suggestion the live model made against one.
+        // Why it cannot be used is given back, for the live model to correct, rather than said to the student.
+        snapshot: () => buildRequest({ports, transcript: '(live)'}),
+        propose: async (reply, sent) => {
+            await ports.whenQuiet();
+            if (disposed) return null;
+            return useReply(reply, sent);
+        },
         dispose: () => {
             disposed = true;
             request?.abort();

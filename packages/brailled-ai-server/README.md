@@ -97,6 +97,21 @@ PCM under the privacy settings and passes the sound on as it arrives: 16 bit, on
 `openai/gpt-audio…` is asked through Chat Completions to say the words, and its stream of events is turned into the
 same sound. The [daily caps](#costs) apply. Nothing is cached, and neither the words nor the sound is logged.
 
+## Live voice
+
+With `OPENAI_API_KEY` set, the editor's `openai-live` provider talks to OpenAI's live model over WebRTC.
+`POST /api/live-session` takes the same request as `/api/assistant` and returns `{secret, expiresAt, model, context}`:
+a key that works for one minute, made with the assistant's rules, the brief spoken style, rules for speaking live,
+and the tools (looking up, and `submit_proposal` in build mode; questions and explanations are said aloud).
+`context` is the project, as data, for the editor to give the model first. `POST /api/live-tool` with `{request,
+name, arguments}` runs one of those tools against the project as it is then. Both accept only the editor's origins,
+are rate limited, and `LIVE_SESSIONS_PER_DAY` bounds the sessions. Nothing said is logged: only how many sessions
+and which tools.
+
+The model's speech is not checked before it is heard, so it is told never to say a change is done until the
+editor says so, and to say what the editor tells it as fact. The editor still decides everything: see the editor's
+notes.
+
 ## Costs
 
 The server keeps a record of what each request used, one JSON line each, in `logs/cost.jsonl` (`AI_COST_LOG`

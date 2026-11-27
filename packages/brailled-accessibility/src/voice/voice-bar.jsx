@@ -156,6 +156,28 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
             if (!event.target.closest?.(ZONE)) lastFocus.current = event.target;
         };
         const handleKeyDown = event => {
+            // The live voice, where the school chose it, takes the hands-free key; while it is on, Escape ends it
+            // and the talk key is not needed.
+            const live = app.live();
+            const liveChosen = live && app.online.provider() === 'openai-live';
+            if (live && live.getState().phase !== 'off' && (event.key === 'Escape' || matches(WAKE_KEY, event))) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!event.repeat) live.stop();
+                return;
+            }
+            if (liveChosen && matches(WAKE_KEY, event)) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!event.repeat) live.start();
+                return;
+            }
+            if (live?.active() && matches(TALK_KEYS[app.settings.get().talkKey], event)) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!event.repeat) app.announce(app.say(voiceMessages.liveTalk, {key: WAKE_KEY.label}));
+                return;
+            }
             if (event.key === 'Escape' && voice.getState().phase !== 'idle') {
                 event.preventDefault();
                 event.stopPropagation();

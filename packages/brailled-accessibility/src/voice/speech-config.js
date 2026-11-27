@@ -4,7 +4,7 @@
  */
 import {SWAHILI} from '../proposals/answers.js';
 
-const PROVIDERS = Object.freeze(['browser', 'gemini-pair', 'openai-audio']);
+const PROVIDERS = Object.freeze(['browser', 'gemini-pair', 'openai-audio', 'openai-live']);
 
 // A model as OpenRouter names it, and a voice's name. The server decides which models it will use.
 const MODEL = /^[a-z0-9-]+\/[a-z0-9.:_-]{1,80}$/i;
