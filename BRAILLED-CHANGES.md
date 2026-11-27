@@ -43,6 +43,7 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-26 | `packages/scratch-gui/src/lib/layout-constants.js`, `screen-utils.js`, `src/components/gui/gui.jsx` | In a window 740 pixels high or less, the large stage is drawn at 70%. | With the voice bar below the editor, the sprites were pushed off short screens. |
 | 2026-11-26 | `packages/scratch-gui/src/components/gui/gui.jsx` | Passes the colour mode to `useColorMode` from `brailled-accessibility`. | Brailled's panels follow the colour mode. |
 | 2026-11-26 | `packages/scratch-gui/src/components/menu-bar/menu-bar.css` | The menu bar takes `--brailled-brand`: a deep purple with white text at 12:1, black in High Contrast. | The old purple gave white text 4.7:1, too little for low-vision students. |
+| 2026-11-27 | `AGENTS.md` | Adds the testing workflow: which tests to run after an edit and before a push. | Full browser runs after every change took too long. |
 
 ## Files added by Brailled
 
@@ -270,5 +271,6 @@ These are new files, not edits to Scratch's own.
 | 2026-11-27 | `packages/brailled-accessibility/src/earcons/earcons.js` |
 | 2026-11-27 | `packages/brailled-accessibility/src/earcons/messages.js` |
 | 2026-11-27 | `packages/brailled-accessibility/test/earcons.test.js` |
+| 2026-11-27 | `packages/brailled-accessibility/e2e/parallel.cjs` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

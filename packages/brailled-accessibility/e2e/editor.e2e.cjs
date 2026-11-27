@@ -1,16 +1,21 @@
 // End-to-end checks of the Brailled editor in the system's Chrome, against the running dev server.
 // Usage, with `npm start` running at the repository root: npm run test:e2e -- [url]
 // CHROME_PATH names the browser to use. Screenshots are written to a temporary folder.
+// BRAILLED_E2E_WORKERS says how many groups run at once (3); with 1 they run in turn, in the order written.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {pathToFileURL} = require('url');
+const util = require('util');
 const {chromium} = require('playwright-chromium');
+const {runInWorkers, serveGroups} = require('./parallel.cjs');
 
 const repo = path.resolve(__dirname, '../../..');
 const url = process.argv[2] || 'http://localhost:8601/';
 const executablePath = process.env.CHROME_PATH || '/usr/bin/google-chrome';
-const out = fs.mkdtempSync(path.join(os.tmpdir(), 'brailled-e2e-'));
+// Workers write their screenshots to the folder of the run that started them.
+const isWorker = process.env.BRAILLED_E2E_WORKER === 'yes';
+const out = process.env.BRAILLED_E2E_OUT || fs.mkdtempSync(path.join(os.tmpdir(), 'brailled-e2e-'));
 
 // Stands in for the browser's speech recognition, so that no microphone or online service is needed.
 // `window.speech.say` is what the next request "hears"; `window.speech.error` makes it fail.
@@ -123,13 +128,15 @@ const writeMicrophone = file => {
     return file;
 };
 
+// `spoken` queues what the model does with each recording: the call it makes, or a status for a failure.
+// `voiced` lists the words the speech service was asked to read; `mute` is a status it answers with instead.
+const freshModel = () => ({reply: null, lookUp: null, asked: [], results: [], spoken: [], recordings: [],
+    voiced: [], mute: null});
+
 const startAiServer = async (env = {}) => {
     const from = file => import(pathToFileURL(path.join(repo, 'packages/brailled-ai-server/src', file)).href);
     const [{createApp}, {readConfig}] = await Promise.all([from('app.ts'), from('config.ts')]);
-    // `spoken` queues what the model does with each recording: the call it makes, or a status for a failure.
-    // `voiced` lists the words the speech service was asked to read; `mute` is a status it answers with instead.
-    const model = {reply: null, lookUp: null, asked: [], results: [], spoken: [], recordings: [], voiced: [],
-        mute: null};
+    const model = freshModel();
     const tools = {proposal: 'submit_proposal', question: 'ask_question', explanation: 'give_explanation'};
     const respond = message => Promise.resolve(Response.json(
         {choices: [{finish_reason: message.tool_calls ? 'tool_calls' : 'stop', message}]}));
@@ -180,113 +187,123 @@ const startAiServer = async (env = {}) => {
 
 (async () => {
     // Recording is real, from a sound file in place of a microphone.
-    const microphone = writeMicrophone(path.join(out, 'microphone.wav'));
-    const browser = await chromium.launch({executablePath, args: ['--use-fake-device-for-media-stream',
-        '--use-fake-ui-for-media-stream', `--use-file-for-fake-audio-capture=${microphone}%noloop`]});
+    // Started when a group first needs it, so that a run which only shares out groups opens none.
+    let browser = null;
+    const startBrowser = async () => {
+        const microphone = writeMicrophone(path.join(out, `microphone-${process.pid}.wav`));
+        return chromium.launch({executablePath, args: ['--use-fake-device-for-media-stream',
+            '--use-fake-ui-for-media-stream', `--use-file-for-fake-audio-capture=${microphone}%noloop`]});
+    };
     const errors = [];
     // Each group of checks starts from a fresh editor, so that one failure cannot cascade into the others.
     // `BRAILLED_E2E_ONLY` names the groups to run, by part of their title, while working on them.
     const only = process.env.BRAILLED_E2E_ONLY;
-    const group = async (title, fn, {init = [], firstVisit = false, newSession = false, config = null} = {}) => {
+    const groups = [];
+    // `speech` marks a group that stands in for speech or the microphone, which never runs beside another such.
+    const group = (title, fn, {init = [], firstVisit = false, newSession = false, config = null,
+        speech = [init].flat().some(script => [fakeSpeech, fakeVoice, noSpeech].includes(script))} = {}) => {
         if (only && !new RegExp(only).test(title)) return;
-        console.log(`--- ${title}`);
-        const page = await browser.newPage({viewport: {width: 1366, height: 768}, acceptDownloads: true});
-        page.setDefaultTimeout(15000);
-        if (!firstVisit) await page.addInitScript(answered);
-        if (!newSession) await page.addInitScript(introduced);
-        for (const script of [init].flat()) await page.addInitScript(script);
-        // Never the file on this computer, which may turn on a real AI helper: no check may reach one.
-        await page.route('**/brailled-config.json', route => route.fulfill(config || {json: {voice: true}}));
-        page.on('pageerror', e => errors.push(`${title}: ${e.message}`));
-        page.on('console', m => {
-            const text = m.text();
-            if (/Workspace Update Error/.test(text) ||
-                (m.type() === 'error' && /brailled|Outline|Dialog|BlockPicker|ValueEditor|DataDialog/i.test(text) &&
-                !/MISSING_TRANSLATION/.test(text))) errors.push(`${title}: ${text.slice(0, 300)}`);
-        });
-        const pause = (ms = 700) => page.waitForTimeout(ms);
-        const t = {
-            page,
-            pause,
-            key: async (k, ms) => {
-                await page.keyboard.press(k);
-                await pause(ms);
-            },
-            type: async text => {
-                await page.keyboard.type(text);
-                await pause(250);
-            },
-            said: () => page.$eval('[data-brailled-announcer]', e => e.textContent),
-            focused: () => page.evaluate(() => {
-                const e = document.activeElement;
-                const labelled = e.getAttribute('aria-labelledby') &&
-                    document.getElementById(e.getAttribute('aria-labelledby'))?.textContent;
-                return {tag: e.tagName.toLowerCase(), role: e.getAttribute('role'), id: e.dataset.nodeId,
-                    text: labelled || e.labels?.[0]?.textContent || e.getAttribute('aria-label') ||
-                        e.textContent.slice(0, 80), value: e.value};
-            }),
-            items: () => page.$$eval('[data-brailled-outline] [role="treeitem"]', els => els.map(e =>
-                `${'  '.repeat(e.getAttribute('aria-level') - 1)}${
-                    document.getElementById(e.getAttribute('aria-labelledby')).textContent}`)),
-            // Move to the outline item with exactly this text, using the keyboard.
-            goTo: async text => {
-                await t.key('Home', 80);
-                for (let i = 0; i < 60; i++) {
-                    if ((await t.focused()).text === text) return;
-                    await t.key('ArrowDown', 60);
-                }
-                throw new Error(`no outline item "${text}"`);
-            },
-            data: () => page.evaluate(() => JSON.stringify(
-                window.vm.runtime.targets.map(target => [target.blocks._blocks, target.variables]),
-                (k, v) => (v && typeof v === 'object' && !Array.isArray(v) ?
-                    Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v))),
-            drawn: () => page.evaluate(() => Array.from(document.querySelectorAll(
-                '.blocklySvg .blocklyBlockCanvas g.blocklyDraggable[data-id]'), g => g.dataset.id).length),
-            instructions: () => page.evaluate(() => Object.values(window.vm.editingTarget.blocks._blocks)
-                .filter(b => !b.shadow).length),
-            run: async command => {
-                const result = await page.evaluate(c => window.brailled.run(c), command);
-                await pause(600);
-                return result;
-            },
-            // A program: when green flag clicked; move 10 steps; wait 1 second; say Hello!
-            sample: async () => {
-                await page.evaluate(() => {
-                    let at = window.brailled.run({op: 'insert', block: 'event_whenflagclicked'}).focusId;
-                    for (const block of ['motion_movesteps', 'control_wait', 'looks_say']) {
-                        at = window.brailled.run({op: 'insert', block, after: at}).focusId;
+        const run = async () => {
+            console.log(`--- ${title}`);
+            const page = await browser.newPage({viewport: {width: 1366, height: 768}, acceptDownloads: true});
+            page.setDefaultTimeout(15000);
+            if (!firstVisit) await page.addInitScript(answered);
+            if (!newSession) await page.addInitScript(introduced);
+            for (const script of [init].flat()) await page.addInitScript(script);
+            // Never the file on this computer, which may turn on a real AI helper: no check may reach one.
+            await page.route('**/brailled-config.json', route => route.fulfill(config || {json: {voice: true}}));
+            page.on('pageerror', e => errors.push(`${title}: ${e.message}`));
+            page.on('console', m => {
+                const text = m.text();
+                if (/Workspace Update Error/.test(text) ||
+                    (m.type() === 'error' && /brailled|Outline|Dialog|BlockPicker|ValueEditor|DataDialog/i.test(text) &&
+                    !/MISSING_TRANSLATION/.test(text))) errors.push(`${title}: ${text.slice(0, 300)}`);
+            });
+            const pause = (ms = 700) => page.waitForTimeout(ms);
+            const t = {
+                page,
+                pause,
+                key: async (k, ms) => {
+                    await page.keyboard.press(k);
+                    await pause(ms);
+                },
+                type: async text => {
+                    await page.keyboard.type(text);
+                    await pause(250);
+                },
+                said: () => page.$eval('[data-brailled-announcer]', e => e.textContent),
+                focused: () => page.evaluate(() => {
+                    const e = document.activeElement;
+                    const labelled = e.getAttribute('aria-labelledby') &&
+                        document.getElementById(e.getAttribute('aria-labelledby'))?.textContent;
+                    return {tag: e.tagName.toLowerCase(), role: e.getAttribute('role'), id: e.dataset.nodeId,
+                        text: labelled || e.labels?.[0]?.textContent || e.getAttribute('aria-label') ||
+                            e.textContent.slice(0, 80), value: e.value};
+                }),
+                items: () => page.$$eval('[data-brailled-outline] [role="treeitem"]', els => els.map(e =>
+                    `${'  '.repeat(e.getAttribute('aria-level') - 1)}${
+                        document.getElementById(e.getAttribute('aria-labelledby')).textContent}`)),
+                // Move to the outline item with exactly this text, using the keyboard.
+                goTo: async text => {
+                    await t.key('Home', 80);
+                    for (let i = 0; i < 60; i++) {
+                        if ((await t.focused()).text === text) return;
+                        await t.key('ArrowDown', 60);
                     }
-                });
-                await pause(900);
-            },
-            axe: async (selector = 'dialog') => {
-                await page.addScriptTag({path: path.join(repo, 'node_modules/axe-core/axe.min.js')});
-                return page.evaluate(async within => (await window.axe.run(within)).violations
-                    .map(v => `${v.id}: ${v.nodes.map(n => n.html.slice(0, 120)).join(' ')}`), selector);
+                    throw new Error(`no outline item "${text}"`);
+                },
+                data: () => page.evaluate(() => JSON.stringify(
+                    window.vm.runtime.targets.map(target => [target.blocks._blocks, target.variables]),
+                    (k, v) => (v && typeof v === 'object' && !Array.isArray(v) ?
+                        Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v))),
+                drawn: () => page.evaluate(() => Array.from(document.querySelectorAll(
+                    '.blocklySvg .blocklyBlockCanvas g.blocklyDraggable[data-id]'), g => g.dataset.id).length),
+                instructions: () => page.evaluate(() => Object.values(window.vm.editingTarget.blocks._blocks)
+                    .filter(b => !b.shadow).length),
+                run: async command => {
+                    const result = await page.evaluate(c => window.brailled.run(c), command);
+                    await pause(600);
+                    return result;
+                },
+                // A program: when green flag clicked; move 10 steps; wait 1 second; say Hello!
+                sample: async () => {
+                    await page.evaluate(() => {
+                        let at = window.brailled.run({op: 'insert', block: 'event_whenflagclicked'}).focusId;
+                        for (const block of ['motion_movesteps', 'control_wait', 'looks_say']) {
+                            at = window.brailled.run({op: 'insert', block, after: at}).focusId;
+                        }
+                    });
+                    await pause(900);
+                },
+                axe: async (selector = 'dialog') => {
+                    await page.addScriptTag({path: path.join(repo, 'node_modules/axe-core/axe.min.js')});
+                    return page.evaluate(async within => (await window.axe.run(within)).violations
+                        .map(v => `${v.id}: ${v.nodes.map(n => n.html.slice(0, 120)).join(' ')}`), selector);
+                }
+            };
+            const ready = async () => {
+                await page.waitForFunction(() => window.vm && window.vm.editingTarget && window.brailled, null,
+                    {timeout: 150000});
+                await page.waitForSelector('[data-brailled-workspace] .blocklyToolbox');
+                await pause(2000);
+            };
+            t.reload = async () => {
+                await page.reload({waitUntil: 'load', timeout: 200000});
+                await ready();
+            };
+            try {
+                await page.goto(url, {waitUntil: 'load', timeout: 200000});
+                await ready();
+                await fn(t);
+            } catch (e) {
+                check(`${title} completed`, false, e.message.split('\n').slice(0, 4).join(' | '));
             }
+            await page.close();
         };
-        const ready = async () => {
-            await page.waitForFunction(() => window.vm && window.vm.editingTarget && window.brailled, null,
-                {timeout: 150000});
-            await page.waitForSelector('[data-brailled-workspace] .blocklyToolbox');
-            await pause(2000);
-        };
-        t.reload = async () => {
-            await page.reload({waitUntil: 'load', timeout: 200000});
-            await ready();
-        };
-        try {
-            await page.goto(url, {waitUntil: 'load', timeout: 200000});
-            await ready();
-            await fn(t);
-        } catch (e) {
-            check(`${title} completed`, false, e.message.split('\n').slice(0, 4).join(' | '));
-        }
-        await page.close();
+        groups.push({title, speech, run});
     };
 
-    await group('layout', async ({page, key}) => {
+    group('layout', async ({page, key}) => {
         const rect = sel => page.$eval(sel, el => el.getBoundingClientRect().toJSON());
         const [aside, main] = [await rect('aside'), await rect('main')];
         check('stage column is left of the scripts area', aside.right <= main.x + 1);
@@ -329,7 +346,7 @@ const startAiServer = async (env = {}) => {
         await page.screenshot({path: path.join(out, 'layout.png')});
     });
 
-    await group('outline and editing', async t => {
+    group('outline and editing', async t => {
         const {page, key, type, said, focused, data, drawn, instructions} = t;
         await key('Alt+Shift+KeyO', 600);
         check('shortcut opens the outline', /has no blocks yet/.test((await focused()).text));
@@ -376,7 +393,7 @@ const startAiServer = async (env = {}) => {
         await page.screenshot({path: path.join(out, 'outline.png')});
     });
 
-    await group('every block, save and reload', async ({page, pause}) => {
+    group('every block, save and reload', async ({page, pause}) => {
         const report = await page.evaluate(async () => {
             const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
             const vm = window.vm;
@@ -405,7 +422,7 @@ const startAiServer = async (env = {}) => {
         check('the program survives save and reload', report.same);
     });
 
-    await group('dragging and language', async ({page, key, pause, said, focused}) => {
+    group('dragging and language', async ({page, key, pause, said, focused}) => {
         await page.evaluate(() => {
             window.brailled.run({op: 'insert', block: 'event_whenflagclicked'});
         });
@@ -443,7 +460,7 @@ const startAiServer = async (env = {}) => {
         check('a language change is not announced as edits', await said() === '', await said());
     });
 
-    await group('move', async t => {
+    group('move', async t => {
         const {key, said, focused, items, data} = t;
         await t.sample();
         await key('Alt+Shift+KeyO', 600);
@@ -493,7 +510,7 @@ const startAiServer = async (env = {}) => {
         await key('Escape', 400);
     });
 
-    await group('wrap', async t => {
+    group('wrap', async t => {
         const {page, key, type, said, items, data} = t;
         await t.sample();
         await key('Alt+Shift+KeyO', 600);
@@ -527,7 +544,7 @@ const startAiServer = async (env = {}) => {
         check('undo restores the data exactly', await data() === before);
     });
 
-    await group('variables, lists and messages', async t => {
+    group('variables, lists and messages', async t => {
         const {page, key, type, said, focused, data, pause} = t;
         await t.sample();
         await key('Alt+Shift+KeyO', 600);
@@ -627,7 +644,7 @@ const startAiServer = async (env = {}) => {
             window.vm.runtime.getTargetForStage().variables).find(v => v.name === 'food')?.value.length > 0));
     });
 
-    await group('actions: where am I and what can I do', async t => {
+    group('actions: where am I and what can I do', async t => {
         const {page, key, said, pause} = t;
         const heard = async () => {
             await pause(500);
@@ -775,7 +792,7 @@ const startAiServer = async (env = {}) => {
         check('open sprite library', await page.locator('.ReactModal__Content').count() === 1);
     });
 
-    await group('voice input', async t => {
+    group('voice input', async t => {
         const {page, key, pause} = t;
         const zone = page.locator('[data-brailled-zone="voice"]');
         const mic = page.locator('[data-voice-mic]');
@@ -953,7 +970,7 @@ const startAiServer = async (env = {}) => {
     };
     const spoken = page => page.evaluate(() => window.spoken.join(' '));
 
-    await group('introduction', async t => {
+    group('introduction', async t => {
         const {page, key, pause} = t;
         const bar = page.locator('[data-brailled-zone="voice"]');
         const status = () => page.$eval('[data-brailled-announcer]', el => el.textContent);
@@ -986,7 +1003,7 @@ const startAiServer = async (env = {}) => {
             await t.said() === 'Hello Amina. I am Mboni. Hold F2 to talk to me.', await t.said());
     }, {init: [fakeSpeech, fakeVoice], newSession: true});
 
-    await group('first visit with a screen reader', async t => {
+    group('first visit with a screen reader', async t => {
         const {page, key} = t;
         check('the first visit asks about a screen reader', await question(page).isVisible());
         check('"Yes" has focus', /Yes, I use a screen reader/.test((await t.focused()).text),
@@ -1003,7 +1020,7 @@ const startAiServer = async (env = {}) => {
         check('it is not asked again', await question(page).count() === 0);
     }, {init: [fakeSpeech, fakeVoice], firstVisit: true});
 
-    await group('first visit without a screen reader', async t => {
+    group('first visit without a screen reader', async t => {
         const {page, key, pause} = t;
         await page.getByRole('button', {name: 'No, read replies aloud'}).click();
         await pause(900);
@@ -1028,7 +1045,7 @@ const startAiServer = async (env = {}) => {
         check('Escape stops reading', await page.evaluate(() => window.silenced) > silenced);
     }, {init: [fakeSpeech, fakeVoice], firstVisit: true});
 
-    await group('first visit, question put off', async t => {
+    group('first visit, question put off', async t => {
         const {page, key} = t;
         await key('Escape', 700);
         check('Escape puts the question off, reading aloud stays off', await question(page).count() === 0 &&
@@ -1037,7 +1054,7 @@ const startAiServer = async (env = {}) => {
         check('it is asked again next visit', await question(page).isVisible());
     }, {init: fakeVoice, firstVisit: true});
 
-    await group('voice settings', async t => {
+    group('voice settings', async t => {
         const {page, key, pause} = t;
         const bar = page.locator('[data-brailled-zone="voice"]');
         const phase = () => bar.getAttribute('data-voice-phase');
@@ -1144,7 +1161,7 @@ const startAiServer = async (env = {}) => {
         check('and says so', await t.said() === 'Settings reset for a new student.', await t.said());
     }, {init: [fakeSpeech, fakeVoice]});
 
-    await group('voice unavailable', async t => {
+    group('voice unavailable', async t => {
         const {page, key} = t;
         const bar = page.locator('[data-brailled-zone="voice"]');
         await key('F2', 700);
@@ -1162,7 +1179,7 @@ const startAiServer = async (env = {}) => {
         ['voice turned off', {json: {voice: false}}, /^Voice is turned off for this editor\./],
         ['configuration missing', {status: 404}, /configuration could not be read/]
     ]) {
-        await group(title, async t => {
+        group(title, async t => {
             const {page, key, pause} = t;
             const bar = page.locator('[data-brailled-zone="voice"]');
             check('nothing for voice is on screen', await bar.evaluate(el => !el.getClientRects().length &&
@@ -1259,7 +1276,7 @@ const startAiServer = async (env = {}) => {
         await t.goTo('move 10 steps');
     };
 
-    await group('example: a wait after the move block', async t => {
+    group('example: a wait after the move block', async t => {
         const {page, key, pause} = t;
         const {dialog, title, ask, say, press} = helpers(t);
         ai.model.reply = examples;
@@ -1345,7 +1362,7 @@ const startAiServer = async (env = {}) => {
     }, {init: [fakeSpeech, fakeVoice], config: aiConfig(ai.endpoint)});
 
     for (const way of ['voice', 'keyboard']) {
-        await group(`example: add a sprite, by ${way}`, async t => {
+        group(`example: add a sprite, by ${way}`, async t => {
             const {page, key, pause} = t;
             const {dialog, title, ask, say, press, sprites} = helpers(t);
             ai.model.reply = examples;
@@ -1393,7 +1410,7 @@ const startAiServer = async (env = {}) => {
         }, {init: [fakeSpeech, fakeVoice], config: aiConfig(ai.endpoint)});
     }
 
-    await group('approval: several steps, big changes and the setting', async t => {
+    group('approval: several steps, big changes and the setting', async t => {
         const {page, key, pause} = t;
         const {dialog, title, ask, say, press} = helpers(t);
         await startOutline(t);
@@ -1461,7 +1478,7 @@ const startAiServer = async (env = {}) => {
     const voiceFirst = () => {
         if (window === window.top) localStorage.setItem('brailled.settings', JSON.stringify({screenReader: true}));
     };
-    await group('voice first: questions are said and shown beside the editor', async t => {
+    group('voice first: questions are said and shown beside the editor', async t => {
         const {page, key} = t;
         const {dialog, ask, say} = helpers(t);
         const docked = page.locator('[data-brailled-docked]');
@@ -1515,7 +1532,7 @@ const startAiServer = async (env = {}) => {
         check('which turns it down too', (await t.items()).join() === original.join());
     }, {init: [fakeSpeech, fakeVoice, voiceFirst], config: aiConfig(ai.endpoint)});
 
-    await group('orientation: summary, where I am, read-backs, cues and the narrated run', async t => {
+    group('orientation: summary, where I am, read-backs, cues and the narrated run', async t => {
         const {page, key, pause} = t;
         await startOutline(t);
         await key('Alt+Shift+KeyP', 700);
@@ -1590,7 +1607,7 @@ const startAiServer = async (env = {}) => {
             }
         };
     };
-    await group('earcons', async t => {
+    group('earcons', async t => {
         const {page, key} = t;
         const sounds = () => page.evaluate(() => window.sounds);
         await t.pause(1500);
@@ -1617,7 +1634,7 @@ const startAiServer = async (env = {}) => {
     }, {init: [listenToSounds], config: {json: {voice: true, earcons: {enabled: true}}}});
 
     const bigOnly = {approval: 'big changes only', proposalExpirySeconds: 30};
-    await group('approval: the school asks about big changes only', async t => {
+    group('approval: the school asks about big changes only', async t => {
         const {page, pause} = t;
         const {dialog, ask, say, sprites} = helpers(t);
         await standInAssets(page);
@@ -1668,7 +1685,7 @@ const startAiServer = async (env = {}) => {
             !await page.evaluate(() => window.brailledApp.snapshot().project.running));
     }, {init: [fakeSpeech, fakeVoice], config: aiConfig(ai.endpoint, true, bigOnly)});
 
-    await group('wake word', async t => {
+    group('wake word', async t => {
         const {page, key, pause} = t;
         const indicator = page.locator('[data-voice-mic]');
         const running = () => page.evaluate(() => window.speech.requests
@@ -1726,7 +1743,7 @@ const startAiServer = async (env = {}) => {
     }, {init: [fakeSpeech, fakeVoice],
         config: {json: {voice: true, wakeWord: {enabled: true}}}});
 
-    await group('AI helper: tools, modes and memory', async t => {
+    group('AI helper: tools, modes and memory', async t => {
         const {page, key, pause} = t;
         const {dialog, ask, say} = helpers(t);
         await startOutline(t);
@@ -1791,7 +1808,7 @@ const startAiServer = async (env = {}) => {
         check('and is gone after a reload', ai.model.asked.at(-1).conversationSoFar.length === 0);
     }, {init: [fakeSpeech, fakeVoice], config: aiConfig(ai.endpoint)});
 
-    await group('AI helper', async t => {
+    group('AI helper', async t => {
         const {page, key} = t;
         const {dialog, ask, say, press} = helpers(t);
         await typed(t, 'voice settings');
@@ -1867,7 +1884,7 @@ const startAiServer = async (env = {}) => {
 
     const limited = await startAiServer({REQUESTS_PER_MINUTE_PER_ADDRESS: '1'});
     limited.model.reply = {type: 'explanation', text: 'Hello.'};
-    await group('spoken turn', async t => {
+    group('spoken turn', async t => {
         const {page, key, pause} = t;
         const recording = page.locator('[data-voice-mic]');
         const dialog = page.locator('dialog');
@@ -1927,7 +1944,7 @@ const startAiServer = async (env = {}) => {
     }, {init: [fakeVoice], config: {json: {voice: {enabled: true, provider: 'gemini-pair'}, ai: true,
         aiEndpoint: ai.endpoint}}});
 
-    await group('conversation', async t => {
+    group('conversation', async t => {
         const {page, key, pause} = t;
         const bar = page.locator('[data-brailled-zone="voice"]');
         const dialog = page.locator('dialog');
@@ -2018,7 +2035,7 @@ const startAiServer = async (env = {}) => {
     }], config: {json: {voice: {enabled: true, readReplies: 'online'}, wakeWord: {enabled: true},
         conversation: {enabled: true, voiceApproval: true}, ai: true, aiEndpoint: ai.endpoint}}});
 
-    await group('no voice to read with', async t => {
+    group('no voice to read with', async t => {
         const {page, pause} = t;
         await pause(3000);
         await typed(t, 'voice settings');
@@ -2028,7 +2045,7 @@ const startAiServer = async (env = {}) => {
         await warning.count() ? await warning.textContent() : 'no warning');
         await page.screenshot({path: path.join(out, 'no-voice-settings.png')});
         check('axe: with the warning', (await t.axe()).length === 0, (await t.axe()).join('; '));
-    }, {init: [() => {
+    }, {speech: true, init: [() => {
         Object.defineProperty(window, 'speechSynthesis', {configurable: true,
             get: () => ({getVoices: () => [], cancel: () => {}, speak: () => {}})});
         if (window === window.top) {
@@ -2036,7 +2053,7 @@ const startAiServer = async (env = {}) => {
         }
     }]});
 
-    await group('online voice', async t => {
+    group('online voice', async t => {
         const {page, key, pause} = t;
         const bar = page.locator('[data-brailled-zone="voice"]');
         const played = [];
@@ -2084,7 +2101,7 @@ const startAiServer = async (env = {}) => {
     }], newSession: true, config: {json: {voice: {enabled: true, provider: 'gemini-pair'},
         ai: true, aiEndpoint: ai.endpoint}}});
 
-    await group('AI helper limits', async t => {
+    group('AI helper limits', async t => {
         await typed(t, 'hello there');
         await t.pause(900);
         await t.key('Escape', 700);
@@ -2092,9 +2109,8 @@ const startAiServer = async (env = {}) => {
         await t.pause(900);
         check('a limit is explained', /too many requests/.test(await t.said()), await t.said());
     }, {config: aiConfig(limited.endpoint)});
-    limited.close();
 
-    await group('AI helper unreachable', async t => {
+    group('AI helper unreachable', async t => {
         await typed(t, 'hello there');
         await t.pause(900);
         check('a server that is not there is explained', /cannot be reached\. Everything else still works/
@@ -2103,7 +2119,7 @@ const startAiServer = async (env = {}) => {
         check('and local commands still work', await t.said() === 'Menu bar.');
     }, {config: aiConfig('http://localhost:9/api/assistant')});
 
-    await group('AI helper without voice', async t => {
+    group('AI helper without voice', async t => {
         await t.key('Alt+Shift+KeyK', 500);
         check('with voice off, the command box says typed requests go online',
             /sent to an online AI service, with your program/.test(await t.page.locator('dialog').textContent()));
@@ -2116,7 +2132,7 @@ const startAiServer = async (env = {}) => {
                 .test(await t.page.locator('dialog').textContent()));
     }, {config: aiConfig(ai.endpoint, false)});
 
-    await group('AI switched off', async t => {
+    group('AI switched off', async t => {
         const bar = t.page.locator('[data-brailled-zone="voice"]');
         check('with "ai" false there is no notice about it, whatever the address says',
             !/\(AI\)/.test(await bar.textContent()));
@@ -2128,7 +2144,7 @@ const startAiServer = async (env = {}) => {
             /I do not understand/.test(await t.page.locator('dialog [role="alert"]').textContent()));
     }, {config: {json: {voice: true, ai: false, aiEndpoint: ai.endpoint}}});
 
-    await group('no AI helper', async t => {
+    group('no AI helper', async t => {
         const before = ai.model.asked.length;
         await t.key('Alt+Shift+KeyK', 500);
         await t.type('make a square');
@@ -2137,11 +2153,61 @@ const startAiServer = async (env = {}) => {
             /I do not understand "make a square"/.test(await t.page.locator('dialog [role="alert"]').textContent()) &&
             ai.model.asked.length === before);
     });
-    ai.close();
+
+    // Run one group in this process, starting it from a model that remembers nothing of the groups before.
+    const runHere = async ({title, run}) => {
+        browser ||= await startBrowser();
+        Object.assign(ai.model, freshModel());
+        const began = Date.now();
+        await run();
+        console.log(`    (${title}: ${((Date.now() - began) / 1000).toFixed(1)} s)`);
+    };
+    const finish = async () => {
+        await browser?.close();
+        ai.close();
+        limited.close();
+    };
+
+    if (isWorker) {
+        // What a group prints is sent back whole, so that groups running at once do not mix their lines.
+        const lines = [];
+        const print = console.log;
+        console.log = (...values) => lines.push(util.format(...values));
+        await serveGroups(async title => {
+            const [checks, problems] = [results.length, errors.length];
+            await runHere(groups.find(g => g.title === title));
+            return {lines: lines.splice(0), results: results.slice(checks), errors: errors.slice(problems)};
+        });
+        console.log = print;
+        await finish();
+        return;
+    }
+
+    const workers = Number(process.env.BRAILLED_E2E_WORKERS || 3);
+    if (!Number.isInteger(workers) || workers < 1) throw new Error('BRAILLED_E2E_WORKERS must be 1 or more');
+    const began = Date.now();
+    if (workers > 1 && groups.length > 1) {
+        const unrun = await runInWorkers({
+            script: __filename,
+            args: process.argv.slice(2),
+            env: {...process.env, BRAILLED_E2E_WORKER: 'yes', BRAILLED_E2E_OUT: out},
+            groups,
+            workers,
+            report: outcome => {
+                console.log(outcome.lines.join('\n'));
+                results.push(...outcome.results);
+                errors.push(...outcome.errors);
+            }
+        });
+        for (const title of unrun) check(`${title} completed`, false, 'no worker could run it');
+    } else {
+        for (const g of groups) await runHere(g);
+    }
 
     check('no page, workspace or Brailled errors', errors.length === 0, errors.slice(0, 4).join(' || '));
     console.log(`\n${results.filter(Boolean).length}/${results.length} checks passed; screenshots in ${out}`);
-    await browser.close();
+    console.log(`Took ${Math.round((Date.now() - began) / 1000)} s, ${Math.min(workers, groups.length)} at once.`);
+    await finish();
     if (!results.every(Boolean)) process.exitCode = 1;
 })().catch(e => {
     console.error(e);

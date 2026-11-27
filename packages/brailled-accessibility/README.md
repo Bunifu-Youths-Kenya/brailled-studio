@@ -790,3 +790,11 @@ npm run lint
 
 The browser tests drive the editor in Google Chrome. Start the dev server with `npm start` at the repository
 root, then run `npm run test:e2e` here. Set `CHROME_PATH` if Chrome is not at `/usr/bin/google-chrome`.
+
+The checks come in groups, each in a fresh page. `BRAILLED_E2E_ONLY` runs the groups whose titles match it, for
+example `BRAILLED_E2E_ONLY='orientation|earcons' npm run test:e2e`.
+
+Three groups run at once, each in a process with its own browser and AI stand-in server (`e2e/parallel.cjs`); the
+dev server is shared. Groups that use speech or the microphone run one at a time. A new group counts as one when
+it starts with `fakeSpeech`, `fakeVoice` or `noSpeech`, and otherwise needs `speech: true`.
+`BRAILLED_E2E_WORKERS=1` runs every group in turn, in the order written.
