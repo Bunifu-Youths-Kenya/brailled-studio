@@ -218,7 +218,7 @@ describe('which actions are available', () => {
 
     test('with no sprite selected', () => {
         expect(available({sprite: false})).toEqual(without(usual, 'program.', 'edit.undo', 'edit.redo',
-            'project.run'));
+            'project.run', 'project.narrate'));
     });
 
     test('voice actions follow the switch and the browser', () => {

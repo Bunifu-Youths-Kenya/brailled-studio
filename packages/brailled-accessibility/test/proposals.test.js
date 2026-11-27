@@ -293,7 +293,9 @@ describe('the approval gate', () => {
         const {gate, heard} = await proposed();
         expect(gate.getState().proposal.docked).toBe(true);
         // Said as one person asks another, with no title or label.
-        expect(heard.at(-1)).toBe('A change. Add wait 5 seconds, after move 10 steps. Shall I? ' +
+        expect(heard.at(-1)).toBe('A change. Add wait 5 seconds, after move 10 steps. ' +
+            'Now: when green flag clicked, move 10 steps, wait 2 seconds. ' +
+            'After: when green flag clicked, move 10 steps, wait 5 seconds, wait 2 seconds. Shall I? ' +
             'Say yes or go ahead, say no, or say change it, and what to change.');
     });
 
@@ -321,7 +323,9 @@ describe('the approval gate', () => {
         context.gate.take({summary: 'Wait a bit.', steps: [wait]});
         await context.settle();
         expect(context.reader.speak.mock.calls.at(-1)[0]).toBe(
-            'Wait a bit. Add wait 5 seconds, after move 10 steps. Shall I? ' +
+            'Wait a bit. Add wait 5 seconds, after move 10 steps. ' +
+            'Now: when green flag clicked, move 10 steps, wait 2 seconds. ' +
+            'After: when green flag clicked, move 10 steps, wait 5 seconds, wait 2 seconds. Shall I? ' +
             'Say yes or go ahead, say no, or say change it, and what to change.');
     });
 
@@ -331,7 +335,8 @@ describe('the approval gate', () => {
         await settle();
         expect(program()).toEqual(['when green flag clicked', 'move 10 steps', 'wait 5 seconds', 'wait 2 seconds']);
         expect(gate.getState()).toEqual({status: 'done', proposal: null});
-        expect(heard.at(-1)).toBe('Done. Added: wait 5 seconds, after move 10 steps. To take it back, say undo.');
+        expect(heard.at(-1)).toBe('Done. Added: wait 5 seconds, after move 10 steps. Block 3 of 4. ' +
+            'To take it back, say undo.');
         const [changed] = highlight.mock.calls.at(-1);
         expect(changed.length).toBeGreaterThan(0);
         expect(app.vm.editingTarget.blocks._blocks[changed[0]].opcode).toBe('control_wait');

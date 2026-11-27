@@ -262,5 +262,10 @@ These are new files, not edits to Scratch's own.
 | 2026-11-27 | `packages/brailled-accessibility/test/live.test.js` |
 | 2026-11-27 | `packages/brailled-ai-server/src/live.ts` |
 | 2026-11-27 | `packages/brailled-ai-server/test/live.test.ts` |
+| 2026-11-27 | `packages/brailled-accessibility/src/orientation/messages.js` |
+| 2026-11-27 | `packages/brailled-accessibility/src/orientation/narrator.js` |
+| 2026-11-27 | `packages/brailled-accessibility/src/orientation/place.js` |
+| 2026-11-27 | `packages/brailled-accessibility/test/orientation.test.js` |
+| 2026-11-27 | `packages/brailled-accessibility/test/notice.test.js` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

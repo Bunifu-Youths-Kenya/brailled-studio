@@ -4,7 +4,7 @@ import React, {useCallback, useEffect, useState, useSyncExternalStore} from 'rea
 import {useIntl} from 'react-intl';
 
 import Dialog from '../outline/dialog.jsx';
-import {INTRODUCTIONS, LISTEN_SECONDS, TALK_KEY_IDS} from '../settings.js';
+import {INTRODUCTIONS, LISTEN_SECONDS, NARRATION_SPEEDS, TALK_KEY_IDS, VERBOSITIES} from '../settings.js';
 import {privacyNotice} from '../voice/notice.js';
 import {readsRepliesOnline} from '../voice/speech-config.js';
 import preferenceMessages from './preference-messages.js';
@@ -141,6 +141,8 @@ const VoiceSettings = ({app, onClose}) => {
     const handleName = useCallback(event => app.settings.set({studentName: event.target.value}), [app]);
     const handleIntroduction = useCallback(
         event => app.settings.set({introduction: event.target.value}), [app]);
+    const handleVerbosity = useCallback(event => app.settings.set({verbosity: event.target.value}), [app]);
+    const handleNarration = useCallback(event => app.settings.set({narrationSpeed: event.target.value}), [app]);
     const handleReadAloud = useCallback(event => {
         const readAloud = event.target.checked;
         app.settings.set({readAloud});
@@ -362,6 +364,59 @@ const VoiceSettings = ({app, onClose}) => {
                             value={length}
                         >
                             {intl.formatMessage(preferenceMessages.introductionChoice, {length})}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            <div className={dialogStyles.field}>
+                <label
+                    className={dialogStyles.label}
+                    htmlFor="brailled-verbosity"
+                >
+                    {intl.formatMessage(preferenceMessages.verbosity)}
+                </label>
+                <select
+                    aria-describedby="brailled-verbosity-hint"
+                    className={dialogStyles.input}
+                    id="brailled-verbosity"
+                    value={settings.verbosity}
+                    onChange={handleVerbosity}
+                >
+                    {VERBOSITIES.map(level => (
+                        <option
+                            key={level}
+                            value={level}
+                        >
+                            {intl.formatMessage(preferenceMessages.verbosityChoice, {level})}
+                        </option>
+                    ))}
+                </select>
+                <p
+                    className={dialogStyles.count}
+                    id="brailled-verbosity-hint"
+                >
+                    {intl.formatMessage(preferenceMessages.verbosityHint)}
+                </p>
+            </div>
+            <div className={dialogStyles.field}>
+                <label
+                    className={dialogStyles.label}
+                    htmlFor="brailled-narration"
+                >
+                    {intl.formatMessage(preferenceMessages.narrationSpeed)}
+                </label>
+                <select
+                    className={dialogStyles.input}
+                    id="brailled-narration"
+                    value={settings.narrationSpeed}
+                    onChange={handleNarration}
+                >
+                    {NARRATION_SPEEDS.map(speed => (
+                        <option
+                            key={speed}
+                            value={speed}
+                        >
+                            {intl.formatMessage(preferenceMessages.narrationChoice, {speed})}
                         </option>
                     ))}
                 </select>

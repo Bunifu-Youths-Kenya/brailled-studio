@@ -15,7 +15,7 @@ const SAFE_ACTIONS = new Set([
     'go.menu', 'go.stage', 'go.devices', 'go.sprites', 'go.background', 'go.palette', 'go.scripts', 'go.voice',
     'view.blocks', 'view.outline', 'view.toggle',
     'move.next', 'move.previous',
-    'program.describe', 'program.describeScript',
+    'program.describe', 'program.describeScript', 'program.summary', 'program.moreDetail',
     'project.stop', 'sprite.library'
 ]);
 

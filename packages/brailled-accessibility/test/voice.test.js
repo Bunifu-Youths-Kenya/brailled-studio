@@ -563,6 +563,9 @@ describe('reset for a new student', () => {
             onlineReadbacks: false,
             onlineName: false,
             voiceFirst: true,
+            verbosity: 'normal',
+            narrationSpeed: 'normal',
+            speechRate: 1,
             questionDismissed: false
         });
         expect(listener).toHaveBeenCalled();

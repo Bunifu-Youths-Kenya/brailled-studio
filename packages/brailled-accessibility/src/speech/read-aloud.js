@@ -25,7 +25,7 @@ const createReader = scope => {
     return {
         isAvailable: language => !!scope.SpeechSynthesisUtterance && !!pick(language),
         // Replaces whatever is being read. Returns false if there is no voice to read with.
-        speak: (text, language) => {
+        speak: (text, language, rate = 1) => {
             const voice = scope.SpeechSynthesisUtterance && pick(language);
             if (!voice) return false;
             scope.speechSynthesis.cancel();
@@ -33,6 +33,7 @@ const createReader = scope => {
                 const utterance = new scope.SpeechSynthesisUtterance(sentence);
                 utterance.voice = voice;
                 utterance.lang = voice.lang;
+                utterance.rate = rate;
                 scope.speechSynthesis.speak(utterance);
             });
             return true;

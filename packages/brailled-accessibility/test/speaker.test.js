@@ -252,7 +252,7 @@ describe('which voice reads', () => {
         app.speak('It repeats.', {reply: true});
         expect(online.speak).toHaveBeenCalledWith('It repeats.', {online: true});
         app.speak('Added: wait 1 second.');
-        expect(device.speak).toHaveBeenCalledWith('Added: wait 1 second.', 'en');
+        expect(device.speak).toHaveBeenCalledWith('Added: wait 1 second.', 'en', 1);
         expect(online.speak).toHaveBeenCalledTimes(1);
     });
 
@@ -308,7 +308,7 @@ describe('which voice reads', () => {
         fail('It repeats.');
         jest.advanceTimersByTime(500);
         expect(heard).toEqual(['The online voice cannot be reached. Using the device’s voice. It repeats.']);
-        expect(device.speak).toHaveBeenCalledWith(heard[0], 'en');
+        expect(device.speak).toHaveBeenCalledWith(heard[0], 'en', 1);
         app.speak('Done.', {reply: true});
         expect(online.speak).not.toHaveBeenCalled();
     });

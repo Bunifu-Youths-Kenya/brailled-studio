@@ -8,6 +8,12 @@ const LISTEN_SECONDS = [5, 10, 15, 30, 60];
 
 // How much the assistant says when it introduces itself.
 const INTRODUCTIONS = ['full', 'short', 'off'];
+// How much is said after an edit: what changed; with where the student is; and with the blocks around.
+const VERBOSITIES = ['brief', 'normal', 'detailed'];
+// How long a narrated run waits on each step.
+const NARRATION_SPEEDS = ['slow', 'normal', 'fast'];
+// How fast what is read aloud is spoken, as a multiple of the usual speed.
+const SPEECH_RATES = [0.6, 0.8, 1, 1.2, 1.4, 1.6];
 
 const DEFAULTS = Object.freeze({
     talkKey: 'f2',
@@ -23,7 +29,10 @@ const DEFAULTS = Object.freeze({
     // Whether the student's name may be sent to an online voice, to be said.
     onlineName: false,
     // Whether questions are said and shown beside the editor instead of in windows that take focus.
-    voiceFirst: true
+    voiceFirst: true,
+    verbosity: 'normal',
+    narrationSpeed: 'normal',
+    speechRate: 1
 });
 
 // Stored text may be old or edited by hand: keep only values the editor knows.
@@ -36,7 +45,10 @@ const clean = value => ({
     introduction: INTRODUCTIONS.includes(value?.introduction) ? value.introduction : DEFAULTS.introduction,
     onlineReadbacks: value?.onlineReadbacks === true,
     onlineName: value?.onlineName === true,
-    voiceFirst: value?.voiceFirst !== false
+    voiceFirst: value?.voiceFirst !== false,
+    verbosity: VERBOSITIES.includes(value?.verbosity) ? value.verbosity : DEFAULTS.verbosity,
+    narrationSpeed: NARRATION_SPEEDS.includes(value?.narrationSpeed) ? value.narrationSpeed : DEFAULTS.narrationSpeed,
+    speechRate: SPEECH_RATES.includes(value?.speechRate) ? value.speechRate : DEFAULTS.speechRate
 });
 
 // The browser's storage, which can be switched off.
@@ -100,8 +112,11 @@ export {
     DEFAULTS,
     INTRODUCTIONS,
     LISTEN_SECONDS,
+    NARRATION_SPEEDS,
+    SPEECH_RATES,
     STORAGE_KEY,
     TALK_KEY_IDS,
+    VERBOSITIES,
     createSettings,
     storageOf
 };

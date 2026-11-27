@@ -2,6 +2,8 @@
 import {createIntl} from 'react-intl';
 
 import {getEditor} from '../commands/editor.js';
+import {createNarrator} from '../orientation/narrator.js';
+import {placeSentence} from '../orientation/place.js';
 import {createConfig, fetchConfig} from '../config.js';
 import {createIntroduction, introductionText} from '../introduction.js';
 import {createLibrary} from '../library.js';
@@ -91,6 +93,8 @@ const createApp = (vm, {
     const listeners = new Set();
     let intl = createIntl({locale: 'en', defaultLocale: 'en', onError: () => {}});
     let announceTimer = null;
+    let lastAnnounced = '';
+    let narrator = null;
     // What was said lately, so that the microphone does not take it for the student.
     let said = [];
     const noteSaid = text => {
@@ -191,7 +195,7 @@ const createApp = (vm, {
                 speaker.speak(text, {online: sends()});
             } else {
                 speaker.stop();
-                reader.speak(text, intl.locale);
+                reader.speak(text, intl.locale, settings.get().speechRate);
             }
         },
         // Whether questions are said and shown beside the editor, leaving focus where the student is.
@@ -239,6 +243,18 @@ const createApp = (vm, {
         },
         // Any message may name the assistant.
         say: (message, values) => intl.formatMessage(message, {assistant: assistantName(), ...values}),
+        // "Run and tell me", see `orientation/narrator.js`.
+        narrator: () => {
+            narrator = narrator ?? createNarrator({app, vm});
+            return narrator;
+        },
+        // The last thing said through the live region, for "repeat that".
+        lastSaid: () => lastAnnounced,
+        // Where a block is, at the student's chosen detail, or empty. See `orientation/place.js`.
+        placeOf: id => placeSentence({nodes: app.editor.outline(),
+            id,
+            verbosity: settings.get().verbosity,
+            say: app.say}),
 
         register: (name, part) => {
             parts.set(name, part);
@@ -273,6 +289,7 @@ const createApp = (vm, {
             clearTimeout(announceTimer);
             announceTimer = setTimeout(() => {
                 const full = preface ? `${preface} ${text}` : text;
+                lastAnnounced = full;
                 preface = null;
                 clearTimeout(prefaceTimer);
                 app.introduction.heard(full);
@@ -438,7 +455,11 @@ const createApp = (vm, {
     speaker = createSpeaker({
         scope: globalThis,
         address: () => config.get().aiEndpoint?.replace(/(?:\/assistant)?\/?(?=$|\?)/, '/speak') ?? null,
-        settings: () => speakingWith(config.get().speech),
+        // The school's speed, times the student's.
+        settings: () => {
+            const chosen = speakingWith(config.get().speech);
+            return {...chosen, speed: (chosen?.speed ?? 1) * settings.get().speechRate};
+        },
         onFail: rest => {
             speakerFailed = true;
             app.announce(`${app.say(voiceMessages.speakerFailed)} ${rest}`);

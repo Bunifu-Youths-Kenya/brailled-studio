@@ -584,6 +584,42 @@ move 10 steps".
 
 These flows depend on the model following its instructions. Tests supply the model's replies.
 
+## Orientation
+
+Blindfold testing showed students losing track of their program while the AI acted, so the editor keeps saying
+where things are. `src/orientation/place.js` works it out from the Outline; nothing it does changes the project.
+
+| To | Say or type | Key |
+| - | - | - |
+| Hear the program at a glance | "what's my program" | Alt+Shift+P |
+| Hear every block | "more detail" | |
+| Hear where you are | "where am I" | Alt+Shift+W |
+| Run it, hearing each step | "run and tell me" | Alt+Shift+R; Escape stops it |
+| Hear the last thing again | "repeat that", "say that again" | |
+| Change the speed of reading aloud | "slower", "faster" | |
+| Say less or more after each change | "shorter", "longer" | |
+
+- **The summary** says how many scripts and blocks, then each block in order, what each loop or condition holds
+  ("repeat 10, which holds 2 blocks: …") and where it ends if more follows. Past 15 blocks it counts the rest and
+  offers "more detail".
+- **After every edit**, made by hand, by voice or approved from the AI, the read-back says what changed and where
+  the student is: "Added: wait 1 second, after move 10 steps. Block 4 of 4, inside repeat 10." After a deletion,
+  with no block in focus, it says the new count. "Shorter" leaves only what changed; "longer" adds the blocks
+  around it. A change the gate makes is said once, by the gate.
+- **"Where am I"** in the Outline names the block, its number among all the sprite's blocks, what holds it and its
+  neighbours.
+- **Moving with the arrow keys** into or out of a loop or condition says "Inside repeat 10." or "Out of repeat 10."
+  beside what the screen reader reads of the item.
+- **A suggestion** is said with a before and after of the part it changes: "Now: move 10 steps, wait 1 second.
+  After: move 10 steps, wait 2 seconds, wait 1 second." Brief replies leave it out.
+- **Run and tell me** (`src/orientation/narrator.js`) runs the project and says each block of the selected sprite
+  as a script reaches it. Between frames the project waits while what was said is heard, longer at the slow speed
+  in Voice settings. Blocks that finish in one frame without waiting may be passed over: what is said is where the
+  scripts have got to. Escape, or the project stopping, ends it.
+
+Voice settings hold the detail ("After each change, say") and the speed of "run and tell me"; "slower" and "faster"
+change how fast both the device and the online voice read.
+
 ## Colours
 
 `src/theme.css` holds every colour Brailled uses, as `--brailled-*` properties on the page, so that dialogs have

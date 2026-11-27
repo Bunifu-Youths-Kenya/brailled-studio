@@ -29,10 +29,16 @@ const preferenceMessages = defineMessages(Object.fromEntries(Object.entries({
     voiceFirst: 'Say questions instead of opening windows',
     voiceFirstHint: 'Suggestions and replies are said, and shown at the side, while you stay where you are. ' +
         'Answer by voice, or press Alt+Shift+Q to reach them. Changes that are hard to undo still open a window.',
+    verbosity: 'After each change, say',
+    verbosityChoice: '{level, select, brief {What changed} ' +
+        'detailed {What changed, where I am, and what is around it} other {What changed, and where I am}}',
+    verbosityHint: 'Say shorter or longer to change it while you work.',
+    narrationSpeed: 'Speed of “run and tell me”',
+    narrationChoice: '{speed, select, slow {Slow} fast {Fast} other {Normal}}',
     done: 'Done',
     reset: 'Reset for new student',
-    resetHint: 'Forgets your name, the talk key, listening time, reading aloud, how questions are asked, the ' +
-        'introduction choice, the screen reader answer and the conversation.',
+    resetHint: 'Forgets your name, the talk key, listening time, reading aloud and its speed, how questions are ' +
+        'asked, how much is said, the introduction choice, the screen reader answer and the conversation.',
     wasReset: 'Settings reset for a new student.'
 }).map(([key, defaultMessage]) => [key, {
     id: `brailled.preferences.${key}`,

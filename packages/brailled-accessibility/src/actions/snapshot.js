@@ -1,5 +1,6 @@
 // A compact account of where the user is, as data, as text for a model to read, and as speech.
 import {accessibleName, roleOf, tidy, zoneOf} from './dom.js';
+import orientationMessages from '../orientation/messages.js';
 import {roleNames, speech, zoneNames} from './messages.js';
 
 const EDITOR_TABS = ['code', 'costumes', 'sounds'];
@@ -85,6 +86,18 @@ const snapshotToText = snapshot => {
     ].join('\n');
 };
 
+// Where the student is in the outline: on a block, its number, what holds it and its neighbours.
+const placeInOutline = (outline, say) => {
+    const {block} = outline;
+    if (!block) return say(speech.outlinePlace, outline);
+    const values = {...block, holder: block.holder ?? 'none'};
+    const where = say(block.scripts > 1 ? orientationMessages.placeScript : orientationMessages.place, values);
+    const neighbours = block.previous || block.next ?
+        say(orientationMessages.neighbours, {previous: block.previous ?? 'none', next: block.next ?? 'none'}) :
+        say(orientationMessages.alone);
+    return `${say(speech.onBlock, {item: outline.item})} ${where} ${neighbours}`;
+};
+
 // The answer to "where am I".
 const describePlace = (snapshot, intl) => {
     const say = (message, values) => intl.formatMessage(message, values);
@@ -104,7 +117,7 @@ const describePlace = (snapshot, intl) => {
         view.tab === 'code' ?
             say(speech.codeTab, {view: view.scripts}) :
             say(speech.otherTab, {tab: view.tab}),
-        view.tab === 'code' && view.scripts === 'outline' && outline && say(speech.outlinePlace, outline),
+        view.tab === 'code' && view.scripts === 'outline' && outline && placeInOutline(outline, say),
         moving && say(speech.moving, {item: moving}),
         focus.zone === 'stage' && snapshot.stageTab === 'devices' &&
             say(speech.device, {mode: snapshot.device.mode}),

@@ -10,13 +10,15 @@ import {madeBy, mapBlockIds} from './steps.js';
  * @param {object[]} options.steps Each `{command}`, `{action}` or `{sprite: {name}}`.
  * @param {Array<?string>} [options.made] Ids of the blocks made by steps already carried out.
  * @param {number} [options.from] The first step not yet carried out.
- * @returns {{ok: boolean, steps: ?object[], reason: ?string}} Each step from `from` on with its `sentence` and,
- * for a deletion, its `detail`; or why the proposal cannot be accepted.
+ * @returns {{ok: boolean, steps: ?object[], reason: ?string, preview: ?object}} Each step from `from` on with its
+ * `sentence` and, for a deletion, its `detail`, and the program before and after its commands
+ * (`{before, after, touched}`, outlines and a block they change); or why the proposal cannot be accepted.
  */
 const checkSteps = ({app, steps, made = [], from = 0}) => {
     const actions = new Map(app.proposableActions().map(action => [action.id, action.name]));
     const commands = steps.map(() => null);
     const described = steps.map(() => null);
+    let preview = null;
     let spriteAt = null;
     for (const [index, step] of steps.entries()) {
         if (index < from) continue;
@@ -50,13 +52,14 @@ const checkSteps = ({app, steps, made = [], from = 0}) => {
     if (commands.some(Boolean)) {
         const result = app.editor.preview(commands);
         if (!result.ok) return {ok: false, reason: `Step ${result.step}: ${result.reason}`};
+        preview = {before: result.before, after: result.after, touched: result.touched};
         commands.forEach((command, index) => {
             if (command) {
                 described[index] = {command, sentence: result.sentences[index], detail: result.details[index]};
             }
         });
     }
-    return {ok: true, steps: described.slice(from)};
+    return {ok: true, steps: described.slice(from), preview};
 };
 
 export {

@@ -156,6 +156,13 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
             if (!event.target.closest?.(ZONE)) lastFocus.current = event.target;
         };
         const handleKeyDown = event => {
+            // Escape ends a narrated run, and the project with it.
+            if (event.key === 'Escape' && app.narrator().running()) {
+                event.preventDefault();
+                event.stopPropagation();
+                app.narrator().stop();
+                return;
+            }
             // The live voice, where the school chose it, takes the hands-free key; while it is on, Escape ends it
             // and the talk key is not needed.
             const live = app.live();

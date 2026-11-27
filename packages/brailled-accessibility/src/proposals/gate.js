@@ -7,6 +7,7 @@
  */
 import {TALK_KEYS} from '../actions/shortcuts.js';
 import {asksToAdd, parseAnswer} from './answers.js';
+import {previewOf} from '../orientation/place.js';
 import {checkSteps} from './check.js';
 import {fingerprint as fingerprintOf} from './fingerprint.js';
 import {createMachine} from './machine.js';
@@ -90,6 +91,7 @@ const createGate = ({
             view.risk === 'big' ? say(proposalMessages.warning) : null,
             summary || null,
             ...(view.mode === 'steps' ? [sentence(view.steps[view.index])] : list),
+            view.mode !== 'steps' && app.settings.get().verbosity !== 'brief' ? current.preview : null,
             ask,
             app.conversing() ? howInConversation() : say(view.mode === 'steps' || !many ?
                 proposalMessages.howToAnswer :
@@ -186,10 +188,12 @@ const createGate = ({
     };
 
     // Say what was done, and how to take it back.
-    const readBack = (outcome, done) => {
+    // What was done, then where the student is (`place`), then how to take it back.
+    const readBack = (outcome, done, place = '') => {
         const parts = [...done.sentences, ...done.actions];
         if (!outcome.ok) parts.push(say(proposalMessages.failed, {reason: outcome.failure}));
         else if (parts.length > 0) parts.unshift(say(proposalMessages.done));
+        if (place) parts.push(place);
         if (done.undos > 0) parts.push(say(proposalMessages.undoHint, {count: done.undos}));
         return parts.map(part => part.replace(/[.\s]+$/, ''))
             .map(part => `${part}.`)
@@ -247,7 +251,10 @@ const createGate = ({
             remember(`${how} ${readBack(outcome, done)}`);
         }
         end();
-        if (!quiet) app.announce(readBack(outcome, done));
+        // What was done, and where the student now is.
+        // Where the student is, where blocks changed.
+        const place = outcome.ok && outcome.changed.length > 0 ? app.placeOf(outcome.changed.at(-1)) : '';
+        if (!quiet) app.announce(readBack(outcome, done, place));
     };
 
     // Take a proposal from the queue.
@@ -272,6 +279,8 @@ const createGate = ({
         machine.send('propose', {needsApproval: asks});
         current = {
             summary,
+            // What changes, before and after, said before it is approved.
+            preview: checked.preview ? previewOf({...checked.preview, id: checked.preview.touched, say}) : '',
             steps: checked.steps,
             risks,
             made: [],

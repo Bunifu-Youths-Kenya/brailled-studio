@@ -238,7 +238,7 @@ describe('when it is said', () => {
         aloud.settings.set({readAloud: true});
         aloud.app.introduction.greet();
         aloud.wait();
-        expect(aloud.reader.speak).toHaveBeenCalledWith(expect.stringMatching(/^Hello\./), 'en');
+        expect(aloud.reader.speak).toHaveBeenCalledWith(expect.stringMatching(/^Hello\./), 'en', 1);
     });
 
     test('can be skipped while it is said, once', () => {

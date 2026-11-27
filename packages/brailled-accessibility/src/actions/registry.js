@@ -10,6 +10,9 @@
 import {SCRIPTS_VIEWS} from '../views.js';
 import {descriptions, names, speech} from './messages.js';
 import {altShift, control, plain, shift, TALK_KEYS, VIEW_TOGGLE, WAKE_KEY} from './shortcuts.js';
+import orientationMessages from '../orientation/messages.js';
+import {summarize} from '../orientation/place.js';
+import {SPEECH_RATES, VERBOSITIES} from '../settings.js';
 import {describeAbilities, describePlace} from './snapshot.js';
 
 const always = () => true;
@@ -150,6 +153,46 @@ const ACTIONS = [
     define('move.next', {run: app => app.step(1)}),
     define('move.previous', {run: app => app.step(-1)}),
 
+    // Orientation, see `orientation/place.js`: what the program is, at a glance or in full.
+    define('program.summary', {
+        shortcuts: [altShift('P')],
+        available: withSprite,
+        run: app => summarize(app.editor.outline(), app.say)
+    }),
+    define('program.moreDetail', {
+        available: withSprite,
+        run: app => summarize(app.editor.outline(), app.say, {limit: Infinity})
+    }),
+    define('project.narrate', {
+        shortcuts: [altShift('R')],
+        proposable: false,
+        available: withSprite,
+        run: app => app.narrator().start() || null
+    }),
+    // How things are said.
+    define('speech.repeat', {
+        proposable: false,
+        run: app => app.lastSaid() || app.say(orientationMessages.nothingToRepeat)
+    }),
+    ...[['speech.slower', -1], ['speech.faster', 1]].map(([id, step]) => define(id, {
+        proposable: false,
+        run: app => {
+            const at = SPEECH_RATES.indexOf(app.settings.get().speechRate);
+            const next = SPEECH_RATES[at + step];
+            if (!next) return app.say(step < 0 ? orientationMessages.slowest : orientationMessages.fastest);
+            app.settings.set({speechRate: next});
+            return app.say(step < 0 ? orientationMessages.slower : orientationMessages.faster);
+        }
+    })),
+    ...[['speech.shorter', -1], ['speech.longer', 1]].map(([id, step]) => define(id, {
+        proposable: false,
+        run: app => {
+            const at = VERBOSITIES.indexOf(app.settings.get().verbosity);
+            const level = VERBOSITIES[Math.min(Math.max(at + step, 0), VERBOSITIES.length - 1)];
+            app.settings.set({verbosity: level});
+            return app.say(orientationMessages.verbosity, {level});
+        }
+    })),
     inTree('program.describe', [plain('d', 'D')], app => {
         app.editor.run({op: 'describe'});
     }, withSprite),

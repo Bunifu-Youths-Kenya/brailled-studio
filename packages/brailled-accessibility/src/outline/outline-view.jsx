@@ -18,6 +18,7 @@ import buildOutline from './tree.js';
 import useEditing from './use-editing.js';
 import ValueEditor from './value-editor.jsx';
 
+import {nestingCue, placeOf} from '../orientation/place.js';
 import styles from './outline.css';
 
 // Anything that can change the program, its labels or which sprite is selected.
@@ -160,8 +161,11 @@ const OutlineView = ({vm, active}) => {
                 });
             }
         }
-        announce(result.message);
-    }), [editor, announce]);
+        // A result its runner says itself is not said again. A change to blocks says where the student now is.
+        if (result.quiet) return;
+        const place = result.changed && !result.dataChanged ? app.placeOf(result.focusId) : '';
+        announce(place ? `${result.message.replace(/([^.!?])\s*$/, '$1.')} ${place}` : result.message);
+    }), [app, editor, announce]);
 
     const {program, places} = state;
     const place = program && places[program.targetId];
@@ -226,7 +230,9 @@ const OutlineView = ({vm, active}) => {
                 position: node.posinset,
                 count: node.setsize,
                 script: path[0].posinset,
-                scripts: program.nodes.length
+                scripts: program.nodes.length,
+                // Among all the sprite's blocks, with what holds it and what is beside it.
+                block: placeOf(program.nodes, node.id)
             };
         },
         step: direction => {
@@ -271,8 +277,12 @@ const OutlineView = ({vm, active}) => {
         if (!result) return;
         used();
         focusCurrentRef.current = true;
+        // Entering or leaving a loop or condition is said, beside what the screen reader reads of the item.
+        const cue = nestingCue(program.nodes, place.currentId, result.currentId,
+            (message, values) => intl.formatMessage(message, values));
+        if (cue) app.announce(cue);
         updatePlace(result);
-    }, [app, program, place, updatePlace]);
+    }, [app, intl, program, place, updatePlace]);
 
     return (
         <React.Fragment>

@@ -317,18 +317,20 @@ const createEditor = (vm, {newId = randomId} = {}) => {
      * dataChanged: ?boolean}} The result. `message` is the sentence to say; `dataChanged` means variables, lists
      * or messages changed. Subscribers receive the result too.
      */
-    const run = input => {
+    const run = (input, {quiet = false} = {}) => {
+        // `quiet` marks a result that whoever ran it will say, so that subscribers do not say it again.
+        const tell = result => report(quiet ? {...result, quiet: true} : result);
         const commands = Array.isArray(input) ? input : [input];
         try {
             if (commands.length === 1 && SOLO.includes(commands[0]?.op)) {
                 const [command] = commands;
-                if (DATA.includes(command.op)) return report(editData(command));
+                if (DATA.includes(command.op)) return tell(editData(command));
                 checkCommand(command);
-                return report(command.op === 'describe' ? describe(command) : travel(command.op));
+                return tell(command.op === 'describe' ? describe(command) : travel(command.op));
             }
-            return report(edit(commands));
+            return tell(edit(commands));
         } catch (error) {
-            return report(rejected(error));
+            return tell(rejected(error));
         }
     };
 
@@ -371,7 +373,9 @@ const createEditor = (vm, {newId = randomId} = {}) => {
             const isInstruction = block => !block.shadow && block.opcode !== 'procedures_prototype' &&
                 !isValue(shapeOf(block, context.extensionShape));
             const lists = {variable: context.variables, list: context.lists, message: context.broadcasts};
-            let program = snapshot(vm.editingTarget.blocks);
+            const original = snapshot(vm.editingTarget.blocks);
+            let program = original;
+            let touched = null;
             const made = [];
             const details = commands.map(() => null);
             const sentences = commands.map((command, index) => {
@@ -411,6 +415,7 @@ const createEditor = (vm, {newId = randomId} = {}) => {
                     return say(message, change.values);
                 }
                 const {program: next, event} = plan(withMadeBlocks(command, made), program, context);
+                touched = touched ?? event.id;
                 const sentence = readBack({
                     event,
                     before: program,
@@ -433,7 +438,11 @@ const createEditor = (vm, {newId = randomId} = {}) => {
                 program = next;
                 return sentence;
             });
-            return {ok: true, sentences, details};
+            // The program as the Outline would show it before and after, for a preview of what changes.
+            const shown = blocks => buildOutline({...blocks,
+                getDefinition: definitionSource(),
+                words: environment.words});
+            return {ok: true, sentences, details, before: shown(original), after: shown(program), touched};
         } catch (error) {
             return {ok: false, reason: rejected(error).reason, step};
         }

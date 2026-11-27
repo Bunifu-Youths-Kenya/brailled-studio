@@ -57,7 +57,8 @@ const createExecutor = app => {
             if (place >= 0) return stepRef(place + 1);
             return made[number - 1] ?? id;
         }));
-        const result = app.editor.run(commands.length > 1 ? commands : commands[0]);
+        // The gate says what was done, with where the student is, once.
+        const result = app.editor.run(commands.length > 1 ? commands : commands[0], {quiet: true});
         if (!result.ok) return result.message;
         indices.forEach((index, place) => {
             made[index] = result.made?.[place] ?? null;

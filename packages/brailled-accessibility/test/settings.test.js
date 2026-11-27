@@ -23,6 +23,9 @@ const defaults = {
     onlineReadbacks: false,
     onlineName: false,
     voiceFirst: true,
+    verbosity: 'normal',
+    narrationSpeed: 'normal',
+    speechRate: 1,
     questionDismissed: false
 };
 

@@ -336,7 +336,7 @@ const startAiServer = async (env = {}) => {
         await key('i');
         await type('flag');
         await key('Enter', 900);
-        check('add a hat', await said() === 'Added a new script: when green flag clicked', await said());
+        check('add a hat', await said() === 'Added a new script: when green flag clicked. Block 1 of 1.', await said());
         await key('i');
         await type('repeat 10');
         await key('Enter', 900);
@@ -344,11 +344,13 @@ const startAiServer = async (env = {}) => {
         await key('i');
         await type('move steps');
         await key('Enter', 900);
-        check('add inside a loop', await said() === 'Added: move 10 steps, inside repeat 10', await said());
+        check('add inside a loop', await said() ===
+            'Added: move 10 steps, inside repeat 10. Block 3 of 3, inside repeat 10.', await said());
         await key('i');
         await type('wait seconds');
         await key('Enter', 900);
-        check('add after the current block', await said() === 'Added: wait 1 second, after move 10 steps', await said());
+        check('add after the current block', await said() ===
+            'Added: wait 1 second, after move 10 steps. Block 4 of 4, inside repeat 10.', await said());
         check('canvas redrawn', await drawn() === await instructions());
         await key('d');
         check('describe',
@@ -356,10 +358,11 @@ const startAiServer = async (env = {}) => {
         await key('Enter', 500);
         await page.locator('dialog input').fill('3');
         await key('Enter', 900);
-        check('edit a value', await said() === 'Changed: wait 3 seconds. Was: wait 1 second', await said());
+        check('edit a value', await said() ===
+            'Changed: wait 3 seconds. Was: wait 1 second. Block 4 of 4, inside repeat 10.', await said());
         const before = await data();
         await key('Delete', 900);
-        check('delete', await said() === 'Deleted: wait 3 seconds', await said());
+        check('delete', await said() === 'Deleted: wait 3 seconds. 3 blocks now.', await said());
         const deleted = await data();
         await key('Control+z', 1500);
         check('undo restores the data exactly', await data() === before, await said());
@@ -451,16 +454,18 @@ const startAiServer = async (env = {}) => {
         check('the picked block is marked', (await focused()).text === 'say Hello! (being moved)', (await focused()).text);
         await t.goTo('move 10 steps');
         await key('Shift+M', 900);
-        check('Shift+M puts it before', await said() === 'Moved: say Hello!, before move 10 steps', await said());
+        check('Shift+M puts it before', await said() === 'Moved: say Hello!, before move 10 steps. Block 2 of 4.',
+            await said());
         check('focus follows the moved block', (await focused()).text === 'say Hello!', (await focused()).text);
         await t.goTo('wait 1 second');
         await key('m', 500);
         await t.goTo('say Hello!');
         await key('m', 900);
-        check('M puts it after', await said() === 'Moved: wait 1 second, after say Hello!', await said());
+        check('M puts it after', await said() === 'Moved: wait 1 second, after say Hello! Block 3 of 4.', await said());
         await key('m', 500);
         await key('n', 900);
-        check('N moves it to a new script', await said() === 'Moved: wait 1 second, to a new script', await said());
+        check('N moves it to a new script', await said() ===
+            'Moved: wait 1 second, to a new script. Block 4 of 4, in script 2 of 2.', await said());
         check('two scripts', (await items()).filter(i => i.startsWith('Script')).length === 2);
         await key('m', 500);
         await key('Escape', 500);
@@ -501,14 +506,14 @@ const startAiServer = async (env = {}) => {
         check('axe: wrap list', (await t.axe()).length === 0, (await t.axe()).join('; '));
         await type('repeat 10');
         await key('Enter', 900);
-        check('W wraps one block', await said() === 'Put wait 1 second inside repeat 10', await said());
+        check('W wraps one block', await said() === 'Put wait 1 second inside repeat 10. Block 3 of 5.', await said());
         await key('Control+z', 1200);
         await t.goTo('move 10 steps');
         await key('Shift+W', 600);
         await type('forever');
         await key('Enter', 900);
         check('Shift+W wraps the rest of the stack',
-            await said() === 'Put 3 blocks, starting with move 10 steps, inside forever', await said());
+            await said() === 'Put 3 blocks, starting with move 10 steps, inside forever. Block 2 of 5.', await said());
         console.log((await items()).map(i => `       ${i}`).join('\n'));
         await key('Control+z', 1200);
         await t.goTo('Script 1 of 1: when green flag clicked');
@@ -516,7 +521,8 @@ const startAiServer = async (env = {}) => {
         await type('if then');
         await key('Enter', 900);
         check('W on a script wraps all but its first block',
-            /^Put 3 blocks, starting with move 10 steps, inside if empty then$/.test(await said()), await said());
+            /^Put 3 blocks, starting with move 10 steps, inside if empty then\. Block 2 of 5\.$/.test(await said()),
+            await said());
         await key('Control+z', 1500);
         check('undo restores the data exactly', await data() === before);
     });
@@ -646,7 +652,9 @@ const startAiServer = async (env = {}) => {
         await t.goTo('move 10 steps');
         await key('Alt+Shift+KeyW', 600);
         check('where am I, in the outline',
-            /^You are in the scripts area, on move 10 steps, tree item\..*Outline view\. In the outline: move 10 steps, level 2, 2 of 4, in script 1 of 1\. The project is stopped\./
+            new RegExp('^You are in the scripts area, on move 10 steps, tree item\\..*Outline view\\. In the outline, on ' +
+                'move 10 steps\\. Block 2 of 4\\. After when green flag clicked, before wait 1 second\\. ' +
+                'The project is stopped\\.')
                 .test(await said()), await said());
         let answer = await command('where am I?');
         check('typed "where am I" reports where focus was', /on move 10 steps, tree item/.test(answer), answer);
@@ -678,9 +686,9 @@ const startAiServer = async (env = {}) => {
         await t.goTo('say Hello!');
         await key('Delete', 900);
         answer = await command('undo');
-        check('typed undo', answer === 'Undone. Deleted: say Hello!', answer);
+        check('typed undo', answer === 'Undone. Deleted: say Hello! Block 4 of 4.', answer);
         answer = await command('redo');
-        check('typed redo', answer === 'Redone. Deleted: say Hello!', answer);
+        check('typed redo', answer === 'Redone. Deleted: say Hello! 3 blocks now.', answer);
 
         const zoneOf = () => page.evaluate(() => {
             const e = document.activeElement;
@@ -1278,7 +1286,8 @@ const startAiServer = async (env = {}) => {
             (await t.items()).map(item => item.trim()).join().includes('move 10 steps,wait 2 seconds'),
         (await t.items()).join());
         check('and reads it back with how to undo', await t.said() ===
-            'Done. Added: wait 2 seconds, after move 10 steps. To take it back, say undo.', await t.said());
+            'Done. Added: wait 2 seconds, after move 10 steps. Block 3 of 5. To take it back, say undo.',
+        await t.said());
         await key('Alt+Shift+KeyO', 900);
         const marked = page.locator('[data-brailled-workspace] g[data-brailled-changed] > .blocklyPath').first();
         check('the changed block is outlined on the canvas', await marked.count() === 1 &&
@@ -1466,7 +1475,9 @@ const startAiServer = async (env = {}) => {
             'Mboni suggests a change. Approve it?' && await docked.isVisible());
         check('focus stays where the student was', (await t.focused()).text.includes('move 10 steps'),
             (await t.focused()).text);
-        check('it is said through the live region, without a label', /^Wait 2 seconds after moving\. Add wait 2 seconds, after move 10 steps\. Shall I\?/.test(await t.said()),
+        check('it is said through the live region, without a label, with what changes',
+            /^Wait 2 seconds after moving\. Add wait 2 seconds, after move 10 steps\. Now: .*\. After: .*\. Shall I\?/
+                .test(await t.said()),
             await t.said());
         check('axe: suggestion beside the editor', (await t.axe('[data-brailled-docked]')).length === 0,
             (await t.axe('[data-brailled-docked]')).join('; '));
@@ -1502,6 +1513,60 @@ const startAiServer = async (env = {}) => {
         check('which turns it down too', (await t.items()).join() === original.join());
     }, {init: [fakeSpeech, fakeVoice, voiceFirst], config: aiConfig(ai.endpoint)});
 
+    await group('orientation: summary, where I am, read-backs, cues and the narrated run', async t => {
+        const {page, key, pause} = t;
+        await startOutline(t);
+        await key('Alt+Shift+KeyP', 700);
+        check('Alt+Shift+P says the program at a glance', await t.said() ===
+            'One script, 4 blocks. Script 1: when green flag clicked; move 10 steps; wait 1 second; say Hello!.',
+        await t.said());
+
+        // An edit made by hand says what changed, the count and where the student is.
+        await t.goTo('say Hello!');
+        await key('Delete', 900);
+        check('a deletion says what changed and the new count', await t.said() ===
+            'Deleted: say Hello! 3 blocks now.', await t.said());
+        await key('Control+KeyZ', 900);
+        check('undo says where the block is again', /^Undone\. .*Block 4 of 4\.$/.test(await t.said()), await t.said());
+
+        // Put the move block in a loop, then walk through it.
+        await page.evaluate(() => {
+            const walk = node => [node, ...(node.children || []).flatMap(walk)];
+            const move = window.brailled.outline().flatMap(walk).find(node => node.text === 'move 10 steps');
+            window.brailled.run({op: 'wrap', block: move.id, in: 'control_repeat'});
+        });
+        await pause(900);
+        check('a change from elsewhere says where it is too', /Block 2 of 5\.$/.test(await t.said()), await t.said());
+        await t.goTo('repeat 10');
+        await key('ArrowDown', 600);
+        check('moving into a loop says so', await t.said() === 'Inside repeat 10.', await t.said());
+        await key('Alt+Shift+KeyW', 700);
+        check('"where am I" names the block, its number, its holder and its neighbours',
+            /In the outline, on move 10 steps\. Block 3 of 5, inside repeat 10\. It is the only block there\./
+                .test(await t.said()), await t.said());
+        await key('ArrowDown', 600);
+        check('moving out of it says so', await t.said() === 'Out of repeat 10.', await t.said());
+
+        await typed(t, 'shorter');
+        check('"shorter" says less after each change', await t.said() === 'Replies are brief.', await t.said());
+        await t.goTo('wait 1 second');
+        await key('Delete', 900);
+        check('a brief read-back says only what changed', await t.said() === 'Deleted: wait 1 second', await t.said());
+        await key('Control+KeyZ', 900);
+        await typed(t, 'longer');
+
+        // Run and tell me.
+        await key('Alt+Shift+KeyR', 400);
+        check('Alt+Shift+R runs and says it will tell each step', /^Running, and telling you each step/
+            .test(await t.said()), await t.said());
+        await pause(4000);
+        check('then says the blocks as they are reached', /when green flag clicked|repeat 10|move 10 steps/
+            .test(await t.said()), await t.said());
+        await key('Escape', 700);
+        check('Escape stops it, with the project', await t.said() === 'Stopped.' &&
+            !(await page.evaluate(() => window.vm.runtime.threads.length)), await t.said());
+    }, {init: [fakeSpeech, fakeVoice]});
+
     const bigOnly = {approval: 'big changes only', proposalExpirySeconds: 30};
     await group('approval: the school asks about big changes only', async t => {
         const {page, pause} = t;
@@ -1514,7 +1579,8 @@ const startAiServer = async (env = {}) => {
         check('a small change is made without asking', await dialog.count() === 0 &&
             (await t.items()).length === original.length + 1);
         check('and is announced with how to undo it', await t.said() ===
-            'Done. Added: wait 2 seconds, after move 10 steps. To take it back, say undo.', await t.said());
+            'Done. Added: wait 2 seconds, after move 10 steps. Block 3 of 5. To take it back, say undo.',
+        await t.said());
         await typed(t, 'undo');
         check('and can be undone', (await t.items()).join() === original.join());
 

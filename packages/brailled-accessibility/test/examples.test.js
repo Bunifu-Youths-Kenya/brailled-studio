@@ -123,7 +123,8 @@ describe('add a wait of 2 seconds after the move block', () => {
         await settle();
         // The new wait comes between the move and the wait that was already there.
         expect(program()).toEqual(['when green flag clicked', 'move 10 steps', 'wait 2 seconds', 'wait 2 seconds']);
-        expect(heard.at(-1)).toBe('Done. Added: wait 2 seconds, after move 10 steps. To take it back, say undo.');
+        expect(heard.at(-1)).toBe('Done. Added: wait 2 seconds, after move 10 steps. Block 3 of 4. ' +
+            'To take it back, say undo.');
         const [[added]] = highlight.mock.calls.at(-1);
         expect(vm.editingTarget.blocks._blocks.move.next).toBe(added);
         expect(vm.editingTarget.blocks._blocks[added].next).toBe('wait');
