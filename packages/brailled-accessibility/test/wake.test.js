@@ -418,7 +418,7 @@ describe('listening for the wake words', () => {
         expect(program()).toContain('wait 1 second');
     });
 
-    test.each(['delete block', 'run', 'forget everything'])('asks before "%s", which changes things',
+    test.each(['delete block', 'forget everything'])('asks before "%s", which changes things',
         async words => {
             const {app, call, data, vm, voice} = await on();
             const forget = jest.spyOn(app.memory, 'clear');
@@ -431,20 +431,34 @@ describe('listening for the wake words', () => {
         });
 
     test('is not answered by the wake words when it asks', async () => {
-        const {call, vm, voice} = await on();
-        await call('run');
+        const {call, data, voice} = await on();
+        const before = data();
+        await call('delete block');
         await call('yes');
         await call();
         expect(voice.getState().pending).not.toBeNull();
-        expect(vm.start).not.toHaveBeenCalled();
+        expect(data()).toBe(before);
     });
 
     test('goes ahead once the student confirms', async () => {
-        const {call, voice, vm, settle} = await on();
-        await call('run');
+        const {app, call, voice, settle} = await on();
+        const forget = jest.spyOn(app.memory, 'clear');
+        await call('forget everything');
+        expect(forget).not.toHaveBeenCalled();
         voice.confirm();
         await settle();
-        expect(vm.start).toHaveBeenCalled();
+        expect(forget).toHaveBeenCalled();
+    });
+
+    test('runs at once, with no device connected, but asks where one is', async () => {
+        const {app, call, vm, voice} = await on();
+        await call('run');
+        expect(voice.getState().pending).toBeNull();
+        expect(vm.greenFlag).toHaveBeenCalled();
+        const snapshot = app.snapshot;
+        app.snapshot = () => ({...snapshot(), device: {name: 'micro:bit', connected: true, mode: 'live'}});
+        await call('run');
+        expect(voice.getState().pending).toMatchObject({text: 'run'});
     });
 
     test('asks when the words may have been misheard', async () => {

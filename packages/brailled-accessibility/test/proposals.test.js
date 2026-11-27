@@ -292,11 +292,8 @@ describe('the approval gate', () => {
     test('beside the editor, a suggestion is said through the live region, for a screen reader too', async () => {
         const {gate, heard} = await proposed();
         expect(gate.getState().proposal.docked).toBe(true);
-        // Said as one person asks another, with no title or label.
-        expect(heard.at(-1)).toBe('A change. Add wait 5 seconds, after move 10 steps. ' +
-            'Now: when green flag clicked, move 10 steps, wait 2 seconds. ' +
-            'After: when green flag clicked, move 10 steps, wait 5 seconds, wait 2 seconds. Shall I? ' +
-            'Say yes or go ahead, say no, or say change it, and what to change.');
+        // Said as one person asks another, briefly, with no title or label.
+        expect(heard.at(-1)).toBe('A change. Yes or no?');
     });
 
     test('what is hard to undo still stops the student in a window', async () => {
@@ -322,11 +319,23 @@ describe('the approval gate', () => {
         context.settings.set({readAloud: true});
         context.gate.take({summary: 'Wait a bit.', steps: [wait]});
         await context.settle();
-        expect(context.reader.speak.mock.calls.at(-1)[0]).toBe(
-            'Wait a bit. Add wait 5 seconds, after move 10 steps. ' +
+        expect(context.reader.speak.mock.calls.at(-1)[0]).toBe('Wait a bit. Yes or no?');
+    });
+
+    test('says every step, what changes and how to answer at the detailed level, and on "more detail"', async () => {
+        const full = 'Wait a bit. Add wait 5 seconds, after move 10 steps. ' +
             'Now: when green flag clicked, move 10 steps, wait 2 seconds. ' +
             'After: when green flag clicked, move 10 steps, wait 5 seconds, wait 2 seconds. Shall I? ' +
-            'Say yes or go ahead, say no, or say change it, and what to change.');
+            'Say yes or go ahead, say no, or say change it, and what to change.';
+        const context = setUp();
+        context.settings.set({readAloud: true, verbosity: 'detailed'});
+        context.gate.take({summary: 'Wait a bit.', steps: [wait]});
+        await context.settle();
+        expect(context.reader.speak.mock.calls.at(-1)[0]).toBe(full);
+        context.settings.set({verbosity: 'normal'});
+        routeCommand(context.app, 'more detail', 'voice');
+        await context.settle();
+        expect(context.gate.getState().proposal.note).toBe(full);
     });
 
     test.each(['yes', 'Go ahead.'])('"%s" approves: it is done, read back and can be undone', async words => {
@@ -512,6 +521,11 @@ describe('the approval gate', () => {
         expect(gate.getState().proposal.steps).toHaveLength(2);
         routeCommand(app, 'yes', 'voice');
         await settle();
+        // Several changes are asked about once more: all at once, or step by step.
+        expect(program()).toHaveLength(3);
+        expect(gate.getState().proposal.note).toBe('Add all, or step by step?');
+        routeCommand(app, 'yes', 'voice');
+        await settle();
         expect(program()).toHaveLength(5);
         expect(heard.at(-1)).toMatch(/^Done\. Added: wait .*Added: turn .*To take it back, say undo\.$/);
         app.perform('edit.undo');
@@ -594,7 +608,7 @@ describe('the approval gate', () => {
         await context.settle();
         expect(context.gate.getState()).toMatchObject({status: 'proposed', proposal: {risk: 'big'}});
         expect(context.reader.speak.mock.calls.at(-1)[0])
-            .toMatch(/Warning: this is hard to undo\. Nothing happens unless you say yes\..*, hard to undo\./);
+            .toBe('Warning: this is hard to undo. Nothing happens unless you say yes. Tidy up. Yes or no?');
         expect(context.data()).toBe(before);
     });
 

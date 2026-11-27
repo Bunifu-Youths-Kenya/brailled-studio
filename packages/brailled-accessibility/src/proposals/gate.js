@@ -75,27 +75,53 @@ const createGate = ({
             {key: talkKey()});
     };
 
-    // The words of what is being asked, for reading aloud, as one person asks another: no title, no label. The
-    // dialog on screen keeps both, and says how long there is.
-    const wordsOf = view => {
+    const risky = step => (step.risk === 'big' ? `, ${say(proposalMessages.hardToUndo)}` : '');
+    const sentenceOf = step => `${step.sentence}${risky(step)}.`;
+    const summaryOf = view => view.summary?.trim().replace(/([^.!?])$/, '$1.') || null;
+
+    // How to answer, in a few words: yes or no, unless only the talk key may approve it here.
+    const yesOrNo = () => (app.conversing() && !voiceMayApprove() ?
+        say(proposalMessages.holdToApprove, {key: talkKey()}) :
+        say(proposalMessages.yesOrNo));
+
+    // Everything that is asked: each step, what changes, and the ways to answer.
+    const fullWordsOf = view => {
         const many = view.steps.length > 1;
-        const risky = step => (step.risk === 'big' ? `, ${say(proposalMessages.hardToUndo)}` : '');
-        const sentence = step => `${step.sentence}${risky(step)}.`;
+        const sentence = sentenceOf;
         const list = many ?
             view.steps.map((step, index) => `${index + 1}. ${sentence(step)}`) :
             [sentence(view.steps[0])];
-        const summary = view.summary?.trim().replace(/([^.!?])$/, '$1.');
+        const summary = summaryOf(view);
         let ask = many ? say(proposalMessages.askMany, {count: view.steps.length}) : say(proposalMessages.ask);
         if (view.mode === 'steps') ask = say(proposalMessages.askStep, view.values);
         return [
             view.risk === 'big' ? say(proposalMessages.warning) : null,
             summary || null,
             ...(view.mode === 'steps' ? [sentence(view.steps[view.index])] : list),
-            view.mode !== 'steps' && app.settings.get().verbosity !== 'brief' ? current.preview : null,
+            view.mode === 'steps' ? null : current.preview,
             ask,
             app.conversing() ? howInConversation() : say(view.mode === 'steps' || !many ?
                 proposalMessages.howToAnswer :
                 proposalMessages.howToAnswerMany)
+        ].filter(Boolean).join(' ');
+    };
+
+    // What is asked, said briefly, as one person asks another: what it does and how many changes, then yes or no.
+    // Every step and what changes are said on "more detail", and at the detailed level. The panel or dialog on
+    // screen shows all of it.
+    const wordsOf = view => {
+        if (app.settings.get().verbosity === 'detailed') return fullWordsOf(view);
+        const many = view.steps.length > 1;
+        const stepping = view.mode === 'steps';
+        let what = summaryOf(view) ?? sentenceOf(view.steps[0]);
+        if (stepping) {
+            what = `${say(proposalMessages.titleStepShort, view.values)} ${sentenceOf(view.steps[view.index])}`;
+        }
+        return [
+            view.risk === 'big' ? say(proposalMessages.warning) : null,
+            what,
+            many && !stepping ? say(proposalMessages.changes, {count: view.steps.length}) : null,
+            yesOrNo()
         ].filter(Boolean).join(' ');
     };
 
@@ -134,6 +160,7 @@ const createGate = ({
         Object.assign(current, changes, {
             note: null,
             askingChange: false,
+            askingHow: false,
             serial: current.serial + 1,
             // Going step by step, each step gets the whole time.
             deadline: Date.now() + (current.seconds * 1000),
@@ -376,13 +403,29 @@ const createGate = ({
 
     // Words from a conversation, which anyone nearby could say. They may always turn it down or ask to be guided;
     // they approve only where `voiceMayApprove` says so, and only with words that say to add it.
+    // A yes to several changes is asked once more: all at once, or one at a time. A yes to that, or to one change,
+    // approves it.
+    const yes = () => {
+        if (current.steps.length > 1 && current.mode !== 'steps' && !current.askingHow) {
+            current.askingHow = true;
+            prompt(say(proposalMessages.howMany));
+        } else {
+            approve({all: current.mode !== 'steps'});
+        }
+    };
+
     const handsFree = text => {
         if (!waiting()) return;
         const answer = parseAnswer(text, app.answerWords());
         if (answer?.type === 'reject') reject();
         else if (answer?.type === 'guide') guide();
-        else if (asksToAdd(text) && voiceMayApprove()) approve({all: true});
-        else prompt(howInConversation());
+        else if (answer?.type === 'more') prompt(fullWordsOf(state.proposal));
+        else if (voiceMayApprove() && answer?.type === 'approve') yes();
+        // A bare "all" approves only as the answer to "add all, or step by step".
+        else if (voiceMayApprove() && (asksToAdd(text) || (answer?.type === 'all' && current.askingHow))) {
+            approve({all: true});
+        } else if (voiceMayApprove() && answer?.type === 'steps' && current.steps.length > 1) stepByStep();
+        else prompt(yesOrNo());
     };
 
     // What the student said or typed while being asked.
@@ -390,7 +433,9 @@ const createGate = ({
         if (!waiting()) return;
         const answer = parseAnswer(text, app.answerWords());
         if (answer?.type === 'approve') {
-            approve();
+            yes();
+        } else if (answer?.type === 'more') {
+            prompt(fullWordsOf(state.proposal));
         } else if (answer?.type === 'all') {
             approve({all: true});
         } else if (answer?.type === 'steps' && current.steps.length > 1) {

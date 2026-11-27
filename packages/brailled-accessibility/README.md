@@ -364,11 +364,12 @@ bar shows "Talking with Mboni". She does not listen while she thinks.
 - **Brief answers.** The request says it is a conversation, and the model is told to answer in one or two spoken
   sentences, one question at a time, naming blocks by their words and where they sit.
 
-- **A plan.** "I am making a square, help me" gets a suggestion, read as steps, ending "Say add all, guide me, or
-  no."
-- **"Add all"** approves it, only where `voiceApproval` is `true` and every step adds something (blocks, a variable
-  or list, a sprite) that "undo" takes back. A bare "yes" approves nothing. Otherwise the talk key, a button or the
-  keyboard is needed.
+- **A plan.** "I am making a square, help me" gets a suggestion, said briefly: "Make a square. 4 changes. Yes or no?"
+- **"Yes"** to several changes asks "Add all, or step by step?"; "add all" (or "all", "yes") does them all, "step by
+  step" asks about each. "Yes" to one change, or "add it" or "add all" at once, approves it. Said hands-free this
+  works only where `voiceApproval` is `true` and every step adds something (blocks, a variable or list, a sprite)
+  that "undo" takes back; anything else is answered "To approve, hold F2 and say yes. Or say no.", and needs the
+  talk key, a button or the keyboard. "More detail" says every step and what changes.
 - **"Guide me"** (also a button, or said with the talk key) changes nothing: it says each step, watches the project,
   says "Well done" and goes on. "Repeat", "next step" and "stop guiding" work meanwhile. No AI is asked between
   steps.
@@ -394,7 +395,8 @@ session. `src/live/session.js` holds it:
 
 - **The editor goes first.** The model replies only when the editor asks it to. When the student stops, the editor
   takes the written-down words: an answer to a waiting suggestion goes to the gate, as in any hands-free
-  conversation (a bare "yes" approves nothing); a local command runs as one; words that are its own coming back are
+  conversation (a "yes" approves only additions that "undo" takes back); a local command runs as one, and "run"
+  runs at once unless a device is connected; words that are its own coming back are
   dropped; "goodbye" ends it. Only then is the model given the project as it is and asked to reply.
 - **Changes are worked out by the text model.** The live model asks for one with `make_change`, in the student's
   words; while the AI server's text model works it out, the live voice says "One moment, I'm putting that
@@ -523,8 +525,9 @@ undo; do not add them to `SAFE_ACTIONS` or `EDITS` in `src/proposals/risk.js`, a
 them.
 
 **Asking.** The proposal is shown in large type, each step described by the editor itself, with the AI's one
-sentence labelled "The AI says". A screen reader reads it from the dialog; with reading aloud on, the editor reads
-it.
+sentence labelled "The AI says". What is said is brief: the AI's sentence (or the one step), how many changes, and
+"Yes or no?". A yes to several changes asks "Add all, or step by step?". "More detail", and the detailed level in
+Voice settings, say every step, a before and after of what changes, and all the ways to answer.
 
 **Voice first.** Where voice is on, the student setting "Say questions instead of opening windows" (on by default)
 shows suggestions, the AI helper's replies and "Should I go ahead?" in a panel beside the editor instead of a

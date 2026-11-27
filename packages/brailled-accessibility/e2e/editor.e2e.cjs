@@ -1475,10 +1475,12 @@ const startAiServer = async (env = {}) => {
             'Mboni suggests a change. Approve it?' && await docked.isVisible());
         check('focus stays where the student was', (await t.focused()).text.includes('move 10 steps'),
             (await t.focused()).text);
-        check('it is said through the live region, without a label, with what changes',
-            /^Wait 2 seconds after moving\. Add wait 2 seconds, after move 10 steps\. Now: .*\. After: .*\. Shall I\?/
-                .test(await t.said()),
-            await t.said());
+        check('it is said briefly through the live region, without a label', await t.said() ===
+            'Wait 2 seconds after moving. Yes or no?', await t.said());
+        await say('more detail');
+        check('"more detail" says each step and what changes', new RegExp('^Wait 2 seconds after moving\\. ' +
+            'Add wait 2 seconds, after move 10 steps\\. Now: .*\\. After: .*\\. Shall I\\?').test(await t.said()),
+        await t.said());
         check('axe: suggestion beside the editor', (await t.axe('[data-brailled-docked]')).length === 0,
             (await t.axe('[data-brailled-docked]')).join('; '));
         await page.screenshot({path: path.join(out, 'proposal-docked.png')});

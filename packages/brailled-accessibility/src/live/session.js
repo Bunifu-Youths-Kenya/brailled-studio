@@ -24,8 +24,9 @@ const MOST_TRIES = 3;
 // How long after the talk key is let go words still count as said with it.
 const HELD_MS = 3000;
 // For a turn that only says what the editor says.
-const SAY_ONLY = 'Say the words after "EDITOR: Say:" in the last message to the student, warmly, and nothing else: ' +
-    'add no question, no explanation and nothing about what you will do.';
+// The words go in the instructions for that one turn, so there is no label for the model to read out.
+const sayOnly = text => 'Say this to the student, warmly, word for word, and nothing else. Add no question, no ' +
+    `explanation and nothing about what you will do:\n${text}`;
 // How long what the editor says is gathered before the live voice says it.
 const GATHER_MS = 800;
 
@@ -105,17 +106,22 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
         if (!quietly) say(message);
     };
 
-    // The model replies once nothing else is being said. Saying what the editor says calls no tool.
-    const reply = ({speakOnly = false} = {}) => {
+    // The model replies once nothing else is being said.
+    const reply = () => {
         if (responding) {
             replyWanted = true;
             return;
         }
         responding = true;
         replyWanted = false;
-        send(speakOnly ?
-            {type: 'response.create', response: {tool_choice: 'none', instructions: SAY_ONLY}} :
-            {type: 'response.create'});
+        send({type: 'response.create'});
+    };
+
+    // The live voice says what the editor says, calling no tool. What it says joins the conversation, so that the
+    // model knows what the student has been told.
+    const sayNow = text => {
+        responding = true;
+        send({type: 'response.create', response: {tool_choice: 'none', instructions: sayOnly(text)}});
     };
 
     // What the editor says goes through the live voice, gathered for a moment so that what follows at once is said
@@ -128,8 +134,7 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
             const said = toSay.filter((text, at) => !toSay.slice(at + 1).some(later => later.includes(
                 text.replace(/[.!?]+$/, ''))));
             toSay = [];
-            tell(`EDITOR: Say: ${said.join(' ')}`);
-            reply({speakOnly: true});
+            sayNow(said.join(' '));
         }, GATHER_MS);
     };
 
@@ -173,8 +178,7 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
             if (responding) {
                 toSay.push(working);
             } else {
-                tell(`EDITOR: Say: ${working}`);
-                reply({speakOnly: true});
+                sayNow(working);
             }
         }
         const result = await post('/live-tool', {request: sent.body, name, arguments: args}).catch(() => null);
@@ -344,7 +348,8 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
                 set({phase: 'on'});
                 quiet();
                 longest = setTimeout(() => stop({message: voiceMessages.liveEnded}), LONGEST_MS);
-                toSay.push(app.say(voiceMessages.liveGreeting));
+                // The greeting first, then anything said while connecting.
+                toSay.unshift(app.say(voiceMessages.liveGreeting));
                 flush();
             };
             const offer = await connection.createOffer();
@@ -380,10 +385,14 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
         speaking: () => state.phase === 'on' && responding,
         // Have the live voice say what the editor says.
         say: text => {
-            if (state.phase !== 'on') return;
+            if (state.phase === 'off') return;
             toSay.push(text);
-            flush();
+            // While connecting it waits for the greeting.
+            if (state.phase === 'on') flush();
         },
+        // Whether what the editor says should go to the live voice: from the moment it starts connecting, so that
+        // nothing is read by another voice over its greeting.
+        takesSpeech: () => state.phase !== 'off',
         // The talk key, held while the student answers.
         holdToAnswer: held => {
             holding = held;

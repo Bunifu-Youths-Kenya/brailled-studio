@@ -131,14 +131,23 @@ describe('a conversation', () => {
     });
 
     test('asks before a command that changes things, and cannot be answered by voice', async () => {
-        const {begin, hear, vm, voice} = editor();
+        const {begin, hear, data, voice} = editor();
         await begin();
-        await hear('run');
-        expect(voice.getState().pending).toMatchObject({text: 'run', origin: 'conversation'});
+        const before = data();
+        await hear('delete block');
+        expect(voice.getState().pending).toMatchObject({text: 'delete block', origin: 'conversation'});
         await hear('yes');
         await hear('add all');
-        expect(vm.start).not.toHaveBeenCalled();
+        expect(data()).toBe(before);
         expect(voice.getState().pending).not.toBeNull();
+    });
+
+    test('runs the program at once, as running changes nothing, with no device connected', async () => {
+        const {begin, hear, vm, voice} = editor();
+        await begin();
+        await hear('run program');
+        expect(voice.getState().pending).toBeNull();
+        expect(vm.greenFlag).toHaveBeenCalled();
     });
 
     test.each(['goodbye', 'Thank you.', 'kwaheri'])('ends at "%s", and waits to be called', async words => {
@@ -198,9 +207,10 @@ describe('taking turns', () => {
     test('never takes its own words, said by a screen reader, for the student\'s', async () => {
         const {asked, hear, gate, program} = editor();
         await asked();
-        // "Say add all, guide me, or no." comes back through the microphone while it is still being said.
-        await hear('add all', {wait: 500});
+        // "Two waits. 2 changes. Yes or no?" comes back through the microphone while it is still being said.
+        await hear('two waits yes', {wait: 500});
         expect(gate.isOpen()).toBe(true);
+        expect(gate.getState().proposal.note).toBeNull();
         expect(program()).not.toContain('repeat 10');
         // Said by the student once it has been read.
         await hear('add all');
@@ -246,8 +256,7 @@ describe('approving in a conversation', () => {
         settings.set({readAloud: true});
         await asked();
         const spoken = reader.speak.mock.calls.map(call => call[0]).find(words => words.includes('Two waits.'));
-        expect(spoken).toMatch(/Say add all, guide me, or no\.$/);
-        expect(spoken).not.toMatch(/If there is no answer/);
+        expect(spoken).toBe('Two waits. 2 changes. Yes or no?');
     });
 
     test.each(['add all', 'Add them all.', 'yes add them'])('"%s" adds them', async words => {
@@ -260,16 +269,45 @@ describe('approving in a conversation', () => {
         expect(program()).toContain('repeat 10');
     });
 
-    test.each(['yes', 'okay', 'go ahead', 'ndiyo', 'all', 'sure add whatever', 'I would not add all of that'])(
-        '"%s" adds nothing', async words => {
-            const {asked, hear, data, gate, heard} = editor();
+    test.each(['yes', 'go ahead', 'ndiyo'])('"%s" asks whether to add all or go step by step, changing nothing yet',
+        async words => {
+            const {asked, hear, data, gate} = editor();
             const before = data();
             await asked();
             await hear(words);
             expect(gate.isOpen()).toBe(true);
             expect(data()).toBe(before);
-            expect(heard.concat(gate.getState().proposal.note).join(' ')).toMatch(/Say add all, guide me, or no/);
+            expect(gate.getState().proposal.note).toBe('Add all, or step by step?');
         });
+
+    test.each([['all', 5], ['add all', 5], ['yes', 5], ['step by step', 3]])(
+        'after "yes", "%s" is the answer to how', async (words, length) => {
+            const {asked, hear, program, settle} = editor();
+            await asked();
+            await hear('yes');
+            await hear(words);
+            await settle(3000);
+            expect(program()).toHaveLength(length);
+        });
+
+    test.each(['okay', 'all', 'sure add whatever', 'I would not add all of that'])(
+        '"%s" adds nothing, and is asked yes or no', async words => {
+            const {asked, hear, data, gate} = editor();
+            const before = data();
+            await asked();
+            await hear(words);
+            expect(gate.isOpen()).toBe(true);
+            expect(data()).toBe(before);
+            expect(gate.getState().proposal.note).toBe('Yes or no?');
+        });
+
+    test('"more detail" says every step and what changes', async () => {
+        const {asked, hear, gate} = editor();
+        await asked();
+        await hear('more detail');
+        expect(gate.getState().proposal.note)
+            .toMatch(/^Two waits\. 1\. Add wait 1 second.*2\. Add repeat 10.*Now: .*After: /);
+    });
 
     test('"add all" does nothing where the school has not allowed voice approval', async () => {
         const {asked, hear, data, gate} = editor({school: {conversation: {...talk, voiceApproval: false}}});
@@ -277,7 +315,7 @@ describe('approving in a conversation', () => {
         await asked();
         await hear('add all');
         expect(data()).toBe(before);
-        expect(gate.getState().proposal.note).toMatch(/^Say guide me, or no\. To approve, hold F2/);
+        expect(gate.getState().proposal.note).toBe('To approve, hold F2 and say yes. Or say no.');
     });
 
     test('"Hey Mboni, add all" does not approve: only a conversation may', async () => {

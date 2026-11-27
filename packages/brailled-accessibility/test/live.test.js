@@ -57,8 +57,13 @@ const browser = ({session = () => answer(null), tool = () => ({text: 'Found.'})}
     };
     // An event from the live model.
     const event = data => channel.onmessage({data: JSON.stringify(data)});
-    const said = () => sent.filter(item => item.type === 'conversation.item.create' && item.item.role === 'system')
-        .map(item => item.item.content[0].text);
+    // What the editor told the model, and what it had the live voice say, written "EDITOR: Say: …".
+    const said = () => sent.flatMap(item => {
+        if (item.type === 'conversation.item.create' && item.item.role === 'system') return [item.item.content[0].text];
+        const instructions = item.type === 'response.create' && item.response?.instructions;
+        return instructions ? [`EDITOR: Say: ${instructions.split('\n').slice(1)
+            .join('\n')}`] : [];
+    });
     const replies = () => sent.filter(item => item.type === 'response.create').length;
     return {scope, sent, said, replies, event, asked, track, json};
 };
@@ -148,7 +153,7 @@ describe('the live voice', () => {
         await parts.done();
         await parts.settle(1000);
         // Said as in any hands-free conversation, where a bare "yes" approves nothing.
-        expect(parts.said().at(-1)).toMatch(/^EDITOR: Say: .*Wait a bit\. Add wait 1 second.*Shall I\? Say add all/);
+        expect(parts.said().at(-1)).toBe('EDITOR: Say: Wait a bit. Yes or no?');
     });
 
     test('never lets the model approve: only the student\'s words, matched by the editor', async () => {
@@ -162,17 +167,16 @@ describe('the live voice', () => {
         // The model says it is done: nothing changes.
         await parts.done([{type: 'message', role: 'assistant', content: [{type: 'output_text', text: 'Done!'}]}]);
         expect(parts.program()).toEqual(before);
-        // Anyone nearby could say "yes": in a hands-free conversation it approves nothing.
-        const replies = parts.replies();
-        await parts.turn('yes');
+        // Words that are not an answer approve nothing.
+        await parts.turn('sounds good to me');
         expect(parts.program()).toEqual(before);
-        // The editor's answer, not the model's, and the model is not asked about it.
-        await parts.turn('add it');
+        // The student's "yes", matched by the editor, approves an addition that undo can take back; the model is
+        // not asked about it.
+        await parts.turn('yes');
         await parts.settle(3000);
         expect(parts.program()).toContain('wait 1 second');
         expect(parts.sent.slice(-6).some(item => item.type === 'conversation.item.create' &&
             /The project now/.test(item.item.content?.[0]?.text ?? ''))).toBe(false);
-        expect(parts.replies()).toBeGreaterThanOrEqual(replies);
     });
 
     test('tells the model why a suggestion cannot be used, without the student hearing each try', async () => {
@@ -207,7 +211,7 @@ describe('the live voice', () => {
         await parts.settle(1000);
         expect(parts.said().at(-1)).toBe('EDITOR: Say: Done. Added: wait 2 seconds. To take it back, say undo.');
         expect(parts.sent.at(-1)).toMatchObject({type: 'response.create',
-            response: {tool_choice: 'none', instructions: expect.stringMatching(/nothing else/)}});
+            response: {tool_choice: 'none', instructions: expect.stringMatching(/word for word, and nothing else/)}});
     });
 
     test('says it is working on a change while the text model works it out', async () => {

@@ -198,7 +198,7 @@ const createApp = (vm, {
         speak: (text, {reply = false} = {}) => {
             noteSaid(text);
             // In a live session the live voice says everything, so that the student hears one voice.
-            if (parts.get('live')?.active()) {
+            if (parts.get('live')?.takesSpeech()) {
                 reader.stop();
                 speaker.stop();
                 parts.get('live').say(text);

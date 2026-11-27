@@ -4,6 +4,11 @@
  "version": 1,
  "phrases": [
   {
+   "key": "151f8c65a1c4ff8c",
+   "file": "151f8c65a1c4ff8c.wav",
+   "text": "Add all, or step by step?"
+  },
+  {
    "key": "e7140fa112ea3d4f",
    "file": "e7140fa112ea3d4f.wav",
    "text": "Add each block any way you like, and I will notice."
@@ -159,6 +164,11 @@
    "text": "Or say guide me, or no."
   },
   {
+   "key": "9758a3a2d454e818",
+   "file": "9758a3a2d454e818.wav",
+   "text": "Or say no."
+  },
+  {
    "key": "9d020fedd4d5746d",
    "file": "9d020fedd4d5746d.wav",
    "text": "Please say it again."
@@ -172,11 +182,6 @@
    "key": "079e71bbd112c6c7",
    "file": "079e71bbd112c6c7.wav",
    "text": "Say a name or a number from the list, or say more."
-  },
-  {
-   "key": "01007c364f465e46",
-   "file": "01007c364f465e46.wav",
-   "text": "Say add all, guide me, or no."
   },
   {
    "key": "29c6a298c4fdd2b0",
@@ -217,6 +222,11 @@
    "key": "1ca622f389d57601",
    "file": "1ca622f389d57601.wav",
    "text": "Say yes to do all the steps, step by step to approve each one, no, or change it, and what to change."
+  },
+  {
+   "key": "5cf5c8ae2667e2c1",
+   "file": "5cf5c8ae2667e2c1.wav",
+   "text": "Say yes, guide me, or no."
   },
   {
    "key": "8fc9cc472670b2ea",
@@ -312,6 +322,11 @@
    "key": "62f13d0872827688",
    "file": "62f13d0872827688.wav",
    "text": "Working out what you said."
+  },
+  {
+   "key": "9daa20f7237f85a5",
+   "file": "9daa20f7237f85a5.wav",
+   "text": "Yes or no?"
   },
   {
    "key": "3f9c3e2477b822ff",

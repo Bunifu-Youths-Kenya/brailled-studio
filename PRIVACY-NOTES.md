@@ -89,7 +89,7 @@ for one minute.
 | Question | Answer |
 | - | - |
 | What shows it? | The red dot while it is on. When it starts, the editor says once "Live voice: while it is on, what you say, your program and Mboni's replies go to OpenAI", and Voice settings show it |
-| Who decides yes or no? | The editor, from the written-down words, as in any hands-free conversation: a bare "yes" approves nothing, "add it" approves only additions that "undo" takes back, where `conversation.voiceApproval` allows it, and anything else needs "yes" said while the talk key is held, or a button. The model is told it decides nothing, and nothing it says changes the project |
+| Who decides yes or no? | The editor, from the written-down words, as in any hands-free conversation: "yes" (and "add it", "add all") approves only additions that "undo" takes back, where `conversation.voiceApproval` allows it, with a second question, "add all or step by step", where there are several, and anything else needs "yes" said while the talk key is held, or a button. The model is told it decides nothing, and nothing it says changes the project |
 | Is the audio stored or logged? | Not by the editor or the server, which never sees it. What OpenAI keeps follows OpenAI's terms for the API and your account's settings; the realtime documentation read for this work did not state it, so check before students use it |
 | Zero data retention? | The OpenRouter settings do not apply: this goes to OpenAI directly |
 

@@ -32,7 +32,10 @@ const NO = ['no', 'no thanks', 'no thank you', 'cancel', 'wrong', 'do not', "don
 // What may be done at once after the wake words: it changes nothing. Anyone nearby can say them, so everything
 // else is asked about first.
 const FREE_AFTER_WAKE = new Set([...SAFE_ACTIONS, 'help.introduce', 'help.commandBox', 'voice.settings',
-    'voice.stopListening', 'mode.build', 'mode.guide']);
+    'voice.stopListening', 'mode.build', 'mode.guide', 'project.narrate', 'speech.repeat', 'speech.slower',
+    'speech.faster', 'speech.shorter', 'speech.longer', 'sound.toggle', 'sound.on', 'sound.off']);
+// Running is free too, unless a device is connected or in Upload mode, where it cannot be taken back.
+const RUNNING = ['project.run'];
 
 // The message for each of a provider's errors.
 const PROBLEMS = {
@@ -166,8 +169,14 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         routeCommand(app, text, origin);
     };
 
-    const changesThings = text => {
+    // `fromModel`: words written down by a model that had read the project, which could put "run" in the
+    // student's mouth, so that running is asked about too.
+    const changesThings = (text, fromModel = false) => {
         const id = parseCommand(text, app.actionNames(), app.assistantName());
+        if (RUNNING.includes(id)) {
+            const {device} = app.snapshot();
+            return fromModel || device.connected || device.mode === 'upload';
+        }
         return !!id && !FREE_AFTER_WAKE.has(id);
     };
 
@@ -208,7 +217,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         const unsure = confidence === null || confidence < threshold;
         // In a conversation doubtful words are most likely not meant for the assistant.
         if (unsure && origin === 'conversation') return;
-        if (unsure || ((origin !== 'voice' || fromModel) && changesThings(text))) {
+        if (unsure || ((origin !== 'voice' || fromModel) && changesThings(text, fromModel))) {
             set({heard: text, pending: {text, origin, unsure}, status: {text: ''}});
             const title = unsure ? voiceMessages.confirmTitle : voiceMessages.confirmChangeTitle;
             app.present(`${app.say(title, {text})} ${app.say(voiceMessages.confirmHint, keyWords())}`, {reply: false});

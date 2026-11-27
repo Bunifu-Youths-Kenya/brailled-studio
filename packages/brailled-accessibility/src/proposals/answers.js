@@ -5,6 +5,8 @@ const APPROVE_ALL = ['yes to all', 'yes do all', 'do all', 'do them all', 'appro
 // To be taken through the steps and do them oneself.
 const GUIDE = ['guide me', 'teach me', 'guide me through it', 'let me do it', 'i will do it'];
 const STEPS = ['step by step', 'go step by step', 'one step at a time', 'one at a time'];
+// To hear every step and what changes, before answering.
+const MORE = ['more detail', 'more details', 'tell me more', 'what changes', 'read the steps', 'details'];
 const REJECT = ['no', 'no thanks', 'no thank you', 'reject', 'cancel', 'stop here', 'no stop here'];
 // "change it: three seconds", or the same without the colon.
 const CHANGE = /^\s*(?:please\s+)?change\s+(?:it|that)\b[\s:,.-]*(.*)$/i;
@@ -36,7 +38,8 @@ const changeAsked = (text, openings) => {
 /**
  * @param {string} text The words.
  * @param {{yes: string[], no: string[], change: string[]}} [more] Ways of answering besides the English ones.
- * @returns {?{type: 'approve'|'all'|'steps'|'guide'|'reject'|'change', text: ?string}} What they ask for, or null.
+ * @returns {?{type: 'approve'|'all'|'steps'|'guide'|'more'|'reject'|'change', text: ?string}} What they ask for, or
+ * null.
  */
 const parseAnswer = (text, more = SWAHILI) => {
     const change = changeAsked(text, more.change);
@@ -46,6 +49,7 @@ const parseAnswer = (text, more = SWAHILI) => {
     if (APPROVE_ALL.includes(words)) return {type: 'all'};
     if (STEPS.includes(words)) return {type: 'steps'};
     if (GUIDE.includes(words)) return {type: 'guide'};
+    if (MORE.includes(words)) return {type: 'more'};
     return REJECT.includes(words) || more.no.includes(words) ? {type: 'reject'} : null;
 };
 

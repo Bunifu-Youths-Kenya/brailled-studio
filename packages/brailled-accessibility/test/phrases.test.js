@@ -36,7 +36,8 @@ const wanted = () => {
             .map(key => say(aiMessages[key])),
         ...['title', 'howToAnswer', 'howToAnswerMany', 'rejected', 'expired', 'stale', 'sayChange', 'revising',
             'nothingWaiting', 'warning', 'done', 'sayInConversation', 'sayInConversationKey',
-            'sayInConversationNoVoice', 'guideStart', 'guideWellDone', 'guideFinished', 'guideStopped']
+            'sayInConversationNoVoice', 'guideStart', 'guideWellDone', 'guideFinished', 'guideStopped', 'yesOrNo',
+            'howMany', 'holdToApprove']
             .map(key => say(proposalMessages[key])),
         say(...timeLimit(120))
     ];

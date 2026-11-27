@@ -1,5 +1,6 @@
 {
     "sentences": [
+        "Add all, or step by step?",
         "Add each block any way you like, and I will notice.",
         "Approve it?",
         "Ask again if you want it.",
@@ -31,10 +32,10 @@
         "Okay, let me look.",
         "Okay.",
         "Or say guide me, or no.",
+        "Or say no.",
         "Please say it again.",
         "Rejected.",
         "Say a name or a number from the list, or say more.",
-        "Say add all, guide me, or no.",
         "Say guide me, or no.",
         "Say hey, then Mboni, when you need me.",
         "Say it in fewer words.",
@@ -43,6 +44,7 @@
         "Say yes or go ahead, say no, or say change it, and what to change.",
         "Say yes or no while holding F2, or choose a button.",
         "Say yes to do all the steps, step by step to approve each one, no, or change it, and what to change.",
+        "Say yes, guide me, or no.",
         "Still waiting for Mboni.",
         "Stopped listening.",
         "That came too late for what was asked, or the question changed.",
@@ -62,6 +64,7 @@
         "Warning:",
         "Well done.",
         "Working out what you said.",
+        "Yes or no?",
         "this is hard to undo."
     ]
 }
