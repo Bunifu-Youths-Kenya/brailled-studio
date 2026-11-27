@@ -3,6 +3,19 @@
 What the Brailled additions do with students' information. This describes the code as it is, is not legal advice,
 and is not yet a privacy policy.
 
+## Accounts (online editor)
+
+Only an editor whose configuration has `"account": true` has accounts, and only the AI helper needs one.
+
+| Question | Answer |
+| - | - |
+| What is kept? | The name and email address Google gives, a role, any limits, how much is used each day, and for each AI call its time, kind, model, outcome and estimated cost. Nothing said, typed or built |
+| Where? | The school's Supabase project. Google is told that the person signed in |
+| Where do AI requests go? | To a function in that project, which passes them to OpenRouter, OpenAI and the model's provider as described below for your AI server |
+| In the browser | The sign-in is stored until the person signs out. On a shared computer, sign out after use |
+
+Before students use it, give notice and get consent as below, naming Supabase and Google too.
+
 ## Voice input
 
 Voice is optional: everything can be done from the keyboard.

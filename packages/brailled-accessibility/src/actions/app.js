@@ -16,6 +16,9 @@ import {createReader} from '../speech/read-aloud.js';
 import {SCRIPTS_VIEWS} from '../views.js';
 import voiceMessages from '../voice/messages.js';
 import {createOnlineVoice} from '../voice/online.js';
+import signInMessages from '../account/editor-messages.js';
+import aiMessages from '../ai/messages.js';
+import {signIn} from '../account/sign-in.js';
 import {readsRepliesOnline, speakingWith} from '../voice/speech-config.js';
 import {SWAHILI} from '../proposals/answers.js';
 import {accessibleName, focusableWithin, roleOf, zoneElement, zoneOf} from './dom.js';
@@ -96,7 +99,8 @@ const createApp = (vm, {
     settings = createSettings(storageOf(globalThis)),
     reader = createReader(globalThis),
     session = sessionOf(globalThis),
-    createSpeaker = createOnlineSpeaker
+    createSpeaker = createOnlineSpeaker,
+    account = signIn
 } = {}) => {
     // Each part of the interface registers an object of its own under a name.
     const parts = new Map();
@@ -129,7 +133,7 @@ const createApp = (vm, {
 
     const assistantName = () => config.get().assistantName || DEFAULT_ASSISTANT_NAME;
     // Whose service hears and speaks.
-    const online = createOnlineVoice(config);
+    const online = createOnlineVoice(config, {signedOut: () => account.required(), changes: account.subscribe});
     // Once the online voice has failed to speak, the device's own is used until the page is reloaded.
     let speakerFailed = false;
     // Added once the app it reports to exists.
@@ -146,6 +150,7 @@ const createApp = (vm, {
     // Whether to read with the online voice. What holds the student's name is not sent unless they allow it.
     const readsOnline = (text, reply) => {
         if (!readsRepliesOnline(config.get().speech) || !config.get().ai || speakerFailed) return false;
+        if (account.required()) return false;
         const {studentName, onlineName, onlineReadbacks} = settings.get();
         if (!onlineName && studentName && text.toLowerCase().includes(studentName.toLowerCase())) return false;
         // Sound that ships with the editor is sent nowhere. In a conversation the one voice says everything.
@@ -277,6 +282,21 @@ const createApp = (vm, {
             narrator = narrator ?? createNarrator({app, vm});
             return narrator;
         },
+        // Ask the AI helper, where there is one. Returns false, having said how to sign in, for someone who must
+        // do that first.
+        ask: (text, options) => {
+            if (!app.assistant()) return true;
+            if (account.required()) {
+                app.announce(app.say(aiMessages.signInNeeded));
+                return false;
+            }
+            app.assistant().handle(text, options);
+            return true;
+        },
+        // Who is signed in, in an editor with accounts, see `account/sign-in.js`.
+        account: () => account,
+        // The options for a request, with the login token where it is for the AI server.
+        authorised: (address, options) => account.authorised(address, options),
         // The last thing said through the live region, for "repeat that".
         lastSaid: () => lastAnnounced,
         // Where a block is, at the student's chosen detail, or empty. See `orientation/place.js`.
@@ -483,6 +503,7 @@ const createApp = (vm, {
     };
     speaker = createSpeaker({
         scope: globalThis,
+        authorised: (address, options) => account.authorised(address, options),
         address: () => config.get().aiEndpoint?.replace(/(?:\/assistant)?\/?(?=$|\?)/, '/speak') ?? null,
         // The school's speed, times the student's.
         settings: () => {
@@ -534,6 +555,23 @@ const createApp = (vm, {
             app.cue(CHANGE_CUES[result.cue.kind], {opcode: result.cue.opcode});
         }
     });
+    // Accounts, where the configuration has them. Signing in and out are said as they happen, but not what was so
+    // already when the editor opened.
+    const configureAccount = () => {
+        const {account: wanted, aiEndpoint} = config.get();
+        account.configure({endpoint: wanted ? aiEndpoint : null});
+    };
+    let wasSignedIn = null;
+    account.subscribe(() => {
+        const {signedIn} = account.getState();
+        if (wasSignedIn !== null && signedIn !== null && signedIn !== wasSignedIn) {
+            app.announce(app.say(signedIn ? signInMessages.signedIn : signInMessages.signedOut));
+        }
+        wasSignedIn = signedIn;
+    });
+    config.subscribe(configureAccount);
+    configureAccount();
+
     return app;
 };
 

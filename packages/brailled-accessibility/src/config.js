@@ -56,6 +56,7 @@ const SAFEST = Object.freeze({ai: false,
     conversation: conversationFrom(null),
     earcons: earconsFrom(null),
     aiEndpoint: null,
+    account: false,
     approval: 'every',
     proposalExpirySeconds: EXPIRY_SECONDS.usual,
     assistantMode: 'build'});
@@ -96,6 +97,8 @@ const interpret = file => {
         speech: speechFrom(file.voice),
         ai: !!aiEndpoint,
         aiEndpoint,
+        // Whether people sign in to use the AI helper, see `account/sign-in.js`.
+        account: !!aiEndpoint && file.account === true,
         approval: file.approval === BIG_CHANGES_ONLY ? 'big' : 'every',
         proposalExpirySeconds: expiryFrom(file.proposalExpirySeconds),
         // How the AI helper starts: suggesting changes, or teaching the student to make them.

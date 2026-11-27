@@ -34,7 +34,8 @@ const connect = (app, endpoint) => {
     assistant = createAssistant({
         ports: createAiPorts(app, queue.submitter),
         endpoint,
-        fetch: window.fetch.bind(window)
+        // In an editor with accounts: with the login token, and not at all without one.
+        fetch: app.account().fetcher(window.fetch.bind(window))
     });
     const guide = createGuide(app);
     const live = createLiveSession({app, assistant, endpoint, scope: window});

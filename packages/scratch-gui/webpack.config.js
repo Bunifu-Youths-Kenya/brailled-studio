@@ -240,6 +240,12 @@ const buildConfig = baseConfig.clone()
                 from: 'static',
                 to: 'static'
             },
+            // The online editor, with accounts: its own configuration takes the place of this computer's.
+            ...(process.env.BRAILLED_ONLINE ? [{
+                from: 'online/brailled-config.json',
+                to: 'static/brailled-config.json',
+                force: true
+            }] : []),
             {
                 from: 'extensions/**',
                 to: 'static',

@@ -1,8 +1,10 @@
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
-import React from 'react';
+import React, {useCallback, useSyncExternalStore} from 'react';
 import {defineMessages, FormattedMessage, useIntl} from 'react-intl';
 
+import signInMessages from './account/editor-messages.js';
+import {signIn} from './account/sign-in.js';
 import logo from './brand/brailled-logo.png';
 import styles from './menu-bar-items.css';
 
@@ -82,6 +84,27 @@ SaveButton.propTypes = {
     onClick: PropTypes.func.isRequired
 };
 
+// Opens the account page, in an editor with accounts.
+const AccountButton = ({className}) => {
+    const intl = useIntl();
+    const {enabled, signedIn} = useSyncExternalStore(signIn.subscribe, signIn.getState);
+    const handleClick = useCallback(() => signIn.open(), []);
+    if (!enabled) return null;
+    return (
+        <button
+            className={className}
+            type="button"
+            onClick={handleClick}
+        >
+            {intl.formatMessage(signedIn ? signInMessages.account : signInMessages.button)}
+        </button>
+    );
+};
+
+AccountButton.propTypes = {
+    className: PropTypes.string
+};
+
 const HelpAndExamples = ({className, onClickExamples}) => {
     const intl = useIntl();
     return (
@@ -109,6 +132,7 @@ const HelpAndExamples = ({className, onClickExamples}) => {
                     id="brailled.menuBar.examples"
                 />
             </button>
+            <AccountButton className={className} />
         </React.Fragment>
     );
 };

@@ -7,8 +7,10 @@
  * only then lets the model reply. A suggestion goes to the approval gate, and the gate's words are said by the live
  * voice, so that the student hears one voice.
  */
+import signInMessages from '../account/editor-messages.js';
 import parseCommand from '../actions/parser.js';
 import aiMessages from '../ai/messages.js';
+import {refusalMessage} from '../ai/refusals.js';
 import voiceMessages from '../voice/messages.js';
 
 const CALLS_URL = 'https://api.openai.com/v1/realtime/calls';
@@ -184,13 +186,14 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
     };
 
     const post = async (path, body) => {
-        const response = await scope.fetch(address(endpoint, path), {
+        const to = address(endpoint, path);
+        const response = await scope.fetch(to, await app.authorised(to, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(body),
             credentials: 'omit',
             referrerPolicy: 'no-referrer'
-        });
+        }));
         return {ok: response.ok, status: response.status, body: await response.json().catch(() => null)};
     };
 
@@ -334,12 +337,12 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
     };
 
     // A failure to start: the usual voice is used instead, and the student is told.
-    const fail = reason => {
+    const fail = (reason, message = voiceMessages.liveFailed) => {
         // eslint-disable-next-line no-console
         console.warn(`live: ${reason}`);
         close();
         set({phase: 'off'});
-        say(voiceMessages.liveFailed);
+        say(message);
     };
 
     const start = async () => {
@@ -348,13 +351,20 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
             say(voiceMessages.liveFailed);
             return;
         }
+        if (app.account().required()) {
+            say(aiMessages.signInNeeded);
+            return;
+        }
         set({phase: 'connecting'});
         app.silence();
         try {
             const minted = await post('/live-session', assistant.snapshot().body);
             if (state.phase !== 'connecting') return;
             if (!minted.ok || typeof minted.body?.secret !== 'string') {
-                fail(`the server answered ${minted.status}`);
+                const refusal = minted.body?.error;
+                fail(`the server answered ${minted.status}`, refusal === 'daily_limit' ?
+                    signInMessages.liveLimit :
+                    refusalMessage(refusal) ?? voiceMessages.liveFailed);
                 return;
             }
             connection = new scope.RTCPeerConnection();

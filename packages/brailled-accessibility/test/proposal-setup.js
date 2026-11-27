@@ -20,9 +20,10 @@ const failure = (status, error) => ({ok: false, status, json: () => Promise.reso
  * @param {object} [options] Options.
  * @param {Function} [options.respond] The AI server: given the request's body and number, returns a response.
  * @param {object} [options.school] What the configuration file says besides turning voice and the helper on.
+ * @param {object} [options.account] The sign-in, in an editor with accounts.
  * @returns {object} The parts, with helpers.
  */
-const setUp = ({respond = () => answer({type: 'explanation', text: 'Hello.'}), school = {}} = {}) => {
+const setUp = ({respond = () => answer({type: 'explanation', text: 'Hello.'}), school = {}, account} = {}) => {
     const project = makeProject({program: sample});
     const {vm} = project;
     const {runtime} = vm;
@@ -49,7 +50,7 @@ const setUp = ({respond = () => answer({type: 'explanation', text: 'Hello.'}), s
         ...school};
     const config = {get: () => configured, subscribe: () => () => {}};
     const settings = createSettings(null);
-    const app = createApp(vm, {config, reader, settings});
+    const app = createApp(vm, {config, reader, settings, account});
     const device = {name: null, connected: false, mode: 'live'};
     // The page, as far as the snapshot reads it.
     app.snapshot = () => ({

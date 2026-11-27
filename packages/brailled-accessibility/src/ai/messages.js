@@ -18,7 +18,12 @@ const aiMessages = defineMessages(Object.fromEntries(Object.entries({
     answerHintTyped: 'Type an answer or choose one. Your answer is sent to an online service.',
     send: 'Send answer',
     explanationTitle: '{assistant} says',
-    close: 'Close'
+    close: 'Close',
+    // Why the server of an editor with accounts refuses someone.
+    signInNeeded: 'Sign in to use {assistant}. Press Alt+Shift+A.',
+    dailyLimit: 'You have used today’s requests to {assistant}. They return tomorrow.',
+    blocked: 'This account cannot use {assistant}.',
+    switchedOff: '{assistant} is switched off for now.'
 }).map(([key, defaultMessage]) => [key, {
     id: `brailled.ai.${key}`,
     defaultMessage,

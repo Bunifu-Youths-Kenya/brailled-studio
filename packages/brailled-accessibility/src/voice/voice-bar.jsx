@@ -186,7 +186,9 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
                     return;
                 }
             }
-            const liveChosen = live && app.online.provider() === 'openai-live';
+            // Someone who has to sign in first is told so by the live voice, rather than given something else.
+            const liveChosen = live && (app.online.provider() === 'openai-live' ||
+                (app.account().required() && app.online.chosen() === 'openai-live'));
             if (live && live.getState().phase !== 'off' && (event.key === 'Escape' || matches(WAKE_KEY, event))) {
                 event.preventDefault();
                 event.stopPropagation();

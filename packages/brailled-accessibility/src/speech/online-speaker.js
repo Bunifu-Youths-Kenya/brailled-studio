@@ -19,7 +19,7 @@ const TIMEOUT_MS = 15000;
  * @param {Function} options.onFail Given the words that were not read.
  * @returns {object} The speaker.
  */
-const createOnlineSpeaker = ({scope, address, settings, onFail}) => {
+const createOnlineSpeaker = ({scope, address, settings, onFail, authorised = (to, options) => options}) => {
     // The sentences whose sound ships with the editor, by name.
     let kept = new Map();
     let loading = null;
@@ -74,7 +74,8 @@ const createOnlineSpeaker = ({scope, address, settings, onFail}) => {
             }
             const {provider, ttsVoice, ttsModel} = settings();
             if (!online || !address()) throw new Error('offline');
-            const response = await scope.fetch(address(), {
+            const to = address();
+            const response = await scope.fetch(to, await authorised(to, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(
@@ -82,7 +83,7 @@ const createOnlineSpeaker = ({scope, address, settings, onFail}) => {
                 credentials: 'omit',
                 referrerPolicy: 'no-referrer',
                 signal: controller.signal
-            });
+            }));
             if (!response.ok) throw new Error(`the server answered ${response.status}`);
             const samples = new Uint8Array(await response.arrayBuffer());
             if (samples.length === 0) throw new Error('no sound');

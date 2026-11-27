@@ -806,8 +806,21 @@ create them and change their values:
 `account.html`, from `src/account/`, is where someone creates an account or signs in, with Google and, where
 `"email": true`, with an email address and password. It reads the public address and publishable key of the
 Supabase project from `static/brailled-account.json`; a secret key is refused. The sign-in is kept in the browser
-under `brailled.account`, where pages of the same site can find it. The editor itself does not use it yet. The
-database and AI function are in [`supabase/`](../../supabase/README.md).
+under `brailled.account`, where pages of the same site can find it. The database and AI function are in
+[`supabase/`](../../supabase/README.md).
+
+**In the editor** accounts are on where `brailled-config.json` has `"account": true` with the AI helper on; without
+it nothing here changes. `packages/scratch-gui/online/brailled-config.json` is such a configuration, used by
+`BRAILLED_ONLINE=1 npm start` and `BRAILLED_ONLINE=1 npm run build`.
+
+- Only the AI needs a sign-in. Signed out, building, running, saving and the editor's own spoken commands work as
+  before, with the browser's speech recognition; anything for the AI is answered "Sign in to use Mboni", and sent
+  nowhere.
+- **Alt+Shift+A**, "sign in", and the menu bar's Sign in button open the account page in a new tab, so that the
+  project stays open. A spoken command cannot open a tab, and says which key to press.
+- `src/account/sign-in.js` adds the login token to requests for the AI server's own addresses, and to nothing else.
+- The server decides what a person may do, and the editor says why it refused: signed out, the day used up, the
+  account stopped, or the AI switched off.
 
 ## Test and lint
 

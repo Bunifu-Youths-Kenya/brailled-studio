@@ -15,7 +15,7 @@ const CLOSING_MS = 50;
  * @param {string} text The words.
  * @param {string} source Where they came from, such as `voice`, `wake` for words that followed the wake words, or
  * `conversation` for words said after them, hands-free.
- * @returns {string} `action`, `gate`, `assistant`, `unknown` or `blocked`.
+ * @returns {string} `action`, `gate`, `assistant`, `unknown`, `blocked` or `sign-in`.
  */
 const routeCommand = (app, text, source) => {
     // While a suggestion waits, what is said answers it, apart from stopping. Only the student's words come this
@@ -70,10 +70,7 @@ const routeCommand = (app, text, source) => {
         return 'unknown';
     }
     // The assistant only ever proposes.
-    if (assistant) {
-        assistant.handle(text, {source});
-        return 'assistant';
-    }
+    if (assistant) return app.ask(text, {source}) ? 'assistant' : 'sign-in';
     app.announce(app.say(speech.noAssistant));
     return 'unknown';
 };

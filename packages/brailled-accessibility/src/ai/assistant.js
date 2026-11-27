@@ -3,6 +3,7 @@
  * given only `ports` (see `proposals/ai-ports.js`), and puts suggestions in the proposal queue.
  */
 import aiMessages from './messages.js';
+import {refusalMessage} from './refusals.js';
 import {withBlockIds} from './refs.js';
 import {parseReply} from './reply.js';
 import {buildRequest} from './request.js';
@@ -21,6 +22,9 @@ const voiceAddress = endpoint => (/\/assistant(?=$|\?)/.test(endpoint) ?
 
 // Why a spoken turn failed, as a word the voice controller knows.
 const spokenProblem = (status, error) => {
+    if (error === 'sign_in_required') return 'sign_in';
+    // Why an account may not ask: its day is used up, it is stopped, or the AI is off.
+    if (refusalMessage(error)) return error;
     if (error === 'no_endpoint') return 'no_endpoint';
     if (error === 'invalid_output' || status === 400) return 'invalid';
     if (status === 413) return 'too_big';
@@ -160,7 +164,7 @@ const createAssistant = ({ports, endpoint, fetch}) => {
             await shortest;
             if (disposed) return;
             if (!response.ok) {
-                const message = PROBLEMS[response.status] ||
+                const message = refusalMessage(body?.error) || PROBLEMS[response.status] ||
                     (body?.error === 'invalid_output' ? aiMessages.failed : aiMessages.unreachable);
                 fail(message, `the server answered ${response.status}`);
                 return;

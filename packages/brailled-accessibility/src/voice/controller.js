@@ -2,6 +2,7 @@
 import parseCommand from '../actions/parser.js';
 import {routeCommand} from '../actions/route.js';
 import {TALK_KEYS} from '../actions/shortcuts.js';
+import aiMessages from '../ai/messages.js';
 import {ANSWERS, parseAnswer} from '../proposals/answers.js';
 import {SAFE_ACTIONS} from '../proposals/risk.js';
 import voiceMessages from './messages.js';
@@ -17,6 +18,10 @@ const TURN_PROBLEMS = {
     no_endpoint: {message: voiceMessages.noPrivateService, fallBack: true},
     unreachable: {message: voiceMessages.onlineUnavailable, fallBack: true},
     too_many: {message: voiceMessages.onlineLimit, fallBack: true},
+    sign_in: {message: aiMessages.signInNeeded},
+    daily_limit: {message: aiMessages.dailyLimit, fallBack: true},
+    blocked: {message: aiMessages.blocked, fallBack: true},
+    ai_off: {message: aiMessages.switchedOff, fallBack: true},
     too_big: {message: voiceMessages.tooLong},
     invalid: {message: voiceMessages.couldNot}
 };

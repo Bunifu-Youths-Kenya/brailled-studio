@@ -46,6 +46,7 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-27 | `AGENTS.md` | Adds the testing workflow: which tests to run after an edit and before a push. | Full browser runs after every change took too long. |
 | 2026-11-27 | `packages/scratch-gui/src/components/menu-bar/menu-bar.css`, `project-title-input.css`, `src/components/menu/menu.css` | A white menu bar with deep blue text, icons and project name box, and a line in the logo's blue; drop-down menus take the same deep blue. Black in High Contrast. | The logo sat in a white box on purple. It is now drawn straight on the bar. |
 | 2026-11-27 | `packages/scratch-gui/webpack.config.js`, `package.json`, `package-lock.json` | Builds `account.html`, Brailled's page for signing in, and adds `@supabase/supabase-js`. | Accounts for the online editor's AI. |
+| 2026-11-27 | `packages/scratch-gui/webpack.config.js` | With `BRAILLED_ONLINE` set, the online editor's configuration is served in place of this computer's. | The online editor has accounts and its own AI server. |
 
 ## Files added by Brailled
 
@@ -300,5 +301,9 @@ These are new files, not edits to Scratch's own.
 | 2026-11-27 | `packages/brailled-accessibility/src/account/settings.js` |
 | 2026-11-27 | `packages/brailled-accessibility/test/account.test.js` |
 | 2026-11-27 | `packages/scratch-gui/static/brailled-account.json` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/sign-in.js` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/editor-messages.js` |
+| 2026-11-27 | `packages/brailled-accessibility/test/sign-in.test.js` |
+| 2026-11-27 | `packages/scratch-gui/online/brailled-config.json` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

@@ -15,6 +15,8 @@ const PHRASES = {
     'program.moreDetail': ['more detail', 'more details', 'tell me everything', 'the whole program'],
     'project.narrate': ['narrate', 'narrate the program', 'run and narrate', 'tell me as it runs',
         'run slowly and tell me'],
+    'account.open': ['log in', 'sign up', 'my account', 'create an account', 'account'],
+    'account.signOut': ['log out'],
     'speech.repeat': ['say that again', 'say again', 'repeat what you said', 'pardon', 'what did you say'],
     'speech.slower': ['speak slower', 'talk slower', 'slow down', 'more slowly'],
     'speech.faster': ['speak faster', 'talk faster', 'speed up', 'more quickly'],

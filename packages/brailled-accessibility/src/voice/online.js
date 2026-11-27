@@ -2,7 +2,7 @@
  * Whose service hears and speaks. The school's choice applies where it can; once an online provider has failed,
  * the browser's is used until the page is reloaded.
  */
-const createOnlineVoice = config => {
+const createOnlineVoice = (config, {signedOut = () => false, changes = null} = {}) => {
     const listeners = new Set();
     let failed = false;
     // The one the school chose.
@@ -12,7 +12,8 @@ const createOnlineVoice = config => {
         // The one in use now.
         provider: () => {
             const {voice, ai} = config.get();
-            return voice === true && ai && !failed ? chosen() : 'browser';
+            // Without a sign-in where one is needed, only the browser's own speech can be used.
+            return voice === true && ai && !failed && !signedOut() ? chosen() : 'browser';
         },
         hasFallenBack: () => failed,
         fallBack: () => {
@@ -23,9 +24,11 @@ const createOnlineVoice = config => {
         subscribe: listener => {
             listeners.add(listener);
             const configured = config.subscribe(listener);
+            const signedIn = changes?.(listener);
             return () => {
                 listeners.delete(listener);
                 configured();
+                signedIn?.();
             };
         }
     };

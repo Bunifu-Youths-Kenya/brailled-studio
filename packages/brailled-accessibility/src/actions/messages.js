@@ -38,6 +38,8 @@ const ACTION_TEXTS = {
     program_summary: ['what\'s my program', 'Says how many scripts and blocks, then each block in order.'],
     program_moreDetail: ['more detail', 'Says every block of the program, with what each loop holds.'],
     project_narrate: ['run and tell me', 'Runs the program, saying each step as it is reached. Escape stops it.'],
+    account_open: ['sign in', 'Opens the page for signing in, in a new tab.'],
+    account_signOut: ['sign out', 'Signs you out in this browser.'],
     speech_repeat: ['repeat that', 'Says the last thing again.'],
     sound_toggle: ['sounds on or off', 'Turns the short sounds for what happens on or off.'],
     sound_on: ['sounds on', 'Plays short sounds for what happens, before the words.'],
@@ -80,6 +82,8 @@ const speech = fromTexts('brailled.speech', 'Spoken answer in the editor', {
     voiceUnsupported: 'This browser cannot turn speech into text.',
     voiceOff: 'Voice is turned off for this editor.',
     noAi: '{assistant}, the AI helper, is off.',
+    noAccounts: 'This editor has no accounts to sign in to.',
+    notSignedIn: 'You are not signed in.',
     about: 'This is Brailled, an editor where you build programs from blocks, by keyboard or by voice. I am ' +
         '{assistant}. Ask where you are, tell me what you want to make, or say run.',
     wakeOff: 'The wake word is not turned on for this editor.',

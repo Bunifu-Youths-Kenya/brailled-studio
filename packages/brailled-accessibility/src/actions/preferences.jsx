@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import React, {useCallback, useEffect, useState, useSyncExternalStore} from 'react';
 import {useIntl} from 'react-intl';
 
+import signInMessages from '../account/editor-messages.js';
 import earconMessages from '../earcons/messages.js';
 import Dialog from '../outline/dialog.jsx';
 import {INTRODUCTIONS, LISTEN_SECONDS, NARRATION_SPEEDS, TALK_KEY_IDS, VERBOSITIES} from '../settings.js';
@@ -14,6 +15,7 @@ import {TALK_KEYS} from './shortcuts.js';
 import dialogStyles from '../outline/dialog.css';
 
 const appShape = PropTypes.shape({
+    account: PropTypes.func.isRequired,
     announce: PropTypes.func.isRequired,
     assistantName: PropTypes.func.isRequired,
     config: PropTypes.shape({get: PropTypes.func.isRequired}).isRequired,
@@ -192,6 +194,14 @@ const VoiceSettings = ({app, onClose}) => {
                     data-voice-notice
                 >
                     {intl.formatMessage(notice, {assistant: app.assistantName()})}
+                </p>
+            ) : null}
+            {app.account().getState().enabled ? (
+                <p
+                    className={dialogStyles.field}
+                    data-account-notice
+                >
+                    {intl.formatMessage(signInMessages.kept, {assistant: app.assistantName()})}
                 </p>
             ) : null}
             <fieldset

@@ -2242,6 +2242,76 @@ const startAiServer = async (env = {}) => {
         });
     };
     const heading = page => page.locator('main h1').textContent();
+    // A sign-in the browser has kept from the account page.
+    const signedInAlready = () => {
+        if (window !== window.top || sessionStorage.getItem('stood-in')) return;
+        sessionStorage.setItem('stood-in', 'yes');
+        const part = value => btoa(JSON.stringify(value)).replace(/=+$/, '');
+        const expires = Math.floor(Date.now() / 1000) + 3600;
+        const user = {id: 'u1', email: 'a@example.org', role: 'authenticated', aud: 'authenticated'};
+        localStorage.setItem('brailled.account', JSON.stringify({
+            access_token: `${part({alg: 'HS256', typ: 'JWT'})}.${part({sub: 'u1', exp: expires})}.x`,
+            refresh_token: 'r', token_type: 'bearer', expires_in: 3600, expires_at: expires, user}));
+    };
+    // An editor with accounts, whose AI server is the online one's stand-in below.
+    const onlineAi = 'https://stand-in.supabase.co/functions/v1/ai/assistant';
+    const onlineConfig = {json: {voice: {enabled: true, provider: 'openai-live'}, ai: true, account: true,
+        aiEndpoint: onlineAi, conversation: {enabled: true, voiceApproval: true}}};
+    const onlineEditor = async page => {
+        await account()(page);
+        page.sent = [];
+        await page.route(`${onlineAi.replace('assistant', '')}*`, route => {
+            const asked = route.request();
+            const headers = {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*'};
+            if (asked.method() === 'OPTIONS') return route.fulfill({status: 204, headers});
+            page.sent.push({url: asked.url(), authorization: asked.headers().authorization});
+            return route.fulfill({headers, json: {reply: {type: 'explanation', text: 'A loop repeats blocks.'}}});
+        });
+    };
+
+    group('account in the editor, signed out', async t => {
+        const {page, key} = t;
+        const button = page.locator('header').getByRole('button', {name: 'Sign in'});
+        await t.pause(1500);
+        check('the menu bar offers signing in', await button.count() === 1);
+        await typed(t, 'what is a loop');
+        check('a request for the AI says to sign in', await t.said() ===
+            'Sign in to use Mboni. Press Alt+Shift+A.', await t.said());
+        await key('F4', 900);
+        check('so does the live voice key', await t.said() === 'Sign in to use Mboni. Press Alt+Shift+A.',
+            await t.said());
+        check('and nothing is sent to the AI', page.sent.length === 0, JSON.stringify(page.sent));
+        await typed(t, 'go to menu');
+        check('what needs no account still works', await t.said() === 'Menu bar.', await t.said());
+        const [opened] = await Promise.all([page.waitForEvent('popup'), key('Alt+Shift+KeyA', 900)]);
+        check('Alt+Shift+A opens the account page in a new tab, keeping the editor',
+            opened.url().endsWith('/account.html') && await page.locator('header').count() === 1, opened.url());
+        await opened.close();
+        await typed(t, 'voice settings');
+        check('Voice settings say what signing in keeps', /Signing in keeps your name/.test(
+            await page.locator('dialog [data-account-notice]').textContent()));
+    }, {init: [fakeSpeech, fakeVoice], prepare: onlineEditor, config: onlineConfig});
+
+    group('account in the editor, signed in', async t => {
+        const {page} = t;
+        await t.pause(1500);
+        check('the menu bar shows the account', await page.locator('header')
+            .getByRole('button', {name: 'Account'}).count() === 1);
+        await typed(t, 'what is a loop');
+        await t.pause(1500);
+        check('a request reaches the AI with the login token', page.sent.length >= 1 &&
+            page.sent[0].url === onlineAi && /^Bearer ey/.test(page.sent[0].authorization),
+        JSON.stringify(page.sent));
+        check('and its answer is given', /A loop repeats blocks\./.test(await page.locator('body').textContent()),
+            await t.said());
+        await page.locator('dialog').getByRole('button', {name: 'Close'}).click().catch(() => {});
+        await t.pause(500);
+        await typed(t, 'sign out');
+        await t.pause(900);
+        check('"sign out" signs out, and says so', await t.said() === 'You are signed out.', await t.said());
+        check('and the sign-in is forgotten',
+            await page.evaluate(() => localStorage.getItem('brailled.account') === null));
+    }, {init: [signedInAlready], prepare: onlineEditor, config: onlineConfig});
 
     group('account page', async t => {
         const {page, key} = t;
@@ -2295,16 +2365,7 @@ const startAiServer = async (env = {}) => {
         await key('Enter', 1500);
         check('signing out says so, and forgets the sign-in', await heading(page) === 'Log in' &&
             await page.evaluate(() => localStorage.getItem('brailled.account') === null), await heading(page));
-    }, {address: 'account.html', prepare: account(), init: [() => {
-        if (window !== window.top || sessionStorage.getItem('stood-in')) return;
-        sessionStorage.setItem('stood-in', 'yes');
-        const part = value => btoa(JSON.stringify(value)).replace(/=+$/, '');
-        const expires = Math.floor(Date.now() / 1000) + 3600;
-        const user = {id: 'u1', email: 'a@example.org', role: 'authenticated', aud: 'authenticated'};
-        localStorage.setItem('brailled.account', JSON.stringify({
-            access_token: `${part({alg: 'HS256', typ: 'JWT'})}.${part({sub: 'u1', exp: expires})}.x`,
-            refresh_token: 'r', token_type: 'bearer', expires_in: 3600, expires_at: expires, user}));
-    }]});
+    }, {address: 'account.html', prepare: account(), init: signedInAlready});
 
     group('account page with email', async t => {
         const {page, key} = t;

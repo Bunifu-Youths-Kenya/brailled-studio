@@ -182,7 +182,7 @@ const BrailledActions = ({vm, view, tab, onChangeView, onChangeTab}) => {
         const {id, ask} = pending.current;
         pending.current = null;
         if (id) app.perform(id);
-        else app.assistant()?.handle(ask);
+        else app.ask(ask);
     }, [app, commandBoxOpen]);
 
     return (

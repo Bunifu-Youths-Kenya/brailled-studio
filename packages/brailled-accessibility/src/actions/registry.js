@@ -12,6 +12,7 @@ import {descriptions, names, speech} from './messages.js';
 import {altShift, control, plain, shift, TALK_KEYS, VIEW_TOGGLE, WAKE_KEY} from './shortcuts.js';
 import earconMessages from '../earcons/messages.js';
 import orientationMessages from '../orientation/messages.js';
+import signInMessages from '../account/editor-messages.js';
 import {summarize} from '../orientation/place.js';
 import {SPEECH_RATES, VERBOSITIES} from '../settings.js';
 import {describeAbilities, describePlace} from './snapshot.js';
@@ -28,6 +29,11 @@ const withWake = app => {
     return app.wake() ? true : 'notReady';
 };
 const withAi = app => (app.config.get().ai ? true : 'noAi');
+const withAccounts = app => (app.account().getState().enabled ? true : 'noAccounts');
+const whileSignedIn = app => {
+    if (withAccounts(app) !== true) return 'noAccounts';
+    return app.account().getState().signedIn ? true : 'notSignedIn';
+};
 
 const define = (id, options) => {
     const key = id.replace(/\./g, '_');
@@ -181,6 +187,21 @@ const ACTIONS = [
                 return app.say(on ? earconMessages.on : earconMessages.off);
             }
         })),
+    // Accounts, in an editor that has them, see `account/sign-in.js`.
+    define('account.open', {
+        shortcuts: [altShift('A')],
+        proposable: false,
+        available: withAccounts,
+        run: app => app.say(app.account().open() ? signInMessages.opened : signInMessages.notOpened)
+    }),
+    define('account.signOut', {
+        proposable: false,
+        available: whileSignedIn,
+        // Signing out is said when it is noticed.
+        run: app => {
+            app.account().signOut();
+        }
+    }),
     // How things are said.
     define('speech.repeat', {
         proposable: false,

@@ -1,0 +1,32 @@
+{
+    "voice": {
+        "enabled": true,
+        "provider": "openai-live",
+        "listenModel": "google/gemini-3.5-flash-lite",
+        "ttsModel": "hexgrad/kokoro-82m",
+        "ttsVoice": "af_heart",
+        "readReplies": "online",
+        "speed": 1,
+        "maxRecordSeconds": 30,
+        "silenceSeconds": 2,
+        "doneWord": false
+    },
+    "assistantName": "Mboni",
+    "earcons": {
+        "enabled": true,
+        "volume": 0.15
+    },
+    "wakeWord": {
+        "enabled": false
+    },
+    "conversation": {
+        "enabled": true,
+        "voiceApproval": true,
+        "idleSeconds": 20
+    },
+    "ai": true,
+    "aiEndpoint": "https://rwevlhclrbwwdgahfwpk.supabase.co/functions/v1/ai/assistant",
+    "account": true,
+    "approval": "every time",
+    "proposalExpirySeconds": 120
+}
