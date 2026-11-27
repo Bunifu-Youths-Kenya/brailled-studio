@@ -32,6 +32,9 @@ const webConfig = baseConfig.clone()
                 type: 'umd2'
             },
             path: path.resolve(__dirname, 'dist', 'web'),
+            // Found beside the script that loads this library, so that an editor served from a directory, such as
+            // /playground/, finds the worker there.
+            publicPath: 'auto',
             clean: false
         }
     });
