@@ -508,6 +508,7 @@ Each step has a risk that the editor works out; nothing the AI says changes it.
 | `proposalExpirySeconds` | 30 to 900. Numbers outside that become the nearest limit | 120, also for anything that is not a number |
 | `voice` | `true`, `false`, or the [voice settings](#voice-settings) | Off |
 | `conversation` | `enabled`, `voiceApproval`, `idleSeconds`: [talking on](#conversation) after the wake words | Off |
+| `earcons` | `enabled`, `volume`, `pitchByCategory`, `events`: [short sounds](#earcons) for what happens | Off |
 | `wakeWord` | `enabled`, `engine` (`"demo"` or `"on-device"`), `greetings`, `variants` | Off |
 | `assistantName` | What the assistant is called: up to 30 letters | `"Mboni"`, also for anything that is not a name |
 | `assistantMode` | The mode the AI helper starts in: `"build"` or `"guide"`. A student can switch while the page is open | `"build"`, also for any other value |
@@ -619,6 +620,43 @@ where things are. `src/orientation/place.js` works it out from the Outline; noth
 
 Voice settings hold the detail ("After each change, say") and the speed of "run and tell me"; "slower" and "faster"
 change how fast both the device and the online voice read.
+
+## Earcons
+
+Short sounds that mark what happens, made in the browser with the Web Audio API (`src/earcons/earcons.js`): no
+sound files and nothing sent anywhere. Each lasts 100 to 300 milliseconds and is quiet unless turned up.
+
+| Event | Sound |
+| - | - |
+| A block added (or wrapped around others) | A rising tone |
+| A block removed | A falling tone |
+| A block moved | A short slide |
+| Into a loop or condition, with the arrow keys | Up a step |
+| Out of one | Down a step |
+| A command that could not be done, or a suggestion that failed | A low buzz |
+| An approved suggestion done | A chime |
+| A suggestion waiting for an answer | A gentle two-note question |
+
+- **Never the only cue.** Each sound comes before the words that say the same thing, which wait until it has ended;
+  whatever was still being read stops, as the new words replace it. No sound is played while the live voice speaks,
+  and Escape stops one at once.
+- **Pitched by category**, unless `pitchByCategory` is `false`: adding a looks block sounds a little higher than a
+  motion block, a control block a little lower.
+- **After a key press or click only**, as browsers require: nothing is played, and no audio context made by the
+  editor, before the student has done something.
+- A change the gate makes is marked once, by the chime, not block by block.
+
+The school's default is in `static/brailled-config.json`; students change it for themselves with **Alt+Shift+E**,
+"sounds on" or "sounds off", or in Voice settings.
+
+```json
+{"earcons": {"enabled": true, "volume": 0.15, "pitchByCategory": true,
+             "events": {"error": {"volume": 0.1}, "blockMoved": {"enabled": false}}}}
+```
+
+`enabled` is off unless it is `true`. `volume` is 0 to 1 (0.15 unless given), and each event in `events` may be
+turned off or given its own volume. The events are `blockAdded`, `blockRemoved`, `blockMoved`, `enterNesting`,
+`exitNesting`, `error`, `success` and `approvalNeeded`.
 
 ## Colours
 

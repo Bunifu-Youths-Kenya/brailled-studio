@@ -3,6 +3,7 @@
  * it can be changed without rebuilding. Anything that cannot be read is off.
  */
 import {DEFAULT_ASSISTANT_NAME, cleanName} from './names.js';
+import {earconsFrom} from './earcons/earcons.js';
 import {speechFrom, voiceIsOn} from './voice/speech-config.js';
 
 const CONFIG_URL = 'static/brailled-config.json';
@@ -53,6 +54,7 @@ const SAFEST = Object.freeze({ai: false,
     wakeWord: wakeFrom(null, DEFAULT_ASSISTANT_NAME),
     speech: speechFrom(null),
     conversation: conversationFrom(null),
+    earcons: earconsFrom(null),
     aiEndpoint: null,
     approval: 'every',
     proposalExpirySeconds: EXPIRY_SECONDS.usual,
@@ -102,6 +104,8 @@ const interpret = file => {
         assistantName,
         wakeWord: wakeFrom(file.wakeWord, assistantName),
         conversation: conversationFrom(file.conversation),
+        // Short sounds for what happens, see `earcons/earcons.js`: the school's default, which students may change.
+        earcons: earconsFrom(file.earcons),
         unreadable: false
     };
 };

@@ -143,6 +143,25 @@ const summarize = (nodes, say, {limit = SUMMARY_LIMIT} = {}) => {
 };
 
 /**
+ * The loops and conditions around two items: those around the first, those around the second, and how many,
+ * from the outside, are around both.
+ * @param {object[]} nodes The outline's script nodes.
+ * @param {?string} fromId The item before.
+ * @param {string} toId The item now.
+ * @returns {?{left: object[], entered: object[], same: number}} Or null if either is not in the outline.
+ */
+const nestingChange = (nodes, fromId, toId) => {
+    const before = fromId && pathTo(nodes, fromId);
+    const after = pathTo(nodes, toId);
+    if (!before || !after) return null;
+    const left = holdersOf(before);
+    const entered = holdersOf(after);
+    let same = 0;
+    while (same < left.length && same < entered.length && left[same].key === entered[same].key) same += 1;
+    return {left, entered, same};
+};
+
+/**
  * What changes in nesting on moving from one item to another: entering or leaving a loop or condition.
  * @param {object[]} nodes The outline's script nodes.
  * @param {?string} fromId The item before.
@@ -151,13 +170,9 @@ const summarize = (nodes, say, {limit = SUMMARY_LIMIT} = {}) => {
  * @returns {string} The cue, or empty.
  */
 const nestingCue = (nodes, fromId, toId, say) => {
-    const before = fromId && pathTo(nodes, fromId);
-    const after = pathTo(nodes, toId);
-    if (!before || !after) return '';
-    const left = holdersOf(before);
-    const entered = holdersOf(after);
-    let same = 0;
-    while (same < left.length && same < entered.length && left[same].key === entered[same].key) same += 1;
+    const change = nestingChange(nodes, fromId, toId);
+    if (!change) return '';
+    const {left, entered, same} = change;
     const cues = [];
     if (left.length > same) {
         // Innermost first, as they are left.
@@ -221,6 +236,7 @@ const previewOf = ({before, after, id, say}) => {
 export {
     SUMMARY_LIMIT,
     blocksOf,
+    nestingChange,
     nestingCue,
     pathTo,
     placeOf,

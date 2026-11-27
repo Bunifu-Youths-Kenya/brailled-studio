@@ -2,6 +2,7 @@
 import {createIntl} from 'react-intl';
 
 import {getEditor} from '../commands/editor.js';
+import {createEarcons, earconsFrom} from '../earcons/earcons.js';
 import {createNarrator} from '../orientation/narrator.js';
 import {placeSentence} from '../orientation/place.js';
 import {createConfig, fetchConfig} from '../config.js';
@@ -26,6 +27,15 @@ import {buildSnapshot} from './snapshot.js';
 const BLOCKS_TAB = 0;
 // A closing dialog needs a moment before screen readers hear the live region again.
 const ANNOUNCE_DELAY_MS = 150;
+// The pause between a short sound and the words after it.
+const CUE_GAP_MS = 40;
+// The sound for each kind of change to blocks.
+const CHANGE_CUES = Object.freeze({
+    added: 'blockAdded',
+    wrapped: 'blockAdded',
+    deleted: 'blockRemoved',
+    moved: 'blockMoved'
+});
 
 // How long what the editor said may still be heard by the microphone. A screen reader's speech cannot be followed,
 // so it is taken to last as long as a quick reader would take; the editor's own reading is followed while it lasts.
@@ -95,6 +105,12 @@ const createApp = (vm, {
     let announceTimer = null;
     let lastAnnounced = '';
     let narrator = null;
+    // When the short sound being played ends.
+    let cueEnds = 0;
+    // Added once the app it asks exists.
+    let earcons = null;
+    // A configuration made by hand, as in tests, may say nothing of them.
+    const schoolEarcons = () => config.get().earcons ?? earconsFrom(null);
     // What was said lately, so that the microphone does not take it for the student.
     let said = [];
     const noteSaid = text => {
@@ -209,6 +225,19 @@ const createApp = (vm, {
         silence: () => {
             reader.stop();
             speaker.stop();
+            earcons.stop();
+        },
+        // Whether the student hears short sounds: as they chose, or as the school chose.
+        earconsOn: () => settings.get().earcons ?? schoolEarcons().enabled,
+        // Play a short sound for what happened. What is said next waits until it has finished.
+        cue: (name, options) => {
+            const lasts = earcons.play(name, options);
+            if (!lasts) return 0;
+            // The words after it replace whatever was being read.
+            reader.stop();
+            speaker.stop();
+            cueEnds = Date.now() + lasts;
+            return lasts;
         },
         reading: () => !!reader.speaking?.() || speaker.speaking(),
         // Whether words the microphone heard are most likely the editor's own, read aloud or by a screen reader.
@@ -296,7 +325,7 @@ const createApp = (vm, {
                 noteSaid(full);
                 listeners.forEach(listener => listener(full));
                 app.speak(full, options);
-            }, ANNOUNCE_DELAY_MS);
+            }, Math.max(ANNOUNCE_DELAY_MS, cueEnds - Date.now() + CUE_GAP_MS));
         },
         // Say this before the next announcement, or on its own if none follows.
         preface: text => {
@@ -492,6 +521,18 @@ const createApp = (vm, {
         announce: text => app.announce(text),
         silence: () => app.silence(),
         session
+    });
+    // No sound over the live voice while it speaks.
+    earcons = createEarcons({scope: globalThis,
+        choices: () => ({...schoolEarcons(), enabled: app.earconsOn()}),
+        busy: () => !!parts.get('live')?.speaking()});
+    // A sound for every change to blocks, before it is said, and for every command that could not be done. A
+    // change the gate makes is marked by the gate, once it has all been done.
+    app.editor.subscribe(result => {
+        if (!result.ok) app.cue('error');
+        else if (result.changed && !result.quiet && CHANGE_CUES[result.cue?.kind]) {
+            app.cue(CHANGE_CUES[result.cue.kind], {opcode: result.cue.opcode});
+        }
     });
     return app;
 };

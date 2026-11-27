@@ -458,6 +458,7 @@ describe('the configuration', () => {
             wakeWord: expect.objectContaining({enabled: false}),
             speech: expect.objectContaining({provider: 'browser'}),
             conversation: expect.objectContaining({enabled: false, voiceApproval: false}),
+            earcons: expect.objectContaining({enabled: false, volume: 0.15}),
             unreadable: false});
     });
 
@@ -476,6 +477,7 @@ describe('the configuration', () => {
             wakeWord: expect.objectContaining({enabled: false}),
             speech: expect.objectContaining({provider: 'browser'}),
             conversation: expect.objectContaining({enabled: false, voiceApproval: false}),
+            earcons: expect.objectContaining({enabled: false, volume: 0.15}),
             unreadable: true});
     });
 
@@ -566,6 +568,7 @@ describe('reset for a new student', () => {
             verbosity: 'normal',
             narrationSpeed: 'normal',
             speechRate: 1,
+            earcons: null,
             questionDismissed: false
         });
         expect(listener).toHaveBeenCalled();

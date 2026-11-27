@@ -140,6 +140,7 @@ const createGate = ({
             fingerprint: fingerprintOf(app)
         });
         show();
+        app.cue('approvalNeeded');
         if (state.proposal.docked) app.present(wordsOf(state.proposal));
         else app.speak(wordsOf(state.proposal), {reply: true});
     };
@@ -254,6 +255,7 @@ const createGate = ({
         // What was done, and where the student now is.
         // Where the student is, where blocks changed.
         const place = outcome.ok && outcome.changed.length > 0 ? app.placeOf(outcome.changed.at(-1)) : '';
+        if (!quiet) app.cue(outcome.ok ? 'success' : 'error');
         if (!quiet) app.announce(readBack(outcome, done, place));
     };
 

@@ -46,6 +46,9 @@ const broadcastsIn = patch => [...Object.values(patch.before), ...Object.values(
  * @param {function(): string} [options.newId] Makes ids for new blocks.
  * @returns {object} The engine.
  */
+// The change that undoing one makes.
+const UNDONE = Object.freeze({added: 'deleted', deleted: 'added', wrapped: 'deleted'});
+
 const createEditor = (vm, {newId = randomId} = {}) => {
     let environment = defaultEnvironment();
     const listeners = new Set();
@@ -197,7 +200,8 @@ const createEditor = (vm, {newId = randomId} = {}) => {
             changed: true,
             dataChanged: !!entry.data,
             message: entry.sentence,
-            focusId: entry.focusAfter};
+            focusId: entry.focusAfter,
+            cue: entry.cue ?? null};
     };
 
     const edit = commands => {
@@ -216,7 +220,9 @@ const createEditor = (vm, {newId = randomId} = {}) => {
             ...blockEntry(target, patch, comments),
             sentence: sentences.join('. '),
             focusBefore: first.focusBefore,
-            focusAfter: last.kind === 'deleted' ? null : last.id
+            focusAfter: last.kind === 'deleted' ? null : last.id,
+            // What kind of change it was, and the kind of block it made, for a sound to mark it.
+            cue: {kind: last.kind, opcode: program.blocks[last.id]?.opcode ?? original.blocks[last.id]?.opcode}
         };
         entry.perform('redo');
         // One for each command: the block it made, or null.
@@ -267,7 +273,10 @@ const createEditor = (vm, {newId = randomId} = {}) => {
             changed: true,
             dataChanged: !!entry.data,
             message: say(direction === 'undo' ? readbacks.undone : readbacks.redone, {sentence: entry.sentence}),
-            focusId: direction === 'undo' ? entry.focusBefore : entry.focusAfter
+            focusId: direction === 'undo' ? entry.focusBefore : entry.focusAfter,
+            // Undoing an addition removes the block, and undoing a deletion brings it back.
+            cue: entry.cue && direction === 'undo' ? {...entry.cue, kind: UNDONE[entry.cue.kind] ?? entry.cue.kind} :
+                entry.cue ?? null
         };
     };
 

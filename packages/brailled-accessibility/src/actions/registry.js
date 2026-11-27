@@ -10,6 +10,7 @@
 import {SCRIPTS_VIEWS} from '../views.js';
 import {descriptions, names, speech} from './messages.js';
 import {altShift, control, plain, shift, TALK_KEYS, VIEW_TOGGLE, WAKE_KEY} from './shortcuts.js';
+import earconMessages from '../earcons/messages.js';
 import orientationMessages from '../orientation/messages.js';
 import {summarize} from '../orientation/place.js';
 import {SPEECH_RATES, VERBOSITIES} from '../settings.js';
@@ -169,6 +170,17 @@ const ACTIONS = [
         available: withSprite,
         run: app => app.narrator().start() || null
     }),
+    // Short sounds for what happens, see `earcons/earcons.js`.
+    ...[['sound.toggle', null, [altShift('E')]], ['sound.on', true, []], ['sound.off', false, []]]
+        .map(([id, wanted, shortcuts]) => define(id, {
+            shortcuts,
+            proposable: false,
+            run: app => {
+                const on = wanted ?? !app.earconsOn();
+                app.settings.set({earcons: on});
+                return app.say(on ? earconMessages.on : earconMessages.off);
+            }
+        })),
     // How things are said.
     define('speech.repeat', {
         proposable: false,

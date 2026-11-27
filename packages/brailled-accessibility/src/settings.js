@@ -32,7 +32,9 @@ const DEFAULTS = Object.freeze({
     voiceFirst: true,
     verbosity: 'normal',
     narrationSpeed: 'normal',
-    speechRate: 1
+    speechRate: 1,
+    // Whether short sounds mark what happens: true or false as the student chose, or null for the school's choice.
+    earcons: null
 });
 
 // Stored text may be old or edited by hand: keep only values the editor knows.
@@ -48,7 +50,8 @@ const clean = value => ({
     voiceFirst: value?.voiceFirst !== false,
     verbosity: VERBOSITIES.includes(value?.verbosity) ? value.verbosity : DEFAULTS.verbosity,
     narrationSpeed: NARRATION_SPEEDS.includes(value?.narrationSpeed) ? value.narrationSpeed : DEFAULTS.narrationSpeed,
-    speechRate: SPEECH_RATES.includes(value?.speechRate) ? value.speechRate : DEFAULTS.speechRate
+    speechRate: SPEECH_RATES.includes(value?.speechRate) ? value.speechRate : DEFAULTS.speechRate,
+    earcons: typeof value?.earcons === 'boolean' ? value.earcons : DEFAULTS.earcons
 });
 
 // The browser's storage, which can be switched off.

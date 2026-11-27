@@ -1567,6 +1567,53 @@ const startAiServer = async (env = {}) => {
             !(await page.evaluate(() => window.vm.runtime.threads.length)), await t.said());
     }, {init: [fakeSpeech, fakeVoice]});
 
+    // Notes the audio contexts made and the pitches asked for, around the browser's own.
+    const listenToSounds = () => {
+        if (window !== window.top) return;
+        window.sounds = {contexts: 0, pitches: []};
+        const Real = window.AudioContext;
+        window.AudioContext = class extends Real {
+            constructor (...args) {
+                super(...args);
+                window.sounds.contexts += 1;
+            }
+            createOscillator () {
+                const oscillator = super.createOscillator();
+                const set = oscillator.frequency.setValueAtTime.bind(oscillator.frequency);
+                oscillator.frequency.setValueAtTime = (value, time) => {
+                    window.sounds.pitches.push(Math.round(value));
+                    return set(value, time);
+                };
+                return oscillator;
+            }
+        };
+    };
+    await group('earcons', async t => {
+        const {page, key} = t;
+        const sounds = () => page.evaluate(() => window.sounds);
+        await t.pause(1500);
+        // Scratch's own sound engine makes an audio context when the page loads: what matters is that no sound is
+        // made before the student has done something, as browsers require.
+        await page.evaluate(() => window.brailled.run({op: 'insert', block: 'looks_hide'}));
+        await t.pause(600);
+        check('a change before any key press or click makes no sound', (await sounds()).pitches.length === 0,
+            JSON.stringify(await sounds()));
+        await page.evaluate(() => window.brailled.run({op: 'undo'}));
+        await startOutline(t);
+        await t.goTo('say Hello!');
+        const before = (await sounds()).pitches.length;
+        await key('Delete', 900);
+        const pitches = (await sounds()).pitches.slice(before);
+        check('deleting a block plays the falling tone, before the words', pitches[0] > 700 && pitches.length === 1 &&
+            /^Deleted: say Hello!/.test(await t.said()), `${pitches} / ${await t.said()}`);
+        await key('Alt+Shift+KeyE', 600);
+        check('Alt+Shift+E turns them off, and says so', await t.said() === 'Sounds off.', await t.said());
+        const quiet = (await sounds()).pitches.length;
+        await key('Control+KeyZ', 900);
+        check('then edits make no sound, and are still said', (await sounds()).pitches.length === quiet &&
+            /^Undone\./.test(await t.said()), await t.said());
+    }, {init: [listenToSounds], config: {json: {voice: true, earcons: {enabled: true}}}});
+
     const bigOnly = {approval: 'big changes only', proposalExpirySeconds: 30};
     await group('approval: the school asks about big changes only', async t => {
         const {page, pause} = t;

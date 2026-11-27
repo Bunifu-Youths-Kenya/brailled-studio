@@ -375,8 +375,9 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
         start,
         stop,
         toggle: () => (state.phase === 'off' ? start() : stop()),
-        // Whether the live voice is the one that speaks now.
+        // Whether the live voice is the one that speaks now, and whether it is speaking.
         active: () => state.phase === 'on',
+        speaking: () => state.phase === 'on' && responding,
         // Have the live voice say what the editor says.
         say: text => {
             if (state.phase !== 'on') return;

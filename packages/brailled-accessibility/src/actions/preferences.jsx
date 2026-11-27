@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import React, {useCallback, useEffect, useState, useSyncExternalStore} from 'react';
 import {useIntl} from 'react-intl';
 
+import earconMessages from '../earcons/messages.js';
 import Dialog from '../outline/dialog.jsx';
 import {INTRODUCTIONS, LISTEN_SECONDS, NARRATION_SPEEDS, TALK_KEY_IDS, VERBOSITIES} from '../settings.js';
 import {privacyNotice} from '../voice/notice.js';
@@ -16,6 +17,7 @@ const appShape = PropTypes.shape({
     announce: PropTypes.func.isRequired,
     assistantName: PropTypes.func.isRequired,
     config: PropTypes.shape({get: PropTypes.func.isRequired}).isRequired,
+    earconsOn: PropTypes.func.isRequired,
     forgetStudent: PropTypes.func.isRequired,
     online: PropTypes.shape({provider: PropTypes.func.isRequired}).isRequired,
     say: PropTypes.func.isRequired,
@@ -138,6 +140,7 @@ const VoiceSettings = ({app, onClose}) => {
     const handleOnlineName = useCallback(
         event => app.settings.set({onlineName: event.target.checked}), [app]);
     const handleVoiceFirst = useCallback(event => app.settings.set({voiceFirst: event.target.checked}), [app]);
+    const handleEarcons = useCallback(event => app.settings.set({earcons: event.target.checked}), [app]);
     const handleName = useCallback(event => app.settings.set({studentName: event.target.value}), [app]);
     const handleIntroduction = useCallback(
         event => app.settings.set({introduction: event.target.value}), [app]);
@@ -280,6 +283,23 @@ const VoiceSettings = ({app, onClose}) => {
                     id="brailled-voice-first-hint"
                 >
                     {intl.formatMessage(preferenceMessages.voiceFirstHint)}
+                </p>
+            </div>
+            <div className={dialogStyles.field}>
+                <label className={dialogStyles.row}>
+                    <input
+                        aria-describedby="brailled-earcons-hint"
+                        checked={settings.earcons ?? app.earconsOn()}
+                        type="checkbox"
+                        onChange={handleEarcons}
+                    />
+                    {intl.formatMessage(earconMessages.setting)}
+                </label>
+                <p
+                    className={dialogStyles.count}
+                    id="brailled-earcons-hint"
+                >
+                    {intl.formatMessage(earconMessages.settingHint)}
                 </p>
             </div>
             {app.online.provider() === 'browser' ? null : (
