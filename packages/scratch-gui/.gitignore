@@ -12,6 +12,7 @@ npm-*
 
 # Build
 /build
+/build-online
 /dist
 /.opt-in
 

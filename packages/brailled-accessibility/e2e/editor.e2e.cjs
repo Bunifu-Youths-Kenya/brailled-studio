@@ -322,6 +322,21 @@ const startAiServer = async (env = {}) => {
         await page.locator('header select').selectOption('es');
         await page.waitForTimeout(2500);
         check('in other languages too', await projectName() === 'Brailled Project', await projectName());
+        const sprite = await page.evaluate(() => {
+            const {costumes, sounds} = window.vm.editingTarget.sprite;
+            return {costumes: costumes.map(costume => costume.assetId), sounds: sounds.map(sound => sound.name)};
+        });
+        check('a new project starts with Brailled\'s own sprite, without the cat or its sound',
+            sprite.costumes.join() === '48130f364146d235b60deff751be73d2,8b111a0a87511e7de92cfe850c574beb' &&
+            sprite.sounds.join() === 'pop', JSON.stringify(sprite));
+        const code = page.locator('header').getByRole('link', {name: 'Source code'});
+        check('the menu bar offers the source code, in a new tab', await code.count() === 1 &&
+            await code.getAttribute('target') === '_blank' &&
+            (await code.getAttribute('href')).startsWith('https://github.com/Bunifu-Youths-Kenya/brailled-studio'));
+        check('and no examples, which are Scratch\'s', await page.locator('header')
+            .getByRole('button', {name: 'Examples'}).count() === 0);
+        check('nor a privacy page where there are no accounts', await page.locator('header')
+            .getByRole('link', {name: 'Privacy'}).count() === 0);
         await page.locator('header select').selectOption('en');
         await page.waitForTimeout(2500);
         const logo = page.locator('header').getByRole('img', {name: 'Brailled Education'});
@@ -330,8 +345,8 @@ const startAiServer = async (env = {}) => {
             await page.waitForTimeout(600);
             const shown = await logo.evaluate(img => {
                 const [own, bar] = [img.getBoundingClientRect(), img.closest('header').getBoundingClientRect()];
-                const last = Array.from(img.closest('header').querySelectorAll('button'))
-                    .find(button => button.textContent === 'Examples').getBoundingClientRect();
+                const last = Array.from(img.closest('header').querySelectorAll('a'))
+                    .find(link => link.textContent === 'Source code').getBoundingClientRect();
                 return {loaded: img.complete && img.naturalWidth > 0, width: Math.round(own.width),
                     height: Math.round(own.height), inside: own.top >= bar.top && own.bottom <= bar.bottom,
                     ratio: img.naturalWidth / img.naturalHeight, room: last.right <= window.innerWidth};
@@ -2269,11 +2284,28 @@ const startAiServer = async (env = {}) => {
         });
     };
 
+    group('privacy page', async ({page}) => {
+        const text = await page.locator('main').textContent();
+        check('the privacy page says what is kept and where it goes', await page.locator('main h1').count() === 1 &&
+            ['Supabase', 'OpenRouter', 'OpenAI', 'Google'].every(name => text.includes(name)), await page.title());
+        check('and links to the source code and back to the editor',
+            await page.locator('a[href^="https://github.com/Bunifu-Youths-Kenya/brailled-studio"]').count() > 0 &&
+            await page.locator('a[href="./"]').count() > 0);
+    }, {address: 'privacy.html'});
+
     group('account in the editor, signed out', async t => {
         const {page, key} = t;
         const button = page.locator('header').getByRole('button', {name: 'Sign in'});
         await t.pause(1500);
         check('the menu bar offers signing in', await button.count() === 1);
+        const privacy = page.locator('header').getByRole('link', {name: 'Privacy'});
+        await page.setViewportSize({width: 1024, height: 768});
+        await t.pause(600);
+        check('and the privacy page, in a new tab, with room for it at 1024 wide', await privacy.count() === 1 &&
+            await privacy.getAttribute('href') === 'privacy.html' &&
+            await privacy.getAttribute('target') === '_blank' &&
+            await privacy.evaluate(link => link.getBoundingClientRect().right <= window.innerWidth));
+        await page.setViewportSize({width: 1366, height: 768});
         await typed(t, 'what is a loop');
         check('a request for the AI says to sign in', await t.said() ===
             'Sign in to use Mboni. Press Alt+Shift+A.', await t.said());
@@ -2326,14 +2358,14 @@ const startAiServer = async (env = {}) => {
         check('axe: account page', (await t.axe('main')).length === 0, (await t.axe('main')).join('; '));
         await page.screenshot({path: path.join(out, 'account.png')});
         const reached = [];
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 7; i++) {
             await key('Tab', 80);
             reached.push(await page.evaluate(() => document.activeElement.getAttribute('aria-label') ||
                 document.activeElement.querySelector('img')?.alt || document.activeElement.textContent));
         }
         check('Tab reaches everything, in reading order', reached.join('|') === ['Brailled Education',
-            'Create account with Google', 'Log in', 'Brailled on Facebook', 'Brailled on Instagram',
-            'Brailled on LinkedIn'].join('|'), reached.join('|'));
+            'Create account with Google', 'Log in', 'What is kept and sent (privacy)', 'Brailled on Facebook',
+            'Brailled on Instagram', 'Brailled on LinkedIn'].join('|'), reached.join('|'));
         await page.getByRole('button', {name: 'Log in'}).focus();
         await key('Enter', 600);
         check('changing to logging in moves to the new heading', await heading(page) === 'Log in' &&

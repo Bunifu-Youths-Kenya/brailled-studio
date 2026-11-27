@@ -21,6 +21,16 @@ npx supabase db push --remote=<project ref>      # without --remote it changes a
 npx supabase functions deploy ai --use-api --project-ref <project ref>
 ```
 
+## Publish the editor
+
+1. Commit and push, then run `scripts/build-online.sh` from the repository root.
+2. Serve `online-site/playground/` from the website as `/playground/`.
+3. In the dashboard, under Authentication, add `https://brailledu.bunifuyouths.org/playground/account.html` to the
+   redirect addresses.
+4. Before the public uses it: switch off the Email provider unless email sending is set up, use a Google client of
+   Brailled's own, and set spending limits at OpenRouter and OpenAI. What
+   [LICENSE-NOTES.md](../LICENSE-NOTES.md) lists as not yet shippable still applies.
+
 ## Looking after it
 
 In the dashboard's table editor:

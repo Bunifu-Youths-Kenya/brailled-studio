@@ -6,7 +6,7 @@ the editor needs around them.
 | Source file | What it provides |
 | - | - |
 | `src/shell.jsx` | Skip links, zone ids and the focus indicator |
-| `src/menu-bar-items.jsx` | Product logo, language picker, Save, Help and Examples |
+| `src/menu-bar-items.jsx` | Product logo, language picker, Save, Help, the source code and privacy links, and the account button |
 | `src/brand/brailled-logo.png` | `packages/logos/Braille bot  Bio.png`, trimmed to the lettering, without the empty space around it |
 | `src/stage-tabs.jsx` | Devices, Sprites and Background tabs under the stage |
 | `src/devices-panel.jsx` | Devices panel (interface only; nothing connects yet) |
@@ -821,6 +821,12 @@ it nothing here changes. `packages/scratch-gui/online/brailled-config.json` is s
 - `src/account/sign-in.js` adds the login token to requests for the AI server's own addresses, and to nothing else.
 - The server decides what a person may do, and the editor says why it refused: signed out, the day used up, the
   account stopped, or the AI switched off.
+
+**Publishing.** `scripts/build-online.sh` builds the online editor into `online-site/playground/` and publishes
+nothing. It needs the changes to be committed, because the menu bar's Source code link leads to that commit, which
+must be pushed before the build is published. `privacy.html`, from `src/account/privacy.ejs`, says what is kept and
+sent; keep it in step with [PRIVACY-NOTES.md](../../PRIVACY-NOTES.md). See
+[`supabase/README.md`](../../supabase/README.md#publish-the-editor) for what the project needs.
 
 ## Test and lint
 

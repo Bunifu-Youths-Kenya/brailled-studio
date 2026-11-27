@@ -136,3 +136,6 @@ dist
 # Brailled: .env files can hold keys. Ignore every one, wherever it is, except the example.
 .env*
 !.env.example
+
+# The online editor, assembled by scripts/build-online.sh
+/online-site/

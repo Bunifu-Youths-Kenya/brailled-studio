@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <link rel="shortcut icon" href="static/favicon.ico">
+    <title>Privacy: Brailled editor</title>
+    <style>
+      body { margin: 0; background: #fff; color: #0b2545; font: 1.0625rem/1.6 system-ui, sans-serif; }
+      main { max-width: 42rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+      h1, h2 { line-height: 1.25; }
+      h2 { margin-top: 2rem; font-size: 1.25rem; }
+      a { color: #0a4a80; font-weight: bold; }
+      a:focus-visible { outline: 3px solid #0a4a80; outline-offset: 2px; }
+      li { margin-bottom: 0.4rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><a href="./">Open the editor</a></p>
+      <h1>Privacy in the Brailled editor</h1>
+      <p>This page says what the online editor keeps and what it sends to other services.</p>
+
+      <h2>Before you sign up</h2>
+      <ul>
+        <li>If you are a child, ask a parent or guardian first. Whoever offers the editor to children needs their
+          consent.</li>
+        <li>Do not say or type your name or other personal details to Mboni, the AI helper.</li>
+        <li>You do not need an account to build, run or save projects.</li>
+        <li>Everything Mboni does can be left unused: the editor works with the keyboard.</li>
+      </ul>
+
+      <h2>If you do not sign in</h2>
+      <ul>
+        <li>Your project stays in your browser. It is saved only when you save it, to your own device.</li>
+        <li>If you use spoken commands, your browser's speech service hears you. In Chrome that is Google.</li>
+        <li>Library pictures and sounds are loaded from Scratch's servers. Some extensions, such as Text to Speech
+          and Translate, send what a project gives them to online services.</li>
+        <li>Nothing is sent to an AI.</li>
+      </ul>
+
+      <h2>What your account keeps</h2>
+      <p>Accounts are kept with Supabase, in the European Union (Ireland). Signing in with Google tells Google that
+        you signed in.</p>
+      <ul>
+        <li>The name and email address Google gives.</li>
+        <li>Your role, any limits on your account, and how much you use each day.</li>
+        <li>For each AI request: its time, kind, AI model, whether it worked, and its estimated cost.</li>
+      </ul>
+      <p>Brailled does not keep what you say, type or build, and does not record your voice.</p>
+
+      <h2>What is sent when you use Mboni</h2>
+      <ul>
+        <li><strong>Typed or spoken requests:</strong> your words or a recording of them, the selected sprite's
+          program, the names in your project and the recent conversation go through Brailled's server on Supabase to
+          OpenRouter and the company that runs the AI model.</li>
+        <li><strong>Live voice:</strong> while it is on, your microphone's sound goes straight from your browser to
+          OpenAI, with the program, names and recent conversation. A red dot shows that the microphone is open.</li>
+        <li><strong>Reading replies aloud:</strong> the words of a reply may be sent to an online voice service
+          through OpenRouter.</li>
+      </ul>
+      <p>OpenRouter is asked to use only providers that do not keep or collect what is sent. That setting does not
+        cover live voice, and Brailled cannot check any provider's promises. Their own terms apply.</p>
+
+      <h2>What stays in your browser</h2>
+      <p>Your sign-in and your voice settings, including a first name if you typed one. On a shared computer, sign
+        out when you finish, and use "Reset for new student" in Voice settings.</p>
+
+      <h2>Your information and questions</h2>
+      <p>To ask what is kept about you, or to have your account removed, contact Brailled Education through
+        <a href="https://brailledu.bunifuyouths.org/">brailledu.bunifuyouths.org</a>.</p>
+
+      <h2>Source code</h2>
+      <p>This editor is free software under the GNU Affero General Public License.
+        <a href="<%= htmlWebpackPlugin.options.sourceUrl %>">Read the code of this version</a>. It is built from the
+        Scratch editor, and is not made or endorsed by the Scratch Foundation.</p>
+    </main>
+  </body>
+</html>

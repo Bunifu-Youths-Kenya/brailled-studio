@@ -147,6 +147,11 @@ const accountMessages = defineMessages({
         defaultMessage: 'You can close this tab and go back to your project.',
         description: 'On the page for signing in'
     },
+    privacy: {
+        id: 'brailled.account.privacy',
+        defaultMessage: 'What is kept and sent (privacy)',
+        description: 'On the page for signing in, a link to the privacy page'
+    },
     openEditor: {
         id: 'brailled.account.openEditor',
         defaultMessage: 'Open the editor',

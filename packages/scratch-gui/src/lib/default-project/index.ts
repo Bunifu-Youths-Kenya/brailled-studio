@@ -3,10 +3,9 @@ import {TranslatorFunction} from '../../gui-config';
 
 
 import popWav from '!arraybuffer-loader!./83a9787d4cb6f3b7632b4ddfebf74367.wav?';
-import meowWav from '!arraybuffer-loader!./83c36d806dc92327b9e7049a565c6bff.wav?';
 import backdrop from '!raw-loader!./cd21514d0531fdffb22204e0ec5ed84a.svg?';
-import costume1 from '!raw-loader!./bcf454acf82e4504149f7ffe07081dbc.svg?';
-import costume2 from '!raw-loader!./0fb9be3e8397c983338cb71dc84d0b25.svg?';
+import costume1 from '!raw-loader!./48130f364146d235b60deff751be73d2.svg?';
+import costume2 from '!raw-loader!./8b111a0a87511e7de92cfe850c574beb.svg?';
 
 
 declare function require (path: 'fastestsmallesttextencoderdecoder'): {TextEncoder: typeof TextEncoder};
@@ -35,22 +34,17 @@ const defaultProject = (translator?: TranslatorFunction) => {
         dataFormat: 'WAV',
         data: new Uint8Array(popWav)
     }, {
-        id: '83c36d806dc92327b9e7049a565c6bff',
-        assetType: 'Sound',
-        dataFormat: 'WAV',
-        data: new Uint8Array(meowWav)
-    }, {
         id: 'cd21514d0531fdffb22204e0ec5ed84a',
         assetType: 'ImageVector',
         dataFormat: 'SVG',
         data: encoder.encode(backdrop)
     }, {
-        id: 'bcf454acf82e4504149f7ffe07081dbc',
+        id: '48130f364146d235b60deff751be73d2',
         assetType: 'ImageVector',
         dataFormat: 'SVG',
         data: encoder.encode(costume1)
     }, {
-        id: '0fb9be3e8397c983338cb71dc84d0b25',
+        id: '8b111a0a87511e7de92cfe850c574beb',
         assetType: 'ImageVector',
         dataFormat: 'SVG',
         data: encoder.encode(costume2)

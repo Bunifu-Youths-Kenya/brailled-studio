@@ -16,6 +16,9 @@ Only an editor whose configuration has `"account": true` has accounts, and only 
 
 Before students use it, give notice and get consent as below, naming Supabase and Google too.
 
+The online editor shows people a short version of these notes at `privacy.html`
+(`packages/brailled-accessibility/src/account/privacy.ejs`).
+
 ## Voice input
 
 Voice is optional: everything can be done from the keyboard.

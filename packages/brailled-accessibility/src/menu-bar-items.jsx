@@ -1,3 +1,4 @@
+/* global process */
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React, {useCallback, useSyncExternalStore} from 'react';
@@ -105,8 +106,31 @@ AccountButton.propTypes = {
     className: PropTypes.string
 };
 
-const HelpAndExamples = ({className, onClickExamples}) => {
+// The code of the version being served, which its licence asks to be offered to whoever uses it.
+const SOURCE = process.env.BRAILLED_SOURCE;
+
+// A page that opens in a new tab, so that the project stays open.
+const MenuLink = ({children, className, href}) => (
+    <a
+        className={classNames(className, styles.link)}
+        href={href}
+        rel="noopener noreferrer"
+        target="_blank"
+    >
+        {children}
+    </a>
+);
+
+MenuLink.propTypes = {
+    children: PropTypes.node.isRequired,
+    className: PropTypes.string,
+    href: PropTypes.string.isRequired
+};
+
+const HelpAndLinks = ({className}) => {
     const intl = useIntl();
+    // The privacy page is about accounts and what is kept online.
+    const {enabled} = useSyncExternalStore(signIn.subscribe, signIn.getState);
     return (
         <React.Fragment>
             <button
@@ -121,30 +145,40 @@ const HelpAndExamples = ({className, onClickExamples}) => {
                     id="brailled.menuBar.help"
                 />
             </button>
-            <button
+            <MenuLink
                 className={className}
-                type="button"
-                onClick={onClickExamples}
+                href={SOURCE}
             >
                 <FormattedMessage
-                    defaultMessage="Examples"
-                    description="Menu bar button that opens the example projects and tutorials"
-                    id="brailled.menuBar.examples"
+                    defaultMessage="Source code"
+                    description="Menu bar link to the code of this editor"
+                    id="brailled.menuBar.source"
                 />
-            </button>
+            </MenuLink>
+            {enabled ? (
+                <MenuLink
+                    className={className}
+                    href="privacy.html"
+                >
+                    <FormattedMessage
+                        defaultMessage="Privacy"
+                        description="Menu bar link to the page about what is kept and sent"
+                        id="brailled.menuBar.privacy"
+                    />
+                </MenuLink>
+            ) : null}
             <AccountButton className={className} />
         </React.Fragment>
     );
 };
 
-HelpAndExamples.propTypes = {
-    className: PropTypes.string,
-    onClickExamples: PropTypes.func.isRequired
+HelpAndLinks.propTypes = {
+    className: PropTypes.string
 };
 
 export {
     BrandName,
     LanguageControl,
     SaveButton,
-    HelpAndExamples
+    HelpAndLinks
 };

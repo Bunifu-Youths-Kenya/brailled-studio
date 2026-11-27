@@ -27,3 +27,13 @@
     cursor: default;
     opacity: 0.85;
 }
+
+.link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.link:focus-visible {
+    outline: 3px solid var(--brailled-menu-focus);
+    outline-offset: -3px;
+}

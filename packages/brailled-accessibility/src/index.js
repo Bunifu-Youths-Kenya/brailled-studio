@@ -1,5 +1,5 @@
 export {SkipLinks, SCRIPTS_ZONE_ID, STAGE_ZONE_ID, shellBodyClassName, shellClassName} from './shell.jsx';
-export {BrandName, LanguageControl, SaveButton, HelpAndExamples} from './menu-bar-items.jsx';
+export {BrandName, LanguageControl, SaveButton, HelpAndLinks} from './menu-bar-items.jsx';
 export {default as StageTabs} from './stage-tabs.jsx';
 export {default as DevicesPanel} from './devices-panel.jsx';
 export {ScriptsViewToggle, ScriptsViews, SCRIPTS_VIEWS} from './scripts-views.jsx';

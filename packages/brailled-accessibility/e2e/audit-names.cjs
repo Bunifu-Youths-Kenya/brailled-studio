@@ -138,7 +138,6 @@ const describeNode = html => html.replace(/_[A-Za-z0-9+/-]{5}(?=["\s])/g, '');
     await screen('devices tab', () => page.getByRole('tab', {name: 'Devices'}).click(),
         () => page.getByRole('tab', {name: 'Sprites'}).click());
     await screen('extension library', () => button('Add Extension').click(), closeModal);
-    await screen('examples library', () => button('Examples').click(), closeModal);
     await screen('make a variable', async () => {
         await page.locator('.blocklyToolboxCategoryContainer#variables').click();
         await pause();

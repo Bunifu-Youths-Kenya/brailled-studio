@@ -28,7 +28,6 @@ import EditMenu from './edit-menu.jsx';
 import ModeMenu from './mode-menu.jsx';
 import AboutMenu from './about-menu.jsx';
 
-import {openTipsLibrary} from '../../reducers/modals';
 import {setPlayer} from '../../reducers/mode';
 import {
     isTimeTravel220022BC,
@@ -59,7 +58,7 @@ import styles from './menu-bar.css';
 import LanguageSelector from '../../containers/language-selector.jsx';
 import {
     BrandName,
-    HelpAndExamples,
+    HelpAndLinks,
     LanguageControl,
     SaveButton
 } from '../../../../brailled-accessibility/src/index.js';
@@ -428,10 +427,7 @@ class MenuBar extends React.Component {
                 {/* show the proper UI in the account menu, given whether the user is
                 logged in, and whether a session is available to log in with */}
                 <div className={styles.accountInfoGroup}>
-                    <HelpAndExamples
-                        className={classNames(styles.menuBarItem, styles.hoverable, 'tutorials-button')}
-                        onClickExamples={this.props.onOpenTipLibrary}
-                    />
+                    <HelpAndLinks className={classNames(styles.menuBarItem, styles.hoverable)} />
                     <div className={styles.menuBarItem}>
                         {this.props.canSave ? (
                             <SaveStatus className={classNames(styles.hoverable, styles.menuBarItem)} />
@@ -639,7 +635,6 @@ MenuBar.propTypes = {
     onClickSave: PropTypes.func,
     onLogOut: PropTypes.func,
     onOpenRegistration: PropTypes.func,
-    onOpenTipLibrary: PropTypes.func,
     onProjectTelemetryEvent: PropTypes.func,
     onRequestCloseLogin: PropTypes.func,
     onSeeCommunity: PropTypes.func,
@@ -712,7 +707,6 @@ const mapStateToProps = (state, ownProps) => {
 
 const mapDispatchToProps = (dispatch, ownProps) => ({
     autoUpdateProject: () => dispatch(autoUpdateProject()),
-    onOpenTipLibrary: () => dispatch(openTipsLibrary()),
     onClickNew: needSave => dispatch(requestNewProject(needSave)),
     onClickLogin: ownProps.onClickLogin ?? (() => dispatch(openLoginMenu())),
     onClickSave: () => dispatch(manualUpdateProject()),

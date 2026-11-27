@@ -47,6 +47,12 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-27 | `packages/scratch-gui/src/components/menu-bar/menu-bar.css`, `project-title-input.css`, `src/components/menu/menu.css` | A white menu bar with deep blue text, icons and project name box, and a line in the logo's blue; drop-down menus take the same deep blue. Black in High Contrast. | The logo sat in a white box on purple. It is now drawn straight on the bar. |
 | 2026-11-27 | `packages/scratch-gui/webpack.config.js`, `package.json`, `package-lock.json` | Builds `account.html`, Brailled's page for signing in, and adds `@supabase/supabase-js`. | Accounts for the online editor's AI. |
 | 2026-11-27 | `packages/scratch-gui/webpack.config.js` | With `BRAILLED_ONLINE` set, the online editor's configuration is served in place of this computer's. | The online editor has accounts and its own AI server. |
+| 2026-11-27 | `packages/scratch-gui/src/components/menu-bar/menu-bar.jsx` | The Examples button and its unused prop are removed; the Brailled menu items are the source code and privacy links. | The tutorials are Scratch's; the licence asks that the source be offered. |
+| 2026-11-27 | `packages/scratch-gui/src/lib/default-project/index.ts`, `project-data.ts`, `messages.js` | The new project's sprite is Brailled's robot with the pop sound; the cat's costumes and meow are no longer used. | The product must not ship the Scratch Cat. |
+| 2026-11-27 | `packages/scratch-gui/src/lib/default-project/bcf454acf82e4504149f7ffe07081dbc.svg`, `0fb9be3e8397c983338cb71dc84d0b25.svg`, `83c36d806dc92327b9e7049a565c6bff.wav` | Deleted. | The product must not ship the Scratch Cat. |
+| 2026-11-27 | `packages/scratch-gui/webpack.config.js` | Builds the privacy page, sets the source code address, and builds the online editor into `build-online/`. | Publishing the online editor. |
+| 2026-11-27 | `packages/scratch-gui/.gitignore`, `.npmignore`, `.gitignore` | The online build is ignored. | It is built, not kept. |
+| 2026-11-27 | `packages/scratch-storage/webpack.config.js` | The web build finds its worker beside the script that loads it. | It was looked for at the website's root, so it was missing under `/playground/`. |
 
 ## Files added by Brailled
 
@@ -305,5 +311,9 @@ These are new files, not edits to Scratch's own.
 | 2026-11-27 | `packages/brailled-accessibility/src/account/editor-messages.js` |
 | 2026-11-27 | `packages/brailled-accessibility/test/sign-in.test.js` |
 | 2026-11-27 | `packages/scratch-gui/online/brailled-config.json` |
+| 2026-11-27 | `packages/scratch-gui/src/lib/default-project/48130f364146d235b60deff751be73d2.svg` |
+| 2026-11-27 | `packages/scratch-gui/src/lib/default-project/8b111a0a87511e7de92cfe850c574beb.svg` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/privacy.ejs` |
+| 2026-11-27 | `scripts/build-online.sh` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

@@ -7,6 +7,11 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 const ScratchWebpackConfigBuilder = require('scratch-webpack-configuration');
 
+const SOURCE_REPOSITORY = 'https://github.com/Bunifu-Youths-Kenya/brailled-studio';
+
+// The online editor is built into a directory of its own, so that nothing left from another build is published.
+const BUILD_DIRECTORY = process.env.BRAILLED_ONLINE ? 'build-online' : 'build';
+
 // const STATIC_PATH = process.env.STATIC_PATH || '/static';
 
 const commonHtmlWebpackPluginOptions = {
@@ -73,6 +78,8 @@ const baseConfig = new ScratchWebpackConfigBuilder(
         type: 'asset' // let webpack decide on the best type of asset
     })
     .addPlugin(new webpack.DefinePlugin({
+        // Where the code being built can be read, which the menu bar links to.
+        'process.env.BRAILLED_SOURCE': JSON.stringify(process.env.BRAILLED_SOURCE || SOURCE_REPOSITORY),
         'process.env.DEBUG': Boolean(process.env.DEBUG),
         'process.env.GA_ID': `"${process.env.GA_ID || 'UA-000000-01'}"`,
         'process.env.GTM_ENV_AUTH': `"${process.env.GTM_ENV_AUTH || ''}"`,
@@ -176,7 +183,7 @@ const buildConfig = baseConfig.clone()
             account: '../brailled-accessibility/src/account/index.jsx'
         },
         output: {
-            path: path.resolve(__dirname, 'build'),
+            path: path.resolve(__dirname, BUILD_DIRECTORY),
 
             // This output is loaded using a file:// scheme from the local file system.
             // Having `publicPath: '/'` (the default) means the `gui.js` file in `build/index.html`
@@ -225,6 +232,13 @@ const buildConfig = baseConfig.clone()
         filename: 'player.html',
         template: 'src/playground/index.ejs',
         title: 'Brailled: Player Example'
+    }))
+    // What is kept and sent, for people using the online editor.
+    .addPlugin(new HtmlWebpackPlugin({
+        chunks: [],
+        filename: 'privacy.html',
+        template: '../brailled-accessibility/src/account/privacy.ejs',
+        sourceUrl: process.env.BRAILLED_SOURCE || SOURCE_REPOSITORY
     }))
     // Brailled's page for creating an account and signing in.
     .addPlugin(new HtmlWebpackPlugin({

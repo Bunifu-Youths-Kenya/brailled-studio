@@ -296,6 +296,15 @@ const AccountPage = ({account}) => {
                         account={account}
                         state={state}
                     />
+                    <p className={styles.privacy}>
+                        <a
+                            href="privacy.html"
+                            rel="noopener"
+                            target="_blank"
+                        >
+                            {intl.formatMessage(messages.privacy)}
+                        </a>
+                    </p>
                     <ul
                         aria-label={intl.formatMessage(messages.social)}
                         className={styles.social}

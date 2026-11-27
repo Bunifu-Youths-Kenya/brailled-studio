@@ -35,13 +35,13 @@ Our rules:
 
 ## Not yet shippable
 
-The Scratch logo has been replaced by the name Brailled in the editor's menu bar. No other branding has been
-changed. Scratch branding remains in at least these places, and all of it must be removed or replaced before
+Replaced: the menu bar logo, the page title, the default project's name, sprite and sound, and the favicon. The
+Examples button, which opened Scratch's tutorials, is gone, and the menu bar links to the source of the version
+being served. Scratch branding remains in at least these places, and all of it must be removed or replaced before
 anyone outside the team is given a build or a hosted copy:
 
-- the page title ("Scratch 3.0 GUI") and the default project name ("Scratch Project")
-- the default cat sprite and its watermark, library artwork (including the Marks) and the favicon
-- the example and tutorial library opened by the Examples button
+- library artwork and sounds, including the Marks, in the sprite, costume, backdrop and sound libraries
+- the tutorials, which a `?tutorial=` address still opens
 - messages that name Scratch: crash, unsupported browser, WebGL, telemetry, alert and device connection dialogs
 - the logo shown on the full screen stage when the editor is embedded
 - the titles and branding of the other playground pages (player, standalone, blocks only and so on)
