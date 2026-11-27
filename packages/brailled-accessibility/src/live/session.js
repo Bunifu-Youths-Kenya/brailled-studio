@@ -23,6 +23,10 @@ const WARN_MS = 15 * 1000;
 const MOST_TRIES = 3;
 // How long after the talk key is let go words still count as said with it.
 const HELD_MS = 3000;
+// How long after the live voice stops the room is given to fall quiet before the microphone opens again.
+const ECHO_MS = 300;
+// The microphone opens again after this long even if the end of the speech was never reported.
+const MOST_SPEECH_MS = 60 * 1000;
 // For a turn that only says what the editor says.
 // The words go in the instructions for that one turn, so there is no label for the model to read out.
 const sayOnly = text => 'Say this to the student, warmly, word for word, and nothing else. Add no question, no ' +
@@ -73,6 +77,10 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
     let holding = false;
     let heldUntil = 0;
     const deliberate = () => holding || Date.now() < heldUntil;
+    // Whether the live voice can be heard now, and which of the student's turns began while it could.
+    let playing = false;
+    const overVoice = new Set();
+    let played = null;
 
     const set = changes => {
         state = {...state, ...changes};
@@ -81,6 +89,21 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
     const say = message => app.announce(app.say(message, {assistant: app.assistantName(), key: 'F4'}));
     const send = event => {
         if (channel?.readyState === 'open') channel.send(JSON.stringify(event));
+    };
+
+    // The microphone is closed while the live voice speaks, so that it cannot hear itself and take that for the
+    // student. It stays open for a student who wears headphones and wants to talk over it, and while the talk key is
+    // held.
+    const microphone = () => {
+        const open = !playing || holding || app.settings.get().liveInterrupt;
+        stream?.getTracks().forEach(track => {
+            track.enabled = open;
+        });
+    };
+    const speechEnded = () => {
+        clearTimeout(played);
+        playing = false;
+        microphone();
     };
     const tell = text => send({type: 'conversation.item.create',
         item: {type: 'message', role: 'system', content: [{type: 'input_text', text}]}});
@@ -91,7 +114,10 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
         clearTimeout(longest);
         clearTimeout(waitingFor);
         clearTimeout(gathering);
+        clearTimeout(played);
         gathering = null;
+        [playing, holding] = [false, false];
+        overVoice.clear();
         channel?.close();
         connection?.close();
         stream?.getTracks().forEach(track => track.stop());
@@ -106,9 +132,9 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
         if (!quietly) say(message);
     };
 
-    // The model replies once nothing else is being said.
+    // The model replies once nothing else is being said, and the student is not holding the talk key.
     const reply = () => {
-        if (responding) {
+        if (responding || holding) {
             replyWanted = true;
             return;
         }
@@ -127,10 +153,10 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
     // What the editor says goes through the live voice, gathered for a moment so that what follows at once is said
     // together, and anything a later sentence already says is left out.
     const flush = () => {
-        if (!toSay.length || responding || gathering) return;
+        if (!toSay.length || responding || gathering || holding) return;
         gathering = setTimeout(() => {
             gathering = null;
-            if (!toSay.length || responding) return;
+            if (!toSay.length || responding || holding) return;
             const said = toSay.filter((text, at) => !toSay.slice(at + 1).some(later => later.includes(
                 text.replace(/[.!?]+$/, ''))));
             toSay = [];
@@ -218,7 +244,8 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
     };
 
     // What the student said. The editor decides what it is before the model may answer.
-    const heard = text => {
+    const heard = (text, turn) => {
+        const begunOverVoice = overVoice.delete(turn);
         clearTimeout(waitingFor);
         waitingFor = null;
         const words = text.trim();
@@ -231,7 +258,8 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
         // takes them as in any hands-free conversation, unless the student held the talk key while saying them.
         if (app.gate()?.isOpen()) {
             if (deliberate()) app.gate().hear(words);
-            else app.gate().handsFree(words);
+            // Words begun while the voice was asking could be its own, so they approve nothing.
+            else app.gate().handsFree(words, {mayApprove: !begunOverVoice});
             return;
         }
         // An answer to a question the editor is showing goes back to where the question came from.
@@ -252,6 +280,7 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
     const onEvent = event => {
         switch (event.type) {
         case 'input_audio_buffer.speech_started':
+            if (playing) overVoice.add(event.item_id);
             asking = false;
             quiet();
             toSay = [];
@@ -269,8 +298,19 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
         case 'response.created':
             responding = true;
             break;
+        case 'output_audio_buffer.started':
+            clearTimeout(played);
+            playing = true;
+            microphone();
+            played = setTimeout(speechEnded, MOST_SPEECH_MS);
+            break;
+        case 'output_audio_buffer.stopped':
+        case 'output_audio_buffer.cleared':
+            clearTimeout(played);
+            played = setTimeout(speechEnded, ECHO_MS);
+            break;
         case 'conversation.item.input_audio_transcription.completed':
-            heard(event.transcript ?? '');
+            heard(event.transcript ?? '', event.item_id);
             break;
         case 'response.done': {
             responding = false;
@@ -343,6 +383,7 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
                 }
                 onEvent(event);
             };
+            microphone();
             channel.onopen = () => {
                 tell(`EDITOR: The project and the editor, as data: ${minted.body.context}`);
                 set({phase: 'on'});
@@ -371,6 +412,9 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
         }
     };
 
+    // A new choice about talking over the voice applies at once.
+    const unsubscribe = app.settings.subscribe(microphone);
+
     return {
         getState: () => state,
         subscribe: listener => {
@@ -393,12 +437,41 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
         // Whether what the editor says should go to the live voice: from the moment it starts connecting, so that
         // nothing is read by another voice over its greeting.
         takesSpeech: () => state.phase !== 'off',
-        // The talk key, held while the student answers.
-        holdToAnswer: held => {
-            holding = held;
-            if (!held) heldUntil = Date.now() + HELD_MS;
+        // Stop the voice because the student asked: nothing queued is said, and the microphone opens. Returns false,
+        // having done nothing, where the voice cannot be heard.
+        interrupt: () => {
+            if (!playing) return false;
+            if (responding) send({type: 'response.cancel'});
+            send({type: 'output_audio_buffer.clear'});
+            clearTimeout(gathering);
+            gathering = null;
+            [toSay, replyWanted, playing] = [[], false, false];
+            clearTimeout(played);
+            played = setTimeout(microphone, ECHO_MS);
+            quiet();
+            return true;
         },
-        dispose: () => stop({quietly: true})
+        // The talk key, held while the student answers. The voice stops, so that the microphone hears only them.
+        holdToAnswer: held => {
+            if (held === holding) return;
+            holding = held;
+            if (held) {
+                clearTimeout(gathering);
+                gathering = null;
+                if (responding) send({type: 'response.cancel'});
+                if (playing) send({type: 'output_audio_buffer.clear'});
+                speechEnded();
+                return;
+            }
+            heldUntil = Date.now() + HELD_MS;
+            microphone();
+            if (replyWanted) reply();
+            flush();
+        },
+        dispose: () => {
+            unsubscribe();
+            stop({quietly: true});
+        }
     };
 };
 

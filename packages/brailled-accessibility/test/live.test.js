@@ -1,4 +1,5 @@
 // OpenAI's live voice in the editor, with WebRTC, the microphone and both servers stood in for. No real service.
+import {takesTyping} from '../src/actions/dom.js';
 import {createLiveSession} from '../src/live/session.js';
 import {answer, setUp} from './proposal-setup.js';
 
@@ -18,7 +19,7 @@ const waiting = body => ({
 // A browser with WebRTC and a microphone, and the AI server and OpenAI behind fetch.
 const browser = ({session = () => answer(null), tool = () => ({text: 'Found.'})} = {}) => {
     const sent = [];
-    const track = {stop: jest.fn()};
+    const track = {stop: jest.fn(), enabled: true};
     const channel = {
         readyState: 'open',
         send: jest.fn(text => sent.push(JSON.parse(text))),
@@ -341,6 +342,168 @@ describe('the live voice', () => {
         expect(parts.session.getState().phase).toBe('off');
         expect(parts.track.stop).toHaveBeenCalled();
         expect(parts.heard.at(-1)).toMatch(/Press F4 when you want to talk again/);
+    });
+
+    // A session with a suggestion waiting, its question said.
+    const suggested = async steps => {
+        const holder = {};
+        const parts = live({session: body => minted(holder.fake)(body),
+            tool: body => ({reply: steps ? {type: 'proposal', summary: 'x', steps: steps(body)} :
+                waiting(body.request)})});
+        holder.fake = parts;
+        await parts.begin();
+        await parts.done([{type: 'function_call', name: 'make_change', call_id: 'call1', arguments: '{}'}]);
+        await parts.done();
+        await parts.settle(1000);
+        expect(parts.gate.isOpen()).toBe(true);
+        return parts;
+    };
+    const started = parts => parts.event({type: 'output_audio_buffer.started'});
+    const stopped = async parts => {
+        parts.event({type: 'output_audio_buffer.stopped'});
+        await parts.settle(500);
+    };
+    const sentTypes = (parts, from) => parts.sent.slice(from).map(item => item.type);
+
+    test('closes the microphone while it speaks, so that it does not hear itself', async () => {
+        const holder = {};
+        const parts = live({session: body => minted(holder.fake)(body)});
+        holder.fake = parts;
+        await parts.begin();
+        expect(parts.track.enabled).toBe(true);
+        started(parts);
+        expect(parts.track.enabled).toBe(false);
+        // The reply is made before it has finished playing.
+        await parts.done();
+        expect(parts.track.enabled).toBe(false);
+        await stopped(parts);
+        expect(parts.track.enabled).toBe(true);
+    });
+
+    test('never leaves the microphone closed where the end of the speech is not reported', async () => {
+        const holder = {};
+        const parts = live({session: body => minted(holder.fake)(body)});
+        holder.fake = parts;
+        await parts.begin();
+        started(parts);
+        await parts.settle(61 * 1000);
+        expect(parts.track.enabled).toBe(true);
+    });
+
+    test('leaves the microphone open for a student with headphones, who may talk over it', async () => {
+        const holder = {};
+        const parts = live({session: body => minted(holder.fake)(body)});
+        holder.fake = parts;
+        parts.settings.set({liveInterrupt: true});
+        await parts.begin();
+        started(parts);
+        expect(parts.track.enabled).toBe(true);
+    });
+
+    test('stops speaking and listens while the talk key is held to answer', async () => {
+        const parts = await suggested();
+        started(parts);
+        parts.event({type: 'response.created'});
+        const from = parts.sent.length;
+        parts.session.holdToAnswer(true);
+        expect(sentTypes(parts, from)).toEqual(['response.cancel', 'output_audio_buffer.clear']);
+        expect(parts.track.enabled).toBe(true);
+        // Nothing more is said over the student.
+        parts.session.say('Something else.');
+        await parts.done();
+        await parts.settle(2000);
+        expect(sentTypes(parts, from)).not.toContain('response.create');
+        parts.session.holdToAnswer(false);
+        await parts.settle(1000);
+        expect(parts.said().at(-1)).toBe('EDITOR: Say: Something else.');
+    });
+
+    test('takes no approval said over its own voice, where the microphone is left open', async () => {
+        const parts = await suggested();
+        parts.settings.set({liveInterrupt: true});
+        await parts.settle(8000);
+        const before = parts.program();
+        started(parts);
+        parts.event({type: 'input_audio_buffer.speech_started', item_id: 'item1'});
+        await parts.turn('yes', {wait: 0});
+        await parts.settle(3000);
+        expect(parts.program()).toEqual(before);
+        expect(parts.gate.isOpen()).toBe(true);
+        await stopped(parts);
+        await parts.done();
+        parts.event({type: 'input_audio_buffer.speech_started'});
+        await parts.turn('yes');
+        await parts.settle(3000);
+        expect(parts.program()).toContain('wait 1 second');
+    });
+
+    test('knows which words began over its voice, though others have begun since', async () => {
+        const parts = await suggested();
+        parts.settings.set({liveInterrupt: true});
+        await parts.settle(8000);
+        const before = parts.program();
+        const begins = id => parts.event({type: 'input_audio_buffer.speech_started', item_id: id});
+        const words = async id => {
+            parts.event({type: 'conversation.item.input_audio_transcription.completed',
+                item_id: id,
+                transcript: 'yes'});
+            await parts.settle(3000);
+        };
+        started(parts);
+        begins('first');
+        await stopped(parts);
+        await parts.done();
+        begins('second');
+        await words('first');
+        expect(parts.program()).toEqual(before);
+        await words('second');
+        expect(parts.program()).toContain('wait 1 second');
+    });
+
+    test('stops when interrupted, drops what it had still to say, and listens', async () => {
+        const holder = {};
+        const parts = live({session: body => minted(holder.fake)(body)});
+        holder.fake = parts;
+        await parts.begin();
+        parts.event({type: 'response.created'});
+        started(parts);
+        parts.session.say('Still to come.');
+        const from = parts.sent.length;
+        expect(parts.session.interrupt()).toBe(true);
+        expect(sentTypes(parts, from)).toEqual(['response.cancel', 'output_audio_buffer.clear']);
+        await parts.settle(500);
+        expect(parts.track.enabled).toBe(true);
+        await parts.done();
+        await parts.settle(2000);
+        expect(sentTypes(parts, from)).not.toContain('response.create');
+    });
+
+    test('has nothing to interrupt while it cannot be heard', async () => {
+        const holder = {};
+        const parts = live({session: body => minted(holder.fake)(body)});
+        holder.fake = parts;
+        expect(parts.session.interrupt()).toBe(false);
+        await parts.begin();
+        // Working something out is not speaking.
+        parts.event({type: 'response.created'});
+        const from = parts.sent.length;
+        expect(parts.session.interrupt()).toBe(false);
+        expect(parts.sent).toHaveLength(from);
+    });
+
+    test('leaves Space to a field being typed in', () => {
+        const element = (tagName, attributes = {}, more = {}) => ({tagName,
+            getAttribute: name => attributes[name] ?? null,
+            hasAttribute: name => name in attributes,
+            ...more});
+        expect([
+            element('INPUT'), element('INPUT', {type: 'search'}), element('TEXTAREA'), element('SELECT'),
+            element('DIV', {}, {isContentEditable: true})
+        ].map(takesTyping)).toEqual([true, true, true, true, true]);
+        expect([
+            element('BUTTON'), element('INPUT', {type: 'checkbox'}), element('DIV', {role: 'treeitem'}),
+            element('BODY'), null
+        ].map(takesTyping)).toEqual([false, false, false, false, false]);
     });
 
     test('says so where it cannot start, and leaves nothing open', async () => {

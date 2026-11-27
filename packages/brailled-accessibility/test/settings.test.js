@@ -27,6 +27,7 @@ const defaults = {
     narrationSpeed: 'normal',
     speechRate: 1,
     earcons: null,
+    liveInterrupt: false,
     questionDismissed: false
 };
 

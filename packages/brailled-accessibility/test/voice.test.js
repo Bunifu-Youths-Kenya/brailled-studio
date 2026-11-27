@@ -569,6 +569,7 @@ describe('reset for a new student', () => {
             narrationSpeed: 'normal',
             speechRate: 1,
             earcons: null,
+            liveInterrupt: false,
             questionDismissed: false
         });
         expect(listener).toHaveBeenCalled();

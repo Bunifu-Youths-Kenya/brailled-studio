@@ -2,7 +2,7 @@
 import parseCommand from '../actions/parser.js';
 import {routeCommand} from '../actions/route.js';
 import {TALK_KEYS} from '../actions/shortcuts.js';
-import {parseAnswer} from '../proposals/answers.js';
+import {ANSWERS, parseAnswer} from '../proposals/answers.js';
 import {SAFE_ACTIONS} from '../proposals/risk.js';
 import voiceMessages from './messages.js';
 
@@ -227,7 +227,7 @@ const createVoice = ({app, provider, tone, language, beforeRun = () => {}, thres
         // The reply is for a request, not for a command, an answer or something said while a window waits.
         const request = use && !app.gate()?.isOpen() && !app.assistant()?.isOpen() &&
             !parseCommand(text, app.actionNames(), app.assistantName()) &&
-            !['approve', 'all', 'reject'].includes(parseAnswer(text, app.answerWords())?.type);
+            !ANSWERS.includes(parseAnswer(text, app.answerWords())?.type);
         if (request) {
             beforeRun();
             use();

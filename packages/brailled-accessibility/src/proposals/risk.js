@@ -24,6 +24,10 @@ const EDITS = new Set(['insert', 'delete', 'set-value', 'move', 'wrap', 'create'
 // More changes than this at once are a big change, however small each one is.
 const MANY_CHANGES = 3;
 
+// What puts something new into a project, and takes nothing away.
+const ADDING = ['insert', 'wrap', 'create'];
+const adds = ({command, sprite}) => !!sprite || ADDING.includes(command?.op);
+
 // A project run with a device attached, or in Upload mode, can move a real robot or overwrite its program.
 const usesDevice = device => !!device && (device.connected || device.mode === 'upload');
 
@@ -54,6 +58,18 @@ const proposalRisk = risks => {
     return risks.includes('edit') ? 'edit' : 'safe';
 };
 
+/**
+ * How much care answering needs. Many additions are a big change, asked about whatever the school's level, but
+ * "undo" takes them back: they are answered, and shown, as any change that can be.
+ * @param {object[]} steps The steps.
+ * @param {string[]} risks Each step's risk.
+ * @returns {'safe'|'edit'|'big'} The risk to answer for.
+ */
+const answerRisk = (steps, risks) => {
+    const onlyAdds = steps.every((step, index) => risks[index] === 'safe' || (risks[index] !== 'big' && adds(step)));
+    return onlyAdds && proposalRisk(risks) === 'big' ? 'edit' : proposalRisk(risks);
+};
+
 // Whether "undo" takes a step back. Running a project cannot be undone, and an undo or redo is taken back by its
 // opposite, not by "undo".
 const undoable = step => !!step.sprite ||
@@ -77,6 +93,8 @@ const needsApproval = ({steps, risks, level}) => {
 export {
     MANY_CHANGES,
     SAFE_ACTIONS,
+    adds,
+    answerRisk,
     needsApproval,
     proposalRisk,
     stepRisk,

@@ -366,10 +366,17 @@ bar shows "Talking with Mboni". She does not listen while she thinks.
 
 - **A plan.** "I am making a square, help me" gets a suggestion, said briefly: "Make a square. 4 changes. Yes or no?"
 - **"Yes"** to several changes asks "Add all, or step by step?"; "add all" (or "all", "yes") does them all, "step by
-  step" asks about each. "Yes" to one change, or "add it" or "add all" at once, approves it. Said hands-free this
-  works only where `voiceApproval` is `true` and every step adds something (blocks, a variable or list, a sprite)
-  that "undo" takes back; anything else is answered "To approve, hold F2 and say yes. Or say no.", and needs the
-  talk key, a button or the keyboard. "More detail" says every step and what changes.
+  step" asks about each. "Yes" to one change, or "add it" or "add all" at once, approves it. Where every step adds
+  something (blocks, a variable or list, a sprite), "yeah", "yep" and "sure" count as "yes", hands-free or not.
+  "More detail" says every step and what changes.
+- **Hands-free approval** works only where `voiceApproval` is `true`, and only for what "undo" takes back:
+  - additions, with "yes" or the words above;
+  - a deletion, with "yes, delete it" (or "delete them"), also when the suggestion adds things too;
+  - any other change, with "yes, change it" (or "change them").
+- **What stays with the talk key, a button or the keyboard:** anything hard to undo (a whole script, more than one
+  block deleted at once, more than three changes that do not all add something) and running a project from a
+  suggestion. It is answered "To approve, hold
+  F2 and say yes. Or say no."
 - **"Guide me"** (also a button, or said with the talk key) changes nothing: it says each step, watches the project,
   says "Well done" and goes on. "Repeat", "next step" and "stop guiding" work meanwhile. No AI is asked between
   steps.
@@ -390,12 +397,20 @@ bar shows "Talking with Mboni". She does not listen while she thinks.
 With the AI server's `OPENAI_API_KEY` set, **F4** starts a live conversation with OpenAI's live model
 (`gpt-realtime-2.1-mini` unless changed), which hears the student and answers in its own voice. F4, Escape or
 "goodbye" end it, as do 5 minutes of quiet (15 seconds before, it asks "Are you still there?") and 15 minutes. The red dot shows while it is on. The talk key is needed only to make an answer
-deliberate: held while saying "yes", it approves a change that is not an addition, as it does outside a live
-session. `src/live/session.js` holds it:
+deliberate: held while saying "yes", it approves what hands-free words cannot, as it does outside a live session.
+`src/live/session.js` holds it:
+
+- **Space interrupts.** While the live voice is speaking, Space stops it, drops what it had still to say and opens
+  the microphone. In a field being typed in, and whenever the voice is quiet, Space does what it always does. A
+  screen reader reading in browse mode may take the key first; that has not been tried.
+- **It does not hear itself.** The microphone is closed while the live voice speaks, and opens again just after (or
+  after a minute, if the end is never reported). Holding the talk key stops the voice and opens it at once. A student
+  with headphones can choose, in Voice settings, to leave it open and talk over the voice; words begun while the
+  voice was speaking can then turn a suggestion down, but not approve it.
 
 - **The editor goes first.** The model replies only when the editor asks it to. When the student stops, the editor
   takes the written-down words: an answer to a waiting suggestion goes to the gate, as in any hands-free
-  conversation (a "yes" approves only additions that "undo" takes back); a local command runs as one, and "run"
+  conversation (see [what may approve](#conversation)); a local command runs as one, and "run"
   runs at once unless a device is connected; words that are its own coming back are
   dropped; "goodbye" ends it. Only then is the model given the project as it is and asked to reply.
 - **Changes are worked out by the text model.** The live model asks for one with `make_change`, in the student's
@@ -500,7 +515,13 @@ Each step has a risk that the editor works out; nothing the AI says changes it.
 | Safe | Moving about and reading: help, "go to", views, next and previous, reading the program, stop, opening the sprite library | Never |
 | Edit | Insert, change a value, move, wrap, create, rename, delete one block, add a sprite | By default. Not where the school's configuration says "big changes only" |
 | Edit that "undo" cannot take back | Running the project, undo, redo | Always |
-| Big, "hard to undo" | Deleting a whole script or more than one block, running with a device attached or in Upload mode, more than three changes at once, and anything not listed (so any future delete-sprite, overwrite, upload or robot action) | Always, with a warning |
+| Big, "hard to undo" | Deleting a whole script or more than one block, running with a device attached or in Upload mode, more than three changes at once ([unless all add something](#many-additions)), and anything not listed (so any future delete-sprite, overwrite, upload or robot action) | Always, with a warning |
+
+#### Many additions
+
+More than three additions at once are still asked about, whatever the school's level. Since "undo" takes them back,
+they are answered like any other change: shown beside the editor, with no warning, and approved by voice in a
+conversation ("yes", then "add all" or "step by step").
 
 **The school's options** are in `static/brailled-config.json`. Students have no setting for the first two.
 

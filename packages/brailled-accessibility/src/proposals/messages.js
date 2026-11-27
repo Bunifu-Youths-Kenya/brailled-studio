@@ -45,6 +45,9 @@ const proposalMessages = defineMessages(Object.fromEntries(Object.entries({
     sayInConversation: 'Say yes, guide me, or no.',
     sayInConversationKey: 'To approve, hold {key} and say yes. Or say guide me, or no.',
     sayInConversationNoVoice: 'Say guide me, or no. To approve, hold {key} and say yes.',
+    sayInConversationPhrase: 'To approve, say: yes, {phrase, select, delete {delete} other {change}} it. Or say ' +
+        'guide me, or no.',
+    phraseToApprove: 'To approve, say: yes, {phrase, select, delete {delete} other {change}} it. Or say no.',
     guide: 'Guide me',
     guideStart: 'Let us do it together. Add each block any way you like, and I will notice.',
     guideStep: 'Step {number} of {count}. {sentence}.',

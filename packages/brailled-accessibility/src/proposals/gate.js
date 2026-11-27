@@ -12,14 +12,11 @@ import {checkSteps} from './check.js';
 import {fingerprint as fingerprintOf} from './fingerprint.js';
 import {createMachine} from './machine.js';
 import proposalMessages from './messages.js';
-import {needsApproval, proposalRisk, stepRisk} from './risk.js';
+import {adds, answerRisk, needsApproval, proposalRisk, stepRisk, undoable} from './risk.js';
 
 const CHECK_MS = 1000;
 // The interface redraws after a change; where the student is cannot be recorded until it has.
 const SETTLE_MS = 500;
-
-// What puts something new into a project, and takes nothing away.
-const ADDING = ['insert', 'wrap', 'create'];
 
 /**
  * @param {object} options Options.
@@ -55,21 +52,37 @@ const createGate = ({
 
     const talkKey = () => TALK_KEYS[app.settings.get().talkKey].name;
 
-    const adds = ({command, sprite}) => !!sprite || ADDING.includes(command?.op);
+    // The steps still to be answered for, each with its risk.
+    const waitingSteps = () => current.steps.map((step, at) => ({step, risk: current.risks[at]}))
+        .slice(current.mode === 'steps' ? current.index : 0);
 
-    // Whether words said in a conversation may approve what is asked: only where the school allows it, and only
-    // adding things. Deleting, changing what is there, running and anything hard to undo need a key or a button.
-    const voiceMayApprove = () => {
-        const waitingSteps = current.steps.map((step, at) => ({step, risk: current.risks[at]}))
-            .slice(current.mode === 'steps' ? current.index : 0);
-        return app.config.get().conversation?.voiceApproval === true &&
-            proposalRisk(current.risks) !== 'big' &&
-            waitingSteps.every(({step, risk}) => risk === 'safe' || adds(step));
+    // Whether everything waiting only adds things, none of it hard to undo.
+    const onlyAdds = () => answerRisk(current.steps, current.risks) !== 'big' &&
+        waitingSteps().every(({step, risk}) => risk === 'safe' || adds(step));
+
+    // Whether a plain yes said in a conversation may approve what is asked: only where the school allows voice
+    // approval, and only for adding things.
+    const voiceMayApprove = () => app.config.get().conversation?.voiceApproval === true && onlyAdds();
+
+    // What a yes must name to approve what an answer would now carry out: `delete` if anything is deleted, `change`
+    // if anything else there is altered, or null if nothing needs naming.
+    const named = () => {
+        const answered = waitingSteps().slice(0, current.mode === 'steps' ? 1 : current.steps.length);
+        if (answered.some(({step}) => step.command?.op === 'delete')) return 'delete';
+        return answered.some(({step, risk}) => risk !== 'safe' && !adds(step)) ? 'change' : null;
     };
+
+    // The phrase that may approve a change or deletion hands-free, or null: only where the school allows voice
+    // approval, and "undo" takes all of it back. Running, and anything hard to undo, need a key or a button.
+    const voicePhrase = () => (app.config.get().conversation?.voiceApproval === true &&
+        proposalRisk(current.risks) !== 'big' &&
+        waitingSteps().every(({step, risk}) => risk === 'safe' || undoable(step)) ? named() : null);
 
     // How to answer in a conversation, where there is no time to read all the ways.
     const howInConversation = () => {
         if (voiceMayApprove()) return say(proposalMessages.sayInConversation);
+        const phrase = voicePhrase();
+        if (phrase) return say(proposalMessages.sayInConversationPhrase, {phrase});
         const allowed = app.config.get().conversation?.voiceApproval === true;
         return say(allowed ? proposalMessages.sayInConversationKey : proposalMessages.sayInConversationNoVoice,
             {key: talkKey()});
@@ -79,10 +92,14 @@ const createGate = ({
     const sentenceOf = step => `${step.sentence}${risky(step)}.`;
     const summaryOf = view => view.summary?.trim().replace(/([^.!?])$/, '$1.') || null;
 
-    // How to answer, in a few words: yes or no, unless only the talk key may approve it here.
-    const yesOrNo = () => (app.conversing() && !voiceMayApprove() ?
-        say(proposalMessages.holdToApprove, {key: talkKey()}) :
-        say(proposalMessages.yesOrNo));
+    // How to answer, in a few words: yes or no, unless a yes alone may not approve it here.
+    const yesOrNo = () => {
+        if (!app.conversing() || voiceMayApprove()) return say(proposalMessages.yesOrNo);
+        const phrase = voicePhrase();
+        return phrase ?
+            say(proposalMessages.phraseToApprove, {phrase}) :
+            say(proposalMessages.holdToApprove, {key: talkKey()});
+    };
 
     // Everything that is asked: each step, what changes, and the ways to answer.
     const fullWordsOf = view => {
@@ -128,7 +145,8 @@ const createGate = ({
     const viewOf = () => {
         const {summary, steps, risks, mode, index, askingChange, note, serial, seconds} = current;
         const many = steps.length > 1;
-        const risk = mode === 'steps' ? risks[index] : proposalRisk(risks);
+        const care = answerRisk(steps, risks);
+        const risk = mode === 'steps' ? risks[index] : care;
         let title = many ? proposalMessages.titleMany : proposalMessages.title;
         if (mode === 'steps') title = proposalMessages.titleStep;
         return {
@@ -146,7 +164,7 @@ const createGate = ({
             // Changes when something new is asked, so that the dialog starts afresh.
             serial,
             // Said and shown beside the editor. What is hard to undo always stops the student in a window.
-            docked: app.voiceFirst() && proposalRisk(risks) !== 'big'
+            docked: app.voiceFirst() && care !== 'big'
         };
     };
 
@@ -401,8 +419,9 @@ const createGate = ({
         else app.speak(text, {reply: true});
     };
 
-    // Words from a conversation, which anyone nearby could say. They may always turn it down or ask to be guided;
-    // they approve only where `voiceMayApprove` says so, and only with words that say to add it.
+    // Words from a conversation, which anyone nearby could say. They may always turn it down or ask to be guided.
+    // They approve additions where `voiceMayApprove` says so, and a change or deletion only with the phrase that
+    // `voicePhrase` gives.
     // A yes to several changes is asked once more: all at once, or one at a time. A yes to that, or to one change,
     // approves it.
     const yes = () => {
@@ -414,13 +433,17 @@ const createGate = ({
         }
     };
 
-    const handsFree = text => {
+    // With `mayApprove` false the words can turn it down or ask about it, and nothing more.
+    const handsFree = (text, {mayApprove = true} = {}) => {
         if (!waiting()) return;
         const answer = parseAnswer(text, app.answerWords());
         if (answer?.type === 'reject') reject();
         else if (answer?.type === 'guide') guide();
         else if (answer?.type === 'more') prompt(fullWordsOf(state.proposal));
-        else if (voiceMayApprove() && answer?.type === 'approve') yes();
+        else if (!mayApprove) prompt(yesOrNo());
+        else if (answer?.type === 'named' && answer.text === voicePhrase()) {
+            approve({all: current.mode !== 'steps'});
+        } else if (voiceMayApprove() && ['approve', 'casual'].includes(answer?.type)) yes();
         // A bare "all" approves only as the answer to "add all, or step by step".
         else if (voiceMayApprove() && (asksToAdd(text) || (answer?.type === 'all' && current.askingHow))) {
             approve({all: true});
@@ -432,8 +455,10 @@ const createGate = ({
     const hear = text => {
         if (!waiting()) return;
         const answer = parseAnswer(text, app.answerWords());
-        if (answer?.type === 'approve') {
+        if (answer?.type === 'approve' || (answer?.type === 'casual' && onlyAdds())) {
             yes();
+        } else if (answer?.type === 'named' && answer.text === named()) {
+            approve({all: current.mode !== 'steps'});
         } else if (answer?.type === 'more') {
             prompt(fullWordsOf(state.proposal));
         } else if (answer?.type === 'all') {

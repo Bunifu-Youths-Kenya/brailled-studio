@@ -29,6 +29,8 @@ const preferenceMessages = defineMessages(Object.fromEntries(Object.entries({
     voiceFirst: 'Say questions instead of opening windows',
     voiceFirstHint: 'Suggestions and replies are said, and shown at the side, while you stay where you are. ' +
         'Answer by voice, or press Alt+Shift+Q to reach them. Changes that are hard to undo still open a window.',
+    liveInterrupt: 'I am wearing headphones: let me talk while {assistant} is speaking',
+    liveInterruptHint: 'Off, the microphone closes while the live voice speaks, so that it does not hear itself.',
     verbosity: 'After each change, say',
     verbosityChoice: '{level, select, brief {What changed} ' +
         'detailed {What changed, where I am, and what is around it} other {What changed, and where I am}}',

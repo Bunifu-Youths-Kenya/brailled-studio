@@ -34,7 +34,9 @@ const DEFAULTS = Object.freeze({
     narrationSpeed: 'normal',
     speechRate: 1,
     // Whether short sounds mark what happens: true or false as the student chose, or null for the school's choice.
-    earcons: null
+    earcons: null,
+    // Whether the microphone stays open while the live voice speaks, for a student with headphones to talk over it.
+    liveInterrupt: false
 });
 
 // Stored text may be old or edited by hand: keep only values the editor knows.
@@ -51,7 +53,8 @@ const clean = value => ({
     verbosity: VERBOSITIES.includes(value?.verbosity) ? value.verbosity : DEFAULTS.verbosity,
     narrationSpeed: NARRATION_SPEEDS.includes(value?.narrationSpeed) ? value.narrationSpeed : DEFAULTS.narrationSpeed,
     speechRate: SPEECH_RATES.includes(value?.speechRate) ? value.speechRate : DEFAULTS.speechRate,
-    earcons: typeof value?.earcons === 'boolean' ? value.earcons : DEFAULTS.earcons
+    earcons: typeof value?.earcons === 'boolean' ? value.earcons : DEFAULTS.earcons,
+    liveInterrupt: value?.liveInterrupt === true
 });
 
 // The browser's storage, which can be switched off.

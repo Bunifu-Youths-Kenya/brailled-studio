@@ -82,6 +82,9 @@ describe('a live session', () => {
     expect(sent.session.instructions).toMatch(/You cannot change anything/)
     expect(sent.session.instructions).toMatch(/HANDS-FREE/)
     expect(sent.session.instructions).toMatch(/decided by the editor from what the student says, never by you/)
+    // Every change goes to the editor at once, and only the editor asks for approval.
+    expect(sent.session.instructions).toMatch(/call make_change at once/)
+    expect(sent.session.instructions).toMatch(/Never ask the\s+student to say yes/)
     // The model does not answer on its own: the editor matches yes and no first.
     expect(sent.session.audio.input.turn_detection.create_response).toBe(false)
     expect(sent.session.audio.output.voice).toBe('marin')

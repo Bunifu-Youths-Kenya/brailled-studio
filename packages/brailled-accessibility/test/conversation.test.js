@@ -330,23 +330,150 @@ describe('approving in a conversation', () => {
 
     test.each([
         ['running the project', () => [{action: 'project.run'}]],
-        ['deleting a script', body => [{command: {op: 'delete', block: after(body, 'event_whenflagclicked')}}]],
+        ['deleting a script', body => [{command:
+            {op: 'delete', block: after(body, 'event_whenflagclicked'), withFollowing: true}}]],
         ['a change followed by a run', body => [{command: {op: 'insert',
             block: 'control_wait',
-            after: after(body, 'motion_movesteps')}}, {action: 'project.run'}]],
-        ['deleting one block', body => [{command: {op: 'delete', block: after(body, 'motion_movesteps')}}]],
-        ['changing a value', body => [{command:
-            {op: 'set-value', block: after(body, 'motion_movesteps'), name: 'STEPS', value: 50}}]]
+            after: after(body, 'motion_movesteps')}}, {action: 'project.run'}]]
     ])('never approves %s by voice', async (_, steps) => {
         const {asked, hear, data, gate, vm} = editor(
             {respond: body => answer({type: 'proposal', summary: 'x', steps: steps(body)})});
         await asked();
         const before = data();
-        await hear('add all');
-        expect(gate.isOpen()).toBe(true);
-        expect(data()).toBe(before);
+        for (const words of ['add all', 'sure', 'yes change it', 'yes delete it']) {
+            await hear(words);
+            expect(gate.isOpen()).toBe(true);
+            expect(data()).toBe(before);
+        }
         expect(vm.start).not.toHaveBeenCalled();
         expect(gate.getState().proposal.note).toMatch(/To approve, hold F2/);
+    });
+
+    // One block added after "move".
+    const oneWait = body => [{command: {op: 'insert', block: 'control_wait', after: after(body, 'motion_movesteps')}}];
+    const deleteMove = body => [{command: {op: 'delete', block: after(body, 'motion_movesteps')}}];
+    const changeMove = body => [{command:
+        {op: 'set-value', block: after(body, 'motion_movesteps'), name: 'STEPS', value: 50}}];
+    const suggesting = (steps, school = {}) => editor({school,
+        respond: body => answer({type: 'proposal', summary: 'x', steps: steps(body)})});
+
+    test.each(['yeah', 'Yep.', 'sure'])('"%s" approves an addition', async words => {
+        const {asked, hear, program, gate, settle} = suggesting(oneWait);
+        await asked();
+        await hear(words);
+        await settle(3000);
+        expect(gate.isOpen()).toBe(false);
+        expect(program()).toContain('wait 1 second');
+    });
+
+    test('"sure" answers both questions about several additions', async () => {
+        const {asked, hear, program, settle} = editor();
+        await asked();
+        await hear('sure');
+        await hear('yeah');
+        await settle(3000);
+        expect(program()).toHaveLength(5);
+    });
+
+    test.each([
+        ['deleting one block', deleteMove, 'delete', 'change'],
+        ['changing a value', changeMove, 'change', 'delete'],
+        ['adding and deleting', body => [...oneWait(body), ...deleteMove(body)], 'delete', 'change']
+    ])('approves %s only with the phrase that names it', async (_, steps, right, wrong) => {
+        const {asked, hear, data, gate, settle} = suggesting(steps);
+        await asked();
+        const before = data();
+        for (const words of ['yes', 'sure', 'add all', `yes ${wrong} it`]) {
+            await hear(words);
+            expect(gate.isOpen()).toBe(true);
+            expect(data()).toBe(before);
+        }
+        expect(gate.getState().proposal.note).toBe(`To approve, say: yes, ${right} it. Or say no.`);
+        await hear(`Yes, ${right} it.`);
+        await settle(3000);
+        expect(gate.isOpen()).toBe(false);
+        expect(data()).not.toBe(before);
+    });
+
+    // Four blocks, one after another: more changes at once than a plain edit.
+    const four = body => [after(body, 'motion_movesteps'), 'new1', 'new2', 'new3'].map(at =>
+        ({command: {op: 'insert', block: 'control_wait', after: at}}));
+
+    test('asks about many additions beside the editor, without calling them hard to undo', async () => {
+        const {asked, reader, settings, gate} = suggesting(four);
+        settings.set({readAloud: true});
+        await asked();
+        expect(gate.getState().proposal).toMatchObject({risk: 'edit', docked: true});
+        const spoken = reader.speak.mock.calls.map(call => call[0]).find(words => words.startsWith('x.'));
+        expect(spoken).toBe('x. 4 changes. Yes or no?');
+    });
+
+    test('after "yes" to many additions, asks how, and "add all" adds them', async () => {
+        const {asked, hear, program, gate, settle} = suggesting(four);
+        await asked();
+        const before = program().length;
+        await hear('yes');
+        expect(gate.getState().proposal.note).toBe('Add all, or step by step?');
+        expect(program()).toHaveLength(before);
+        await hear('add all');
+        await settle(3000);
+        expect(program()).toHaveLength(before + 4);
+    });
+
+    test.each(['step by step', 'one by one'])('many additions can be taken "%s"', async words => {
+        const {asked, hear, program, gate, settle} = suggesting(four);
+        await asked();
+        const before = program().length;
+        await hear('yes');
+        await hear(words);
+        await hear('yes');
+        await settle(3000);
+        expect(program()).toHaveLength(before + 1);
+        expect(gate.getState().proposal).toMatchObject({mode: 'steps', index: 1});
+    });
+
+    test('"no" turns many additions down', async () => {
+        const {asked, hear, data, gate} = suggesting(four);
+        await asked();
+        const before = data();
+        await hear('no');
+        expect(gate.isOpen()).toBe(false);
+        expect(data()).toBe(before);
+    });
+
+    test('still needs a key for many changes where not all are additions', async () => {
+        const {asked, hear, data, gate} = suggesting(body => [...four(body).slice(0, 3), ...changeMove(body)]);
+        await asked();
+        const before = data();
+        expect(gate.getState().proposal).toMatchObject({risk: 'big', docked: false});
+        for (const words of ['yes', 'add all', 'yes change it']) await hear(words);
+        expect(data()).toBe(before);
+        expect(gate.getState().proposal.note).toMatch(/To approve, hold F2/);
+    });
+
+    test('says which phrase approves, when it first asks', async () => {
+        const {asked, reader, settings} = suggesting(deleteMove);
+        settings.set({readAloud: true});
+        await asked();
+        const spoken = reader.speak.mock.calls.map(call => call[0]).find(words => words.startsWith('x.'));
+        expect(spoken).toBe('x. To approve, say: yes, delete it. Or say no.');
+    });
+
+    test('takes no phrase where the school has not allowed voice approval', async () => {
+        const {asked, hear, data} = suggesting(deleteMove, {conversation: {...talk, voiceApproval: false}});
+        await asked();
+        const before = data();
+        await hear('yes delete it');
+        expect(data()).toBe(before);
+    });
+
+    test('takes the phrase from the talk key too', async () => {
+        const {asked, app, data, settle} = suggesting(deleteMove);
+        await asked();
+        const before = data();
+        routeCommand(app, 'yes delete it', 'voice');
+        await settle(3000);
+        expect(data()).not.toBe(before);
     });
 
     test('still takes the talk key\'s yes for those', async () => {

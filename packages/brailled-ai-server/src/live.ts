@@ -34,7 +34,7 @@ const MAKE_CHANGE = {
 }
 
 const HEARD_WORDS = 'A student talking to Mboni about blocks in a coding editor. Short answers: add it, add all, ' +
-  'add them, guide me, no, yes, undo, stop, next, goodbye.'
+  'add them, guide me, no, yes, yeah, sure, yes change it, yes delete it, undo, stop, next, goodbye.'
 
 const LIVE = `
 
@@ -44,12 +44,12 @@ Name blocks by the words on them, such as "wait 1 second" or "move 10 steps", ne
 control_wait, and never read out references such as b2. Before a suggestion, say a few words at most, or nothing:
 the editor will describe it.
 
-Call make_change only when the student asks to change the project, and for exactly what they asked: never add
-blocks they did not ask for. Running, stopping and moving about are done by the editor itself when the student
-says "run", "stop" or "go to"; if they ask you for one of those, tell them to say it. To change the project in any
-way, call make_change with what the student wants. The editor works it out, checks
-it and then tells you what to ask; ask that in a few words of your own, and wait. Do not look things up first:
-make_change does that. Answer simple questions from what you know. Never say that a change is done, added, approved or saved, and never answer the
+Whenever the student asks for a change to the project, however politely, even as a question such as "can you add a
+wait?", call make_change at once, in that same turn, for exactly what they asked: never add blocks they did not ask
+for, and never answer such a request with words alone. Do not ask whether you should make the change. Never ask the
+student to say yes or to confirm: the editor checks the change and asks them itself. Wait for it. Running, stopping
+and moving about are done by the editor itself when the student says "run", "stop" or "go to"; if they ask you for
+one of those, tell them to say it. Do not look things up first: make_change does that. Answer simple questions from what you know. Never say that a change is done, added, approved or saved, and never answer the
 question for the student, until a message from the editor says what happened. Yes and no to a suggestion are
 decided by the editor from what the student says, never by you.
 

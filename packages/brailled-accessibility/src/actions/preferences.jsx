@@ -141,6 +141,8 @@ const VoiceSettings = ({app, onClose}) => {
         event => app.settings.set({onlineName: event.target.checked}), [app]);
     const handleVoiceFirst = useCallback(event => app.settings.set({voiceFirst: event.target.checked}), [app]);
     const handleEarcons = useCallback(event => app.settings.set({earcons: event.target.checked}), [app]);
+    const handleLiveInterrupt = useCallback(
+        event => app.settings.set({liveInterrupt: event.target.checked}), [app]);
     const handleName = useCallback(event => app.settings.set({studentName: event.target.value}), [app]);
     const handleIntroduction = useCallback(
         event => app.settings.set({introduction: event.target.value}), [app]);
@@ -302,6 +304,25 @@ const VoiceSettings = ({app, onClose}) => {
                     {intl.formatMessage(earconMessages.settingHint)}
                 </p>
             </div>
+            {app.online.provider() === 'openai-live' ? (
+                <div className={dialogStyles.field}>
+                    <label className={dialogStyles.row}>
+                        <input
+                            aria-describedby="brailled-live-interrupt-hint"
+                            checked={settings.liveInterrupt}
+                            type="checkbox"
+                            onChange={handleLiveInterrupt}
+                        />
+                        {intl.formatMessage(preferenceMessages.liveInterrupt, {assistant: app.assistantName()})}
+                    </label>
+                    <p
+                        className={dialogStyles.count}
+                        id="brailled-live-interrupt-hint"
+                    >
+                        {intl.formatMessage(preferenceMessages.liveInterruptHint)}
+                    </p>
+                </div>
+            ) : null}
             {app.online.provider() === 'browser' ? null : (
                 <div className={dialogStyles.field}>
                     <label className={dialogStyles.row}>

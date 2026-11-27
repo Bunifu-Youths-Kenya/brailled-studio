@@ -1743,6 +1743,66 @@ const startAiServer = async (env = {}) => {
     }, {init: [fakeSpeech, fakeVoice],
         config: {json: {voice: true, wakeWord: {enabled: true}}}});
 
+    // Stands in for the connection to the live voice and the microphone it takes. `window.liveVoice.event` is what
+    // the service would report; `sent` is what the editor told it.
+    const fakeLive = () => {
+        if (window !== window.top) return;
+        const track = {enabled: true, stop: () => {}};
+        const channel = {readyState: 'open', send: text => window.liveVoice.sent.push(JSON.parse(text)),
+            close: () => {}};
+        window.liveVoice = {sent: [], track, event: data => channel.onmessage({data: JSON.stringify(data)})};
+        navigator.mediaDevices.getUserMedia = () => Promise.resolve({getTracks: () => [track]});
+        window.RTCPeerConnection = class {
+            createDataChannel () {
+                return channel;
+            }
+            addTrack () {}
+            createOffer () {
+                return Promise.resolve({sdp: 'offer'});
+            }
+            setLocalDescription () {
+                return Promise.resolve();
+            }
+            setRemoteDescription () {
+                setTimeout(() => channel.onopen(), 0);
+                return Promise.resolve();
+            }
+            close () {}
+        };
+    };
+    group('live voice: Space stops it', async t => {
+        const {page, key} = t;
+        const open = {'Access-Control-Allow-Origin': '*'};
+        await page.route('**/api/live-session', route => route.fulfill({headers: open,
+            json: {secret: 'ek_short', context: '{}'}}));
+        await page.route('https://api.openai.com/**', route => route.fulfill({headers: open, body: 'answer'}));
+        const sent = () => page.evaluate(() => window.liveVoice.sent.map(item => item.type));
+        const clears = async () => (await sent()).filter(type => type === 'output_audio_buffer.clear').length;
+        const speaking = () => page.evaluate(() => window.liveVoice.event({type: 'output_audio_buffer.started'}));
+        const expanded = () => page.evaluate(() => document.activeElement.getAttribute('aria-expanded'));
+        await startOutline(t);
+        await key('F4', 1500);
+        check('F4 starts the live voice', (await sent()).includes('response.create'), (await sent()).join());
+        await t.goTo('Script 1 of 1: when green flag clicked');
+        const before = await expanded();
+        await speaking();
+        check('the microphone closes while it speaks', !await page.evaluate(() => window.liveVoice.track.enabled));
+        await key('Space', 700);
+        check('Space stops it', await clears() === 1, (await sent()).join());
+        check('and opens the microphone', await page.evaluate(() => window.liveVoice.track.enabled));
+        check('without doing what Space does there', await expanded() === before, `${before} ${await expanded()}`);
+        await key('Space', 500);
+        check('when it is not speaking, Space works as before', await expanded() !== before && await clears() === 1,
+            `${before} ${await expanded()}`);
+        await key('Alt+Shift+KeyK', 500);
+        await speaking();
+        await t.type('go to menu');
+        check('typing a space interrupts nothing', await page.locator('dialog input').inputValue() === 'go to menu' &&
+            await clears() === 1, await page.locator('dialog input').inputValue());
+    }, {init: [fakeSpeech, fakeVoice, fakeLive],
+        config: {json: {voice: {enabled: true, provider: 'openai-live'}, ai: true,
+            aiEndpoint: 'http://localhost:9/api/assistant'}}});
+
     group('AI helper: tools, modes and memory', async t => {
         const {page, key, pause} = t;
         const {dialog, ask, say} = helpers(t);

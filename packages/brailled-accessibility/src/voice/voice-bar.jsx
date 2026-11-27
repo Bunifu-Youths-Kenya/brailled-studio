@@ -3,7 +3,7 @@ import React, {useEffect, useRef, useState, useSyncExternalStore} from 'react';
 import {useIntl} from 'react-intl';
 
 import {getApp} from '../actions/app.js';
-import {hasOpenDialog} from '../actions/dom.js';
+import {hasOpenDialog, takesTyping} from '../actions/dom.js';
 import {useSettings} from '../actions/preferences.jsx';
 import {matches, releases, TALK_KEYS, WAKE_KEY} from '../actions/shortcuts.js';
 import Dialog from '../outline/dialog.jsx';
@@ -152,6 +152,13 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
     }, [voice]);
 
     useEffect(() => {
+        // Whether the Space now held was used to stop the live voice, and so is nothing else's.
+        let interrupting = false;
+        const isSpace = event => event.code === 'Space';
+        const swallow = event => {
+            event.preventDefault();
+            event.stopPropagation();
+        };
         const handleFocus = event => {
             if (!event.target.closest?.(ZONE)) lastFocus.current = event.target;
         };
@@ -166,6 +173,19 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
             // The live voice, where the school chose it, takes the hands-free key; while it is on, Escape ends it
             // and the talk key is not needed.
             const live = app.live();
+            // While it is speaking, Space stops it. At other times, and in a field being typed in, Space is left alone.
+            if (isSpace(event)) {
+                const plain = !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
+                if (interrupting && event.repeat) {
+                    swallow(event);
+                    return;
+                }
+                interrupting = plain && !event.repeat && !takesTyping(event.target) && !!live?.interrupt();
+                if (interrupting) {
+                    swallow(event);
+                    return;
+                }
+            }
             const liveChosen = live && app.online.provider() === 'openai-live';
             if (live && live.getState().phase !== 'off' && (event.key === 'Escape' || matches(WAKE_KEY, event))) {
                 event.preventDefault();
@@ -230,6 +250,12 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
             if (!event.repeat) voice.press('key');
         };
         const handleKeyUp = event => {
+            // A button is pressed as Space is let go, so the release is kept from it too.
+            if (interrupting && isSpace(event)) {
+                interrupting = false;
+                swallow(event);
+                return;
+            }
             if (app.live()?.active() && releases(TALK_KEYS[app.settings.get().talkKey], event)) {
                 app.live().holdToAnswer(false);
                 return;
@@ -241,7 +267,12 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
             event.preventDefault();
             voice.release('key');
         };
-        const handleLeave = () => voice.interrupt();
+        const handleLeave = () => {
+            interrupting = false;
+            // The key's release is not heard from another window.
+            app.live()?.holdToAnswer(false);
+            voice.interrupt();
+        };
         const handleVisibility = () => {
             if (document.hidden) voice.cancel(voiceMessages.interrupted);
         };

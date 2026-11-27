@@ -1,5 +1,5 @@
 // Where a command in the student's own words goes: a local action first, otherwise the AI helper.
-import {parseAnswer} from '../proposals/answers.js';
+import {ANSWERS, parseAnswer} from '../proposals/answers.js';
 import proposalMessages from '../proposals/messages.js';
 import {hasOpenDialog} from './dom.js';
 import {speech} from './messages.js';
@@ -65,7 +65,7 @@ const routeCommand = (app, text, source) => {
         return 'action';
     }
     // A yes or no that comes too late is about a suggestion that has gone; it is not a request.
-    if (assistant && ['approve', 'all', 'reject'].includes(parseAnswer(text, app.answerWords())?.type)) {
+    if (assistant && ANSWERS.includes(parseAnswer(text, app.answerWords())?.type)) {
         app.announce(app.say(proposalMessages.nothingWaiting));
         return 'unknown';
     }

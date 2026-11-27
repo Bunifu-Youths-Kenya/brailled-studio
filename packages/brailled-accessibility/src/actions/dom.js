@@ -84,6 +84,10 @@ const zoneOf = element => {
     return found ? found[0] : null;
 };
 
+// Whether keys pressed on an element enter or choose its text, so that they are not to be taken for anything else.
+const takesTyping = element => !!element &&
+    (!!element.isContentEditable || ['textbox', 'combobox', 'searchbox'].includes(roleOf(element)));
+
 // Whether a dialog is open, which keeps the keyboard and screen reader to itself.
 const hasOpenDialog = document => !!document?.querySelector('.ReactModal__Overlay, dialog[open]');
 
@@ -103,6 +107,7 @@ export {
     focusableWithin,
     hasOpenDialog,
     roleOf,
+    takesTyping,
     tidy,
     zoneElement,
     zoneOf

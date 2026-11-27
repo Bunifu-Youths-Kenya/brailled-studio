@@ -4,10 +4,18 @@ const APPROVE_ALL = ['yes to all', 'yes do all', 'do all', 'do them all', 'appro
     'add them all', 'yes add all', 'yes add them', 'yes add them all'];
 // To be taken through the steps and do them oneself.
 const GUIDE = ['guide me', 'teach me', 'guide me through it', 'let me do it', 'i will do it'];
-const STEPS = ['step by step', 'go step by step', 'one step at a time', 'one at a time'];
+const STEPS = ['step by step', 'go step by step', 'one step at a time', 'one at a time', 'one by one'];
 // To hear every step and what changes, before answering.
 const MORE = ['more detail', 'more details', 'tell me more', 'what changes', 'read the steps', 'details'];
 const REJECT = ['no', 'no thanks', 'no thank you', 'reject', 'cancel', 'stop here', 'no stop here'];
+// Looser ways of agreeing, which are enough only for adding things. "Okay" is left out: it is said without meaning
+// yes.
+const CASUAL = ['yeah', 'yep', 'sure', 'yeah sure'];
+// Words that name what they approve, which may approve it hands-free.
+const NAMED = {
+    change: ['yes change it', 'yes change them'],
+    delete: ['yes delete it', 'yes delete them']
+};
 // "change it: three seconds", or the same without the colon.
 const CHANGE = /^\s*(?:please\s+)?change\s+(?:it|that)\b[\s:,.-]*(.*)$/i;
 
@@ -17,6 +25,9 @@ const SWAHILI = Object.freeze({
     no: Object.freeze(['hapana', 'hapana asante', 'la', 'usifanye', 'acha']),
     change: Object.freeze(['badilisha', 'badili'])
 });
+
+// The kinds of answer that only mean something while a suggestion waits.
+const ANSWERS = ['approve', 'casual', 'named', 'all', 'reject'];
 
 const plain = text => text.toLowerCase().replace(/[.,!?;:"]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -38,14 +49,17 @@ const changeAsked = (text, openings) => {
 /**
  * @param {string} text The words.
  * @param {{yes: string[], no: string[], change: string[]}} [more] Ways of answering besides the English ones.
- * @returns {?{type: 'approve'|'all'|'steps'|'guide'|'more'|'reject'|'change', text: ?string}} What they ask for, or
- * null.
+ * @returns {?{type: 'approve'|'casual'|'named'|'all'|'steps'|'guide'|'more'|'reject'|'change', text: ?string}} What
+ * they ask for, or null. For `named`, `text` is what the words name: `change` or `delete`.
  */
 const parseAnswer = (text, more = SWAHILI) => {
     const change = changeAsked(text, more.change);
     if (change !== null) return {type: 'change', text: change};
     const words = plain(text);
     if (APPROVE.includes(words) || more.yes.includes(words)) return {type: 'approve'};
+    if (CASUAL.includes(words)) return {type: 'casual'};
+    const named = Object.keys(NAMED).find(kind => NAMED[kind].includes(words));
+    if (named) return {type: 'named', text: named};
     if (APPROVE_ALL.includes(words)) return {type: 'all'};
     if (STEPS.includes(words)) return {type: 'steps'};
     if (GUIDE.includes(words)) return {type: 'guide'};
@@ -60,6 +74,7 @@ const ADD_BY_VOICE = ['add all', 'add them', 'add them all', 'yes add all', 'yes
 const asksToAdd = text => ADD_BY_VOICE.includes(plain(text));
 
 export {
+    ANSWERS,
     SWAHILI,
     asksToAdd,
     parseAnswer
