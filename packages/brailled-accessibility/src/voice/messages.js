@@ -79,6 +79,8 @@ const voiceMessages = fromTexts('brailled.voice', 'Voice input', {
     liveEnded: 'Okay. Press {key} when you want to talk again.',
     liveFailed: 'The live voice could not start. Use the talk key instead.',
     liveTalk: 'The live voice is on: just talk. {key} stops it.',
+    liveWorking: 'One moment, I’m putting that together.',
+    liveStillThere: 'Are you still there? I’ll stop listening soon.',
     liveNotice: 'Live voice: while it is on, what you say, your program and {assistant}’s replies go to OpenAI.',
     greeting: 'Hey! I’m listening.',
     greetingName: 'Hey {student}! I’m listening.',

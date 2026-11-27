@@ -13,12 +13,19 @@ import voiceMessages from '../voice/messages.js';
 
 const CALLS_URL = 'https://api.openai.com/v1/realtime/calls';
 // How long to wait for the words of a turn before letting the model reply without them.
-const WORDS_MS = 2500;
+const WORDS_MS = 1500;
 // A session ends after this long without talk, and after this long in all.
-const IDLE_MS = 90 * 1000;
+const IDLE_MS = 5 * 60 * 1000;
 const LONGEST_MS = 15 * 60 * 1000;
+// How long before the end of a quiet spell the student is asked whether they are still there.
+const WARN_MS = 15 * 1000;
 // Suggestions the editor refuses in a row before the student is told.
 const MOST_TRIES = 3;
+// How long after the talk key is let go words still count as said with it.
+const HELD_MS = 3000;
+// For a turn that only says what the editor says.
+const SAY_ONLY = 'Say the words after "EDITOR: Say:" in the last message to the student, warmly, and nothing else: ' +
+    'add no question, no explanation and nothing about what you will do.';
 // How long what the editor says is gathered before the live voice says it.
 const GATHER_MS = 800;
 
@@ -53,10 +60,18 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
     let toSay = [];
     let waitingFor = null;
     let idle = null;
+    let warning = null;
+    // Whether the live voice is asking if the student is still there, which does not count as talk.
+    let asking = false;
     let longest = null;
     // Suggestions in a row that the editor could not use.
     let refused = 0;
     let gathering = null;
+    // Whether the talk key is held, and until when words still count as said with it: they are written down a
+    // moment after the key is let go.
+    let holding = false;
+    let heldUntil = 0;
+    const deliberate = () => holding || Date.now() < heldUntil;
 
     const set = changes => {
         state = {...state, ...changes};
@@ -71,6 +86,7 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
 
     const close = () => {
         clearTimeout(idle);
+        clearTimeout(warning);
         clearTimeout(longest);
         clearTimeout(waitingFor);
         clearTimeout(gathering);
@@ -97,7 +113,9 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
         }
         responding = true;
         replyWanted = false;
-        send(speakOnly ? {type: 'response.create', response: {tool_choice: 'none'}} : {type: 'response.create'});
+        send(speakOnly ?
+            {type: 'response.create', response: {tool_choice: 'none', instructions: SAY_ONLY}} :
+            {type: 'response.create'});
     };
 
     // What the editor says goes through the live voice, gathered for a moment so that what follows at once is said
@@ -115,8 +133,15 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
         }, GATHER_MS);
     };
 
+    // The quiet spell starts again. Before it runs out the student is asked whether they are still there.
     const quiet = () => {
         clearTimeout(idle);
+        clearTimeout(warning);
+        warning = setTimeout(() => {
+            asking = true;
+            toSay.push(app.say(voiceMessages.liveStillThere));
+            flush();
+        }, IDLE_MS - WARN_MS);
         idle = setTimeout(() => stop({message: voiceMessages.liveEnded}), IDLE_MS);
     };
 
@@ -141,24 +166,45 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
     // A tool the model called: looking up is answered by the AI server; a suggestion goes to the editor.
     const call = async ({name, call_id: id, arguments: args}) => {
         const sent = assistant.snapshot();
+        // Working out a change takes a few seconds: the student hears, once and at once, that something is
+        // happening.
+        const working = app.say(voiceMessages.liveWorking);
+        if (name === 'make_change' && refused === 0) {
+            if (responding) {
+                toSay.push(working);
+            } else {
+                tell(`EDITOR: Say: ${working}`);
+                reply({speakOnly: true});
+            }
+        }
         const result = await post('/live-tool', {request: sent.body, name, arguments: args}).catch(() => null);
         if (state.phase !== 'on') return;
         const output = text => send({type: 'conversation.item.create',
             item: {type: 'function_call_output', call_id: id, output: text}});
+        // An explanation is the live voice's to say; a question or a suggestion is the editor's to show and ask.
+        if (result?.body?.reply?.type === 'explanation') {
+            output(`EDITOR: Say: ${result.body.reply.text}`);
+            reply();
+            return;
+        }
         if (result?.body?.reply) {
             output('EDITOR: The editor is checking it and will ask the student. Wait for the editor.');
             const problem = await assistant.propose(result.body.reply, sent);
             if (state.phase !== 'on') return;
+            // Calls are answered one at a time, in the order the model made them, so the count cannot be stale.
+            // eslint-disable-next-line require-atomic-updates
             refused = problem ? refused + 1 : 0;
             if (!problem) return;
             // The model is told why, to correct it without the student hearing each try.
             if (refused < MOST_TRIES) {
-                tell(`EDITOR: The editor could not use that suggestion: ${problem}. Follow the command schema ` +
-                    'exactly and call submit_proposal again, or ask the student what they mean.');
+                tell(`EDITOR: The editor could not use that suggestion: ${problem}. Call make_change again with ` +
+                    'what the student wants, said more exactly, or ask the student what they mean.');
                 reply();
                 return;
             }
             refused = 0;
+            // "One moment" is stale by now.
+            toSay = toSay.filter(text => text !== working);
             toSay.push(app.say(aiMessages.failed));
             flush();
             return;
@@ -177,10 +223,16 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
             stop({message: voiceMessages.liveEnded});
             return;
         }
-        // Answers to the editor's questions are the editor's to match, and anyone nearby could say them: the
-        // gate takes them as it does in any hands-free conversation.
+        // Answers to the editor's questions are the editor's to match. Anyone nearby could say them, so the gate
+        // takes them as in any hands-free conversation, unless the student held the talk key while saying them.
         if (app.gate()?.isOpen()) {
-            app.gate().handsFree(words);
+            if (deliberate()) app.gate().hear(words);
+            else app.gate().handsFree(words);
+            return;
+        }
+        // An answer to a question the editor is showing goes back to where the question came from.
+        if (app.assistant()?.isOpen() && !app.assistant().isExplaining()) {
+            app.assistant().respond(words);
             return;
         }
         if (app.guide()?.hear(words)) return;
@@ -196,6 +248,7 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
     const onEvent = event => {
         switch (event.type) {
         case 'input_audio_buffer.speech_started':
+            asking = false;
             quiet();
             toSay = [];
             break;
@@ -217,7 +270,9 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
             break;
         case 'response.done': {
             responding = false;
-            quiet();
+            // The quiet spell counts from when the live voice finished, unless it was asking whether anyone is
+            // there: only the student's talk keeps the session open then.
+            if (!asking) quiet();
             const calls = (event.response?.output ?? []).filter(item => item.type === 'function_call');
             calls.forEach(item => call(item));
             if (replyWanted && !calls.length) reply();
@@ -327,6 +382,11 @@ const createLiveSession = ({app, assistant, endpoint, scope}) => {
             if (state.phase !== 'on') return;
             toSay.push(text);
             flush();
+        },
+        // The talk key, held while the student answers.
+        holdToAnswer: held => {
+            holding = held;
+            if (!held) heldUntil = Date.now() + HELD_MS;
         },
         dispose: () => stop({quietly: true})
     };

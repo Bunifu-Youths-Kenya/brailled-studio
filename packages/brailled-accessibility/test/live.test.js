@@ -140,10 +140,13 @@ describe('the live voice', () => {
             tool: body => ({reply: waiting(body.request)})});
         holder.fake = parts;
         await parts.begin();
-        await parts.done([{type: 'function_call', name: 'submit_proposal', call_id: 'call1', arguments: '{}'}]);
+        await parts.done([{type: 'function_call', name: 'make_change', call_id: 'call1', arguments: '{}'}]);
         expect(parts.gate.isOpen()).toBe(true);
         const output = parts.sent.find(item => item.item?.type === 'function_call_output');
         expect(output.item).toMatchObject({call_id: 'call1', output: expect.stringMatching(/Wait for the editor/)});
+        // "One moment" is said first; the editor's question follows it.
+        await parts.done();
+        await parts.settle(1000);
         // Said as in any hands-free conversation, where a bare "yes" approves nothing.
         expect(parts.said().at(-1)).toMatch(/^EDITOR: Say: .*Wait a bit\. Add wait 1 second.*Shall I\? Say add all/);
     });
@@ -154,7 +157,7 @@ describe('the live voice', () => {
             tool: body => ({reply: waiting(body.request)})});
         holder.fake = parts;
         await parts.begin();
-        await parts.done([{type: 'function_call', name: 'submit_proposal', call_id: 'call1', arguments: '{}'}]);
+        await parts.done([{type: 'function_call', name: 'make_change', call_id: 'call1', arguments: '{}'}]);
         const before = parts.program();
         // The model says it is done: nothing changes.
         await parts.done([{type: 'message', role: 'assistant', content: [{type: 'output_text', text: 'Done!'}]}]);
@@ -182,11 +185,11 @@ describe('the live voice', () => {
             }})});
         holder.fake = parts;
         await parts.begin();
-        const call = {type: 'function_call', name: 'submit_proposal', call_id: 'call1', arguments: '{}'};
+        const call = {type: 'function_call', name: 'make_change', call_id: 'call1', arguments: '{}'};
         await parts.done([call]);
         expect(parts.gate.isOpen()).toBe(false);
         expect(parts.said().at(-1))
-            .toMatch(/^EDITOR: The editor could not use that suggestion: .*submit_proposal again/);
+            .toMatch(/^EDITOR: The editor could not use that suggestion: .*make_change again/);
         expect(parts.said().some(text => /couldn't work that out/.test(text))).toBe(false);
         await parts.done([call]);
         await parts.done([call]);
@@ -203,8 +206,98 @@ describe('the live voice', () => {
         parts.session.say('Done. Added: wait 2 seconds. To take it back, say undo.');
         await parts.settle(1000);
         expect(parts.said().at(-1)).toBe('EDITOR: Say: Done. Added: wait 2 seconds. To take it back, say undo.');
-        expect(parts.sent.at(-1)).toEqual({type: 'response.create', response: {tool_choice: 'none'}});
+        expect(parts.sent.at(-1)).toMatchObject({type: 'response.create',
+            response: {tool_choice: 'none', instructions: expect.stringMatching(/nothing else/)}});
     });
+
+    test('says it is working on a change while the text model works it out', async () => {
+        const holder = {};
+        const parts = live({session: body => minted(holder.fake)(body),
+            tool: body => ({reply: waiting(body.request)})});
+        holder.fake = parts;
+        await parts.begin();
+        parts.event({type: 'response.created'});
+        await parts.done([{
+            type: 'function_call',
+            name: 'make_change',
+            call_id: 'call1',
+            arguments: '{"request":"wait after moving"}'
+        }]);
+        await parts.settle(1000);
+        expect(parts.said().some(text => text.startsWith('EDITOR: Say: One moment, I’m putting that together.')))
+            .toBe(true);
+        expect(parts.gate.isOpen()).toBe(true);
+    });
+
+    test('has an explanation from the text model said by the live voice', async () => {
+        const holder = {};
+        const parts = live({session: body => minted(holder.fake)(body),
+            tool: () => ({reply: {type: 'explanation', text: 'A loop repeats blocks.'}})});
+        holder.fake = parts;
+        await parts.begin();
+        await parts.done([{type: 'function_call', name: 'make_change', call_id: 'call1', arguments: '{}'}]);
+        const output = parts.sent.find(item => item.item?.type === 'function_call_output');
+        expect(output.item.output).toBe('EDITOR: Say: A loop repeats blocks.');
+        expect(parts.gate.isOpen()).toBe(false);
+    });
+
+    test('asks after nearly five quiet minutes whether the student is still there, then stops', async () => {
+        const holder = {};
+        const parts = live({session: body => minted(holder.fake)(body)});
+        holder.fake = parts;
+        await parts.begin();
+        await parts.settle((4 * 60 * 1000) + (44 * 1000));
+        expect(parts.session.getState().phase).toBe('on');
+        expect(parts.said().some(text => /still there/.test(text))).toBe(false);
+        await parts.settle(2000);
+        expect(parts.said().at(-1)).toBe('EDITOR: Say: Are you still there? I’ll stop listening soon.');
+        // Saying that is not talk: the session still ends.
+        await parts.done();
+        await parts.settle(16 * 1000);
+        expect(parts.session.getState().phase).toBe('off');
+    });
+
+    test('goes on when the student answers "still there?"', async () => {
+        const holder = {};
+        const parts = live({session: body => minted(holder.fake)(body)});
+        holder.fake = parts;
+        await parts.begin();
+        await parts.settle((4 * 60 * 1000) + (50 * 1000));
+        parts.event({type: 'input_audio_buffer.speech_started'});
+        await parts.settle(60 * 1000);
+        expect(parts.session.getState().phase).toBe('on');
+    });
+
+    test('takes a yes said while the talk key is held as deliberate, for a change that is not an addition',
+        async () => {
+            const holder = {};
+            const parts = live({session: body => minted(holder.fake)(body),
+                tool: body => ({reply: {
+                    type: 'proposal',
+                    summary: 'Longer.',
+                    steps: [{command: {
+                        op: 'set-value',
+                        block: body.request.program.find(line => line.includes(' control_wait:')).trim()
+                            .split(' ')[0],
+                        name: 'DURATION',
+                        value: 5
+                    }}]
+                }})});
+            holder.fake = parts;
+            await parts.begin();
+            await parts.done([{type: 'function_call', name: 'make_change', call_id: 'call1', arguments: '{}'}]);
+            await parts.done();
+            await parts.settle(1000);
+            expect(parts.gate.isOpen()).toBe(true);
+            await parts.turn('yes');
+            await parts.settle(3000);
+            expect(parts.program()).toContain('wait 2 seconds');
+            parts.session.holdToAnswer(true);
+            await parts.turn('yes', {wait: 0});
+            parts.session.holdToAnswer(false);
+            await parts.settle(3000);
+            expect(parts.program()).toContain('wait 5 seconds');
+        });
 
     test('drops words that are the editor\'s own coming back', async () => {
         const holder = {};

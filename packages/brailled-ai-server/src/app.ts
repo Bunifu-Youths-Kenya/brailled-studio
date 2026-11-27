@@ -8,7 +8,7 @@ import { createCostLog, speechCost, type CostLog, type Entry } from './cost.ts'
 import { readCaps, type Caps } from './editor-config.ts'
 import { runAgent } from './agent.ts'
 import { loadKnowledge } from './knowledge.ts'
-import { mintLiveKey, runLiveTool } from './live.ts'
+import { changeAsked, liveTools, mintLiveKey, runLiveTool } from './live.ts'
 import { createRateLimiter } from './limits.ts'
 import { readRequest, readVoiceTurn, type AssistantRequest } from './request.ts'
 import { readSpeechRequest, synthesise } from './speech.ts'
@@ -364,12 +364,48 @@ export const createApp = (
     log(`live-session: ${liveSessions} today, key made in ${now() - started} ms`)
     response.set('Cache-Control', 'no-store').json(minted)
   }
-  const liveTool = (request: Request, response: Response) => {
+  // A change the live model asks for is worked out by the text model, the same as a typed request, so that the
+  // editor gets commands it can use at the first try.
+  const makeChange = async (asked: string, project: AssistantRequest) => {
+    if (!configured) return { text: 'Changes cannot be worked out here now. Tell the student.' }
+    if (spent()) return { text: 'The day\'s limit is reached. Tell the student to try again tomorrow.' }
+    const started = now()
+    const answer = await runAgent({ ...project, transcript: asked, conversing: true }, {
+      config,
+      knowledge,
+      commandSchema,
+      fetcher,
+      now,
+    })
+    costs.record(
+      turnEntry(
+        {
+          kind: 'assistant',
+          provider: 'openai-live',
+          model: config.model,
+          outcome: 'failure' in answer ? answer.failure : 'replied',
+          audioSeconds: 0,
+          cacheHits: 0,
+        },
+        answer,
+        now() - started,
+      ),
+    )
+    log(`live-tool: make_change ${'reply' in answer ? 'replied' : answer.failure} in ${now() - started} ms, ${answer.rounds} rounds`)
+    return 'reply' in answer ? { reply: answer.reply } : { text: 'It could not be worked out. Ask the student to say it another way.' }
+  }
+  const liveTool = async (request: Request, response: Response) => {
     const body = (request.body ?? {}) as { request?: unknown; name?: unknown; arguments?: unknown }
     const read = readRequest(body.request)
     const { name, arguments: args } = body
     if ('problem' in read || typeof name !== 'string' || name.length > 60 || typeof args !== 'string') {
       response.status(400).json({ error: 'invalid_request' })
+      return
+    }
+    const asked = name === 'make_change' ? changeAsked(args) : null
+    const offered = liveTools(read.request.mode).some((tool) => tool.name === name)
+    if (name === 'make_change' && offered) {
+      response.set('Cache-Control', 'no-store').json(asked ? await makeChange(asked, read.request) : { text: 'Give "request".' })
       return
     }
     // Nothing the student said is logged: only the tool's name.
@@ -380,12 +416,12 @@ export const createApp = (
   app.post('/api/live-session', liveRate, express.json({ limit: config.maxRequestBytes }), (request, response, next) => {
     liveSession(request, response).catch(next)
   })
-  app.post('/api/live-tool', rate, express.json({ limit: config.maxRequestBytes }), (request, response) => {
+  app.post('/api/live-tool', rate, express.json({ limit: config.maxRequestBytes }), (request, response, next) => {
     if (!request.is('application/json')) {
       response.status(415).json({ error: 'invalid_request' })
       return
     }
-    liveTool(request, response)
+    liveTool(request, response).catch(next)
   })
 
   // Bodies that are too large or are not JSON.

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from '../src/app.ts'
 import { readConfig } from '../src/config.ts'
 import { liveSession, liveTools } from '../src/live.ts'
+import { calls } from './model.ts'
 
 const ORIGIN = 'http://localhost:8601'
 const OPENAI_KEY = 'sk-openai-secret'
@@ -86,12 +87,20 @@ describe('a live session', () => {
     expect(sent.session.audio.output.voice).toBe('marin')
   })
 
-  it('offers only looking up and suggesting, and no suggesting in guide mode', () => {
+  it('offers looking up and asking for a change, never writing commands, and no changes in guide mode', () => {
     const build = liveTools('build').map((tool) => tool.name)
-    expect(build).toContain('submit_proposal')
-    expect(build).not.toContain('ask_question')
-    expect(build).not.toContain('give_explanation')
-    expect(liveTools('guide').map((tool) => tool.name)).not.toContain('submit_proposal')
+    expect(build).toContain('make_change')
+    for (const name of ['submit_proposal', 'ask_question', 'give_explanation']) expect(build).not.toContain(name)
+    expect(liveTools('guide').map((tool) => tool.name)).not.toContain('make_change')
+  })
+
+  it('decides quickly that the student has finished, and does not reply on its own', async () => {
+    const { post, fetcher } = await start()
+    await post('/api/live-session', request())
+    const sent = JSON.parse(fetcher.mock.calls[0][1]?.body as string) as {
+      session: { audio: { input: { turn_detection: Record<string, unknown> } } }
+    }
+    expect(sent.session.audio.input.turn_detection).toMatchObject({ eagerness: 'high', create_response: false })
   })
 
   it('keeps the project out of the rules, as data', () => {
@@ -139,20 +148,35 @@ describe('the live tools', () => {
     expect(((await response.json()) as { text: string }).text).toMatch(/motion_movesteps/)
   })
 
-  it('check a suggestion, which goes back to the editor, not into the project', async () => {
-    const { post } = await start()
+  it('have a change worked out by the text model, which goes back to the editor, not into the project', async () => {
     const steps = [{ command: { op: 'insert', block: 'motion_movesteps', after: 'b1' } }]
+    const fetcher = vi.fn<typeof fetch>(() => Promise.resolve(calls(['submit_proposal', { summary: 'Move.', steps }])))
+    const { post, lines } = await start({ OPENROUTER_API_KEY: 'sk-or', OPENROUTER_MODEL: 'test/model' }, fetcher)
     const response = await post('/api/live-tool', {
       request: request(),
-      name: 'submit_proposal',
-      arguments: JSON.stringify({ summary: 'Move.', steps }),
+      name: 'make_change',
+      arguments: JSON.stringify({ request: 'move after the flag' }),
     })
     expect(await response.json()).toEqual({ reply: { type: 'proposal', summary: 'Move.', steps } })
+    const asked = JSON.parse(fetcher.mock.calls[0][1]?.body as string) as { messages: { content: string }[] }
+    expect(JSON.parse(asked.messages[1].content)).toMatchObject({ request: 'move after the flag' })
+    expect(lines.join('\n')).not.toContain('move after the flag')
+  })
+
+  it('say so where no text model is set up to work a change out', async () => {
+    const { post } = await start()
+    const response = await post('/api/live-tool', {
+      request: request(),
+      name: 'make_change',
+      arguments: JSON.stringify({ request: 'move' }),
+    })
+    expect(((await response.json()) as { text: string }).text).toMatch(/cannot be worked out/)
   })
 
   it.each([
     ['a question, which is said aloud instead', 'build', 'ask_question'],
-    ['a suggestion in guide mode', 'guide', 'submit_proposal'],
+    ['commands written by the live model', 'build', 'submit_proposal'],
+    ['a change in guide mode', 'guide', 'make_change'],
   ])('refuse %s', async (_, mode, name) => {
     const { post } = await start()
     const response = await post('/api/live-tool', { request: request(mode), name, arguments: '{}' })

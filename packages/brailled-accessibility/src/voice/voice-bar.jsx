@@ -172,10 +172,14 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
                 if (!event.repeat) live.start();
                 return;
             }
+            // In a live session the talk key, held while speaking, makes an answer deliberate, as it is anywhere
+            // else; with nothing waiting for an answer it is not needed.
             if (live?.active() && matches(TALK_KEYS[app.settings.get().talkKey], event)) {
                 event.preventDefault();
                 event.stopPropagation();
-                if (!event.repeat) app.announce(app.say(voiceMessages.liveTalk, {key: WAKE_KEY.label}));
+                if (event.repeat) return;
+                if (app.gate()?.isOpen()) live.holdToAnswer(true);
+                else app.announce(app.say(voiceMessages.liveTalk, {key: WAKE_KEY.label}));
                 return;
             }
             if (event.key === 'Escape' && voice.getState().phase !== 'idle') {
@@ -219,6 +223,10 @@ const VoiceBar = ({vm, createProvider = createSpeechProvider, createEngine = cre
             if (!event.repeat) voice.press('key');
         };
         const handleKeyUp = event => {
+            if (app.live()?.active() && releases(TALK_KEYS[app.settings.get().talkKey], event)) {
+                app.live().holdToAnswer(false);
+                return;
+            }
             // Otherwise these keys, which include modifiers, are left alone.
             const {phase, mode} = voice.getState();
             if (phase !== 'listening' || mode !== 'hold') return;

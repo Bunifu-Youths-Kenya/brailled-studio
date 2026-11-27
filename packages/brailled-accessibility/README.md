@@ -388,16 +388,19 @@ bar shows "Talking with Mboni". She does not listen while she thinks.
 
 With the AI server's `OPENAI_API_KEY` set, **F4** starts a live conversation with OpenAI's live model
 (`gpt-realtime-2.1-mini` unless changed), which hears the student and answers in its own voice. F4, Escape or
-"goodbye" end it, as do 90 seconds of quiet and 15 minutes. The red dot shows while it is on; the talk key is not
-needed then. `src/live/session.js` holds it:
+"goodbye" end it, as do 5 minutes of quiet (15 seconds before, it asks "Are you still there?") and 15 minutes. The red dot shows while it is on. The talk key is needed only to make an answer
+deliberate: held while saying "yes", it approves a change that is not an addition, as it does outside a live
+session. `src/live/session.js` holds it:
 
 - **The editor goes first.** The model replies only when the editor asks it to. When the student stops, the editor
   takes the written-down words: an answer to a waiting suggestion goes to the gate, as in any hands-free
   conversation (a bare "yes" approves nothing); a local command runs as one; words that are its own coming back are
   dropped; "goodbye" ends it. Only then is the model given the project as it is and asked to reply.
-- **Suggestions go to the gate.** The model's `submit_proposal` goes through the AI server's checks and then the
-  editor's, as from any model. If the editor cannot use it, the model is told why and tries again; after three tries
-  the student is told it could not be worked out.
+- **Changes are worked out by the text model.** The live model asks for one with `make_change`, in the student's
+  words; while the AI server's text model works it out, the live voice says "One moment, I'm putting that
+  together." A suggestion goes to the gate, a question is shown and asked, an explanation is said. If the editor
+  cannot use a suggestion, the model is told why and asks again; after three tries the student is told it could not
+  be worked out.
 - **One voice.** While the session is on, everything the editor would say or read aloud is said by the live voice,
   gathered for a moment so that what follows at once is said together.
 - If it cannot start (no key, no network, the microphone blocked), the editor says so and the talk key still works.

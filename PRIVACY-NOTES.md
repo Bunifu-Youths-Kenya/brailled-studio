@@ -78,7 +78,8 @@ A recording of a child's voice is personal data, and voices can identify people.
 
 Off unless the school sets `"provider": "openai-live"` in `brailled-config.json`, the AI helper is on and the AI
 server has `OPENAI_API_KEY`. A student starts it with F4 and ends it with F4, Escape or "goodbye"; it also ends after
-90 seconds of quiet and after 15 minutes.
+5 minutes of quiet (it asks "Are you still there?" 15 seconds before) and after 15 minutes. A change asked for
+during it is worked out by the AI server's text model through OpenRouter, as a typed request is.
 
 **While it is on, the microphone is open and the sound goes straight from the browser to OpenAI**, over a WebRTC
 connection, with the program, names and recent conversation. OpenAI's model hears it, writes it down, answers by
@@ -88,7 +89,7 @@ for one minute.
 | Question | Answer |
 | - | - |
 | What shows it? | The red dot while it is on. When it starts, the editor says once "Live voice: while it is on, what you say, your program and Mboni's replies go to OpenAI", and Voice settings show it |
-| Who decides yes or no? | The editor, from the written-down words, as in any hands-free conversation: a bare "yes" approves nothing, "add it" approves only additions that "undo" takes back, where `conversation.voiceApproval` allows it. The model is told it decides nothing, and nothing it says changes the project |
+| Who decides yes or no? | The editor, from the written-down words, as in any hands-free conversation: a bare "yes" approves nothing, "add it" approves only additions that "undo" takes back, where `conversation.voiceApproval` allows it, and anything else needs "yes" said while the talk key is held, or a button. The model is told it decides nothing, and nothing it says changes the project |
 | Is the audio stored or logged? | Not by the editor or the server, which never sees it. What OpenAI keeps follows OpenAI's terms for the API and your account's settings; the realtime documentation read for this work did not state it, so check before students use it |
 | Zero data retention? | The OpenRouter settings do not apply: this goes to OpenAI directly |
 

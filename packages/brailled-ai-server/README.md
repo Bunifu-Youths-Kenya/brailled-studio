@@ -102,9 +102,14 @@ same sound. The [daily caps](#costs) apply. Nothing is cached, and neither the w
 With `OPENAI_API_KEY` set, the editor's `openai-live` provider talks to OpenAI's live model over WebRTC.
 `POST /api/live-session` takes the same request as `/api/assistant` and returns `{secret, expiresAt, model, context}`:
 a key that works for one minute, made with the assistant's rules, the brief spoken style, rules for speaking live,
-and the tools (looking up, and `submit_proposal` in build mode; questions and explanations are said aloud).
+and the tools: looking up, and in build mode `make_change`, which asks for a change in the student's words. The
+live model writes no commands itself; questions and explanations it says aloud. Its turn detection is set to decide
+quickly that the student has finished, and never to reply on its own.
 `context` is the project, as data, for the editor to give the model first. `POST /api/live-tool` with `{request,
-name, arguments}` runs one of those tools against the project as it is then. Both accept only the editor's origins,
+name, arguments}` runs one of those tools against the project as it is then. For `make_change` it runs the same
+text model and tool loop as a typed request (`OPENROUTER_MODEL`), which writes the editor's commands far more
+reliably than the live model, and gives back its reply: a suggestion, a question or an explanation. Its cost is
+recorded like a typed request's. Both accept only the editor's origins,
 are rate limited, and `LIVE_SESSIONS_PER_DAY` bounds the sessions. Nothing said is logged: only how many sessions
 and which tools.
 
