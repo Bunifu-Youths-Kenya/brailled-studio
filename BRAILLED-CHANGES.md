@@ -45,6 +45,7 @@ Upstream base: `scratchfoundation/scratch-editor`, branch `develop`, commit `40f
 | 2026-11-26 | `packages/scratch-gui/src/components/menu-bar/menu-bar.css` | The menu bar takes `--brailled-brand`: a deep purple with white text at 12:1, black in High Contrast. | The old purple gave white text 4.7:1, too little for low-vision students. |
 | 2026-11-27 | `AGENTS.md` | Adds the testing workflow: which tests to run after an edit and before a push. | Full browser runs after every change took too long. |
 | 2026-11-27 | `packages/scratch-gui/src/components/menu-bar/menu-bar.css`, `project-title-input.css`, `src/components/menu/menu.css` | A white menu bar with deep blue text, icons and project name box, and a line in the logo's blue; drop-down menus take the same deep blue. Black in High Contrast. | The logo sat in a white box on purple. It is now drawn straight on the bar. |
+| 2026-11-27 | `packages/scratch-gui/webpack.config.js`, `package.json`, `package-lock.json` | Builds `account.html`, Brailled's page for signing in, and adds `@supabase/supabase-js`. | Accounts for the online editor's AI. |
 
 ## Files added by Brailled
 
@@ -287,5 +288,17 @@ These are new files, not edits to Scratch's own.
 | 2026-11-27 | `supabase/tests/limits.sql` |
 | 2026-11-27 | `supabase/tests/run.sh` |
 | 2026-11-27 | `supabase/tests/hosted.mjs` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/client.js` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/controller.js` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/icons.jsx` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/index.jsx` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/messages.js` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/page.css` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/page.ejs` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/page.jsx` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/photo.jpg` |
+| 2026-11-27 | `packages/brailled-accessibility/src/account/settings.js` |
+| 2026-11-27 | `packages/brailled-accessibility/test/account.test.js` |
+| 2026-11-27 | `packages/scratch-gui/static/brailled-account.json` |
 | 2026-11-25 | `LICENSE-NOTES.md` |
 | 2026-11-25 | `BRAILLED-CHANGES.md` |

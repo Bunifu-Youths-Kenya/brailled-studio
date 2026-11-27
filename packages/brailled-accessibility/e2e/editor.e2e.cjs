@@ -200,8 +200,9 @@ const startAiServer = async (env = {}) => {
     const only = process.env.BRAILLED_E2E_ONLY;
     const groups = [];
     // `speech` marks a group that stands in for speech or the microphone, which never runs beside another such.
-    const group = (title, fn, {init = [], firstVisit = false, newSession = false, config = null,
-        speech = [init].flat().some(script => [fakeSpeech, fakeVoice, noSpeech].includes(script))} = {}) => {
+    // `address` opens another page of the editor's, such as the account page, in place of the editor.
+    const group = (title, fn, {init = [], firstVisit = false, newSession = false, config = null, address = null,
+        prepare = null, speech = [init].flat().some(script => [fakeSpeech, fakeVoice, noSpeech].includes(script))} = {}) => {
         if (only && !new RegExp(only).test(title)) return;
         const run = async () => {
             console.log(`--- ${title}`);
@@ -282,6 +283,11 @@ const startAiServer = async (env = {}) => {
                 }
             };
             const ready = async () => {
+                if (address) {
+                    await page.waitForFunction(() => document.querySelector('main h1') &&
+                        !document.querySelector('main').textContent.includes('Loading…'), null, {timeout: 150000});
+                    return;
+                }
                 await page.waitForFunction(() => window.vm && window.vm.editingTarget && window.brailled, null,
                     {timeout: 150000});
                 await page.waitForSelector('[data-brailled-workspace] .blocklyToolbox');
@@ -292,7 +298,8 @@ const startAiServer = async (env = {}) => {
                 await ready();
             };
             try {
-                await page.goto(url, {waitUntil: 'load', timeout: 200000});
+                await prepare?.(page);
+                await page.goto(address ? new URL(address, url).href : url, {waitUntil: 'load', timeout: 200000});
                 await ready();
                 await fn(t);
             } catch (e) {
@@ -2213,6 +2220,107 @@ const startAiServer = async (env = {}) => {
             /I do not understand "make a square"/.test(await t.page.locator('dialog [role="alert"]').textContent()) &&
             ai.model.asked.length === before);
     });
+
+    // Stands in for the Supabase project of the account page. `page.asked` holds the addresses it was asked for.
+    const account = (email = false) => async page => {
+        page.asked = [];
+        const project = 'https://stand-in.supabase.co';
+        await page.route('**/brailled-account.json', route => route.fulfill(
+            {json: {supabaseUrl: project, publishableKey: 'sb_publishable_stand_in', email}}));
+        await page.route(`${project}/**`, route => {
+            const asked = new URL(route.request().url());
+            page.asked.push(asked.href);
+            const headers = {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*'};
+            if (asked.pathname === '/rest/v1/rpc/my_allowance') {
+                return route.fulfill({headers, json: {name: 'Amina', admin: false, blocked: false, ai_enabled: true,
+                    requests_used: 2, requests_limit: 50, live_sessions_used: 1, live_sessions_limit: 3}});
+            }
+            if (asked.pathname === '/auth/v1/authorize') {
+                return route.fulfill({contentType: 'text/html', body: '<title>Google</title><p>Google</p>'});
+            }
+            return route.fulfill({headers, status: 204, body: ''});
+        });
+    };
+    const heading = page => page.locator('main h1').textContent();
+
+    group('account page', async t => {
+        const {page, key} = t;
+        const google = page.getByRole('button', {name: 'Create account with Google'});
+        check('the account page offers an account with Google', await heading(page) === 'Create an account' &&
+            await google.count() === 1, await heading(page));
+        check('with email switched off, there is nothing to type', await page.locator('main input').count() === 0);
+        check('the photo and the logo are described', (await page.locator('main img').evaluateAll(images =>
+            images.every(image => image.alt.length > 5 && image.complete && image.naturalWidth > 0))));
+        check('focus is not moved as the page opens',
+            await page.evaluate(() => document.activeElement === document.body));
+        check('axe: account page', (await t.axe('main')).length === 0, (await t.axe('main')).join('; '));
+        await page.screenshot({path: path.join(out, 'account.png')});
+        const reached = [];
+        for (let i = 0; i < 6; i++) {
+            await key('Tab', 80);
+            reached.push(await page.evaluate(() => document.activeElement.getAttribute('aria-label') ||
+                document.activeElement.querySelector('img')?.alt || document.activeElement.textContent));
+        }
+        check('Tab reaches everything, in reading order', reached.join('|') === ['Brailled Education',
+            'Create account with Google', 'Log in', 'Brailled on Facebook', 'Brailled on Instagram',
+            'Brailled on LinkedIn'].join('|'), reached.join('|'));
+        await page.getByRole('button', {name: 'Log in'}).focus();
+        await key('Enter', 600);
+        check('changing to logging in moves to the new heading', await heading(page) === 'Log in' &&
+            await page.evaluate(() => document.activeElement.tagName) === 'H1');
+        await page.setViewportSize({width: 360, height: 700});
+        await t.pause(500);
+        check('on a narrow screen the form has the width, without the photo, and nothing runs off',
+            await page.evaluate(() => !document.querySelector('main img[src*="jpg"]').getClientRects().length &&
+                document.documentElement.scrollWidth <= window.innerWidth));
+        await page.screenshot({path: path.join(out, 'account-narrow.png'), fullPage: true});
+        await page.setViewportSize({width: 1366, height: 768});
+        await page.getByRole('button', {name: 'Continue with Google'}).focus();
+        await key('Enter', 1500);
+        const sent = new URL(page.asked.find(item => item.includes('/authorize')) || 'http://none');
+        check('the Google button goes to Google, to come back to this page',
+            sent.searchParams.get('provider') === 'google' &&
+            sent.searchParams.get('redirect_to') === new URL('account.html', url).href &&
+            !!sent.searchParams.get('code_challenge'), sent.href);
+    }, {address: 'account.html', prepare: account()});
+
+    group('account page, signed in', async t => {
+        const {page, key} = t;
+        const text = () => page.locator('main').textContent();
+        check('someone signed in is told what they have used', await heading(page) === 'You are signed in' &&
+            /Hello Amina\..*2 of 50 requests.*1 of 3 live voice sessions/.test(await text()), await text());
+        check('axe: signed in', (await t.axe('main')).length === 0, (await t.axe('main')).join('; '));
+        await page.screenshot({path: path.join(out, 'account-signed-in.png')});
+        await page.getByRole('button', {name: 'Sign out'}).focus();
+        await key('Enter', 1500);
+        check('signing out says so, and forgets the sign-in', await heading(page) === 'Log in' &&
+            await page.evaluate(() => localStorage.getItem('brailled.account') === null), await heading(page));
+    }, {address: 'account.html', prepare: account(), init: [() => {
+        if (window !== window.top || sessionStorage.getItem('stood-in')) return;
+        sessionStorage.setItem('stood-in', 'yes');
+        const part = value => btoa(JSON.stringify(value)).replace(/=+$/, '');
+        const expires = Math.floor(Date.now() / 1000) + 3600;
+        const user = {id: 'u1', email: 'a@example.org', role: 'authenticated', aud: 'authenticated'};
+        localStorage.setItem('brailled.account', JSON.stringify({
+            access_token: `${part({alg: 'HS256', typ: 'JWT'})}.${part({sub: 'u1', exp: expires})}.x`,
+            refresh_token: 'r', token_type: 'bearer', expires_in: 3600, expires_at: expires, user}));
+    }]});
+
+    group('account page with email', async t => {
+        const {page, key} = t;
+        const alert = () => page.locator('main [role="alert"]').textContent();
+        check('with email switched on, the fields are labelled', await page.getByLabel('Email address').count() === 1 &&
+            await page.getByLabel('Full name').count() === 1 &&
+            await page.getByLabel('Password', {exact: true}).count() === 1);
+        check('axe: account form', (await t.axe('main')).length === 0, (await t.axe('main')).join('; '));
+        await page.screenshot({path: path.join(out, 'account-email.png'), fullPage: true});
+        await page.getByRole('button', {name: 'Create an account', exact: true}).focus();
+        await key('Enter', 600);
+        check('a mistake is announced', await alert() === 'Enter a complete email address.', await alert());
+        await page.getByLabel('Show password').check();
+        check('the password can be shown',
+            await page.getByLabel('Password', {exact: true}).getAttribute('type') === 'text');
+    }, {address: 'account.html', prepare: account(true)});
 
     // Run one group in this process, starting it from a model that remembers nothing of the groups before.
     const runHere = async ({title, run}) => {

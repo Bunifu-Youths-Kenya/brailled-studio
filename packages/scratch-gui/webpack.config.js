@@ -172,7 +172,8 @@ const buildConfig = baseConfig.clone()
             blocksonly: './src/playground/blocks-only.jsx',
             compatibilitytesting: './src/playground/compatibility-testing.jsx',
             sitemaintenance: './src/playground/site-maintenance.jsx',
-            player: './src/playground/player.jsx'
+            player: './src/playground/player.jsx',
+            account: '../brailled-accessibility/src/account/index.jsx'
         },
         output: {
             path: path.resolve(__dirname, 'build'),
@@ -224,6 +225,14 @@ const buildConfig = baseConfig.clone()
         filename: 'player.html',
         template: 'src/playground/index.ejs',
         title: 'Brailled: Player Example'
+    }))
+    // Brailled's page for creating an account and signing in.
+    .addPlugin(new HtmlWebpackPlugin({
+        ...commonHtmlWebpackPluginOptions,
+        chunks: ['account'],
+        filename: 'account.html',
+        template: '../brailled-accessibility/src/account/page.ejs',
+        title: 'Sign in to Brailled'
     }))
     .addPlugin(new CopyWebpackPlugin({
         patterns: [

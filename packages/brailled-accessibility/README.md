@@ -801,6 +801,14 @@ create them and change their values:
 3. **New hardware** such as ESP32 is not part of the VM. It needs a VM extension with `getInfo()` and block
    implementations; once loaded it is described like any other.
 
+## Accounts (online editor)
+
+`account.html`, from `src/account/`, is where someone creates an account or signs in, with Google and, where
+`"email": true`, with an email address and password. It reads the public address and publishable key of the
+Supabase project from `static/brailled-account.json`; a secret key is refused. The sign-in is kept in the browser
+under `brailled.account`, where pages of the same site can find it. The editor itself does not use it yet. The
+database and AI function are in [`supabase/`](../../supabase/README.md).
+
 ## Test and lint
 
 From this directory, after `npm ci` at the repository root:
