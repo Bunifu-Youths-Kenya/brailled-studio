@@ -143,6 +143,17 @@ order. The same applies to the root `package.json`.
 **Do not publish packages manually.** Every package has a `prepublishOnly` script that will error if you try.
 Publishing is handled exclusively by the CI release pipeline.
 
+## Testing workflow
+
+- After each edit: run lint and unit tests only (`npm run lint`, `npm test`).
+- For browser behaviour: run only the e2e groups you touched, with the dev server running, e.g.
+  `BRAILLED_E2E_ONLY='orientation|earcons' npm run test:e2e`.
+- Run the full e2e (`npm run test:e2e` in `brailled-accessibility`) once, before a push, not after every phase or
+  small fix. Run it in the background and report back when it finishes. Do not sit in a wait loop, and do not hit
+  the 10-minute command limit.
+- If a group fails, rerun only that group. Do one final full run only if the fix touches shared code.
+- Never skip the full run before a push.
+
 ## Before submitting changes
 
 Review all changes and confirm:
