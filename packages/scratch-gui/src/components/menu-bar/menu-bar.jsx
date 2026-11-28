@@ -295,7 +295,7 @@ class MenuBar extends React.Component {
             >
                 <div className={styles.mainMenu}>
                     <div className={styles.fileGroup}>
-                        <BrandName />
+                        <BrandName vm={this.props.vm} />
                         {this.props.canChangeLanguage && (<LanguageControl
                             className={classNames(styles.menuBarItem, styles.hoverable)}
                             icon={languageIcon}

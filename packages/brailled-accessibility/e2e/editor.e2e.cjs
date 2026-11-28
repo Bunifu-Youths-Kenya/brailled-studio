@@ -310,6 +310,30 @@ const startAiServer = async (env = {}) => {
         groups.push({title, speech, run});
     };
 
+    const homePage = async page => {
+        await page.route('**/home-page-stand-in', route => route.fulfill({contentType: 'text/html',
+            body: '<title>Home</title><h1>Home</h1>'}));
+    };
+    group('logo leads home', async t => {
+        const {page, key} = t;
+        const home = page.locator('header').getByRole('link', {name: 'Brailled Education home'});
+        await t.pause(1500);
+        check('with a home page given, the logo links to it, in the same tab', await home.count() === 1 &&
+            await home.getAttribute('href') === '/home-page-stand-in' && await home.getAttribute('target') === null);
+        await key('Alt+Shift+KeyK', 500);
+        await t.type('go to menu');
+        await key('Enter', 900);
+        check('"go to menu" starts past the logo', await t.said() === 'Menu bar.' &&
+            await page.evaluate(() => !!document.activeElement.closest('header') &&
+                !document.activeElement.matches('[data-brailled-home]')), (await t.focused()).text);
+        await key('Shift+Tab', 300);
+        check('Shift+Tab from there reaches the logo', await home.evaluate(link => link === document.activeElement),
+            (await t.focused()).text);
+        check('axe: menu bar logo', (await t.axe('header a[data-brailled-home]')).length === 0);
+        await Promise.all([page.waitForURL('**/home-page-stand-in'), page.keyboard.press('Enter')]);
+        check('Enter on it opens the home page', await page.title() === 'Home', page.url());
+    }, {prepare: homePage, config: {json: {voice: true, homeUrl: '/home-page-stand-in'}}});
+
     group('layout', async ({page, key}) => {
         const rect = sel => page.$eval(sel, el => el.getBoundingClientRect().toJSON());
         const [aside, main] = [await rect('aside'), await rect('main')];
@@ -339,6 +363,8 @@ const startAiServer = async (env = {}) => {
             .getByRole('link', {name: 'Privacy'}).count() === 0);
         await page.locator('header select').selectOption('en');
         await page.waitForTimeout(2500);
+        check('with no home page given, the logo is not a link', await page.locator('header')
+            .getByRole('link', {name: 'Brailled Education home'}).count() === 0);
         const logo = page.locator('header').getByRole('img', {name: 'Brailled Education'});
         for (const width of [1366, 1024]) {
             await page.setViewportSize({width, height: 768});

@@ -57,6 +57,7 @@ const SAFEST = Object.freeze({ai: false,
     earcons: earconsFrom(null),
     aiEndpoint: null,
     account: false,
+    homeUrl: null,
     approval: 'every',
     proposalExpirySeconds: EXPIRY_SECONDS.usual,
     assistantMode: 'build'});
@@ -75,6 +76,21 @@ const endpointFrom = value => {
         const url = new URL(value);
         const local = url.protocol === 'http:' && LOCAL_HOSTS.includes(url.hostname);
         return url.protocol === 'https:' || local ? url.href : null;
+    } catch {
+        return null;
+    }
+};
+
+// Stands for this website, whatever its address.
+const HERE = 'http://here.invalid';
+
+// The logo leads to a path on this website or an https address, and to nothing else.
+const homeFrom = value => {
+    if (typeof value !== 'string') return null;
+    try {
+        const url = new URL(value, HERE);
+        if (value.startsWith('/') && url.origin === HERE) return value;
+        return url.protocol === 'https:' ? url.href : null;
     } catch {
         return null;
     }
@@ -99,6 +115,7 @@ const interpret = file => {
         aiEndpoint,
         // Whether people sign in to use the AI helper, see `account/sign-in.js`.
         account: !!aiEndpoint && file.account === true,
+        homeUrl: homeFrom(file.homeUrl),
         approval: file.approval === BIG_CHANGES_ONLY ? 'big' : 'every',
         proposalExpirySeconds: expiryFrom(file.proposalExpirySeconds),
         // How the AI helper starts: suggesting changes, or teaching the student to make them.

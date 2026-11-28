@@ -391,7 +391,8 @@ const createApp = (vm, {
             } else if (zone === 'menu') {
                 focusWhenReady(() => {
                     const menu = zoneElement(document, 'menu');
-                    return menu && focusableWithin(menu)[0];
+                    // Not the logo, which leads away from the editor.
+                    return menu && focusableWithin(menu).find(control => !control.matches('[data-brailled-home]'));
                 }, arrive);
             } else if (zone === 'stage') {
                 focusWhenReady(() => zoneElement(document, 'stage'), arrive);

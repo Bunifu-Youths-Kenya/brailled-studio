@@ -531,6 +531,7 @@ conversation ("yes", then "add all" or "step by step").
 | `proposalExpirySeconds` | 30 to 900. Numbers outside that become the nearest limit | 120, also for anything that is not a number |
 | `voice` | `true`, `false`, or the [voice settings](#voice-settings) | Off |
 | `conversation` | `enabled`, `voiceApproval`, `idleSeconds`: [talking on](#conversation) after the wake words | Off |
+| `homeUrl` | The website's home page, which the logo in the menu bar then leads to ("go to menu" starts at the control after it): a path such as `"/"`, or an `https` address | None: the logo is not a link |
 | `earcons` | `enabled`, `volume`, `pitchByCategory`, `events`: [short sounds](#earcons) for what happens | Off |
 | `wakeWord` | `enabled`, `engine` (`"demo"` or `"on-device"`), `greetings`, `variants` | Off |
 | `assistantName` | What the assistant is called: up to 30 letters | `"Mboni"`, also for anything that is not a name |

@@ -27,6 +27,7 @@
     "ai": true,
     "aiEndpoint": "https://rwevlhclrbwwdgahfwpk.supabase.co/functions/v1/ai/assistant",
     "account": true,
+    "homeUrl": "/",
     "approval": "every time",
     "proposalExpirySeconds": 120
 }

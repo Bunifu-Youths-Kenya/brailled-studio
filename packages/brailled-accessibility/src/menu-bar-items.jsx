@@ -6,10 +6,16 @@ import {defineMessages, FormattedMessage, useIntl} from 'react-intl';
 
 import signInMessages from './account/editor-messages.js';
 import {signIn} from './account/sign-in.js';
+import {getApp} from './actions/app.js';
 import logo from './brand/brailled-logo.png';
 import styles from './menu-bar-items.css';
 
 const messages = defineMessages({
+    home: {
+        id: 'brailled.menuBar.home',
+        defaultMessage: 'Brailled Education home',
+        description: 'Accessible name of the logo in the menu bar where it leads to the home page of the website'
+    },
     language: {
         id: 'brailled.menuBar.language',
         defaultMessage: 'Language',
@@ -28,16 +34,35 @@ const messages = defineMessages({
 });
 
 // The product logo, drawn straight on the menu bar. Its name is what the lettering says, which is not translated.
-const BrandName = () => (
-    <span className={styles.brand}>
+// Where the configuration gives the website's home page, the logo leads there, in the same tab: the editor asks
+// before it is left.
+const BrandName = ({vm}) => {
+    const intl = useIntl();
+    const {config} = getApp(vm);
+    const {homeUrl} = useSyncExternalStore(config.subscribe, config.get);
+    const image = (
         <img
             alt="Brailled Education"
             className={styles.brandLogo}
             draggable={false}
             src={logo}
         />
-    </span>
-);
+    );
+    return homeUrl ? (
+        <a
+            aria-label={intl.formatMessage(messages.home)}
+            className={classNames(styles.brand, styles.link)}
+            data-brailled-home
+            href={homeUrl}
+        >
+            {image}
+        </a>
+    ) : <span className={styles.brand}>{image}</span>;
+};
+
+BrandName.propTypes = {
+    vm: PropTypes.shape({on: PropTypes.func}).isRequired
+};
 
 const LanguageControl = ({className, icon, Selector}) => {
     const intl = useIntl();
